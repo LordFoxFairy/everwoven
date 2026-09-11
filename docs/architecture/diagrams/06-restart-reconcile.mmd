@@ -1,0 +1,40 @@
+sequenceDiagram
+  %% 本地内容恢复与未决远端核对是独立维度，taskId 不阻塞已有媒体。
+  participant Boot as Runtime 启动与 API
+  participant D as SQLite
+  participant W as 恢复调度
+  participant V as 供应商
+  participant P as Player
+  Boot->>D: 验证迁移/引擎/零外键结构，取得实例租约
+  opt 旧备份恢复启动
+    Boot->>D: 隔离检查，轮换storeEpoch及经历流身份
+    Boot->>D: 废止旧会话/lease/未接受Quote；保持暂停
+  end
+  P->>Boot: 重新鉴权，获取快照与带世代cursor
+  Boot->>D: 同一读快照：保存点/草稿/媒体/预算/recoveryTarget/cursor
+  opt 有完整且已验证的本地片段
+    Boot-->>P: 立即恢复本地画面/位置/草稿，不等待远端
+  end
+  alt 来自旧备份恢复
+    Boot->>W: 隔离模式，禁止付费出站及自动调度
+    W->>D: 标记需核对操作，不假定备份之后没有费用
+    W-->>P: 可只读查看；核对并显式恢复后开放推进
+  else 正常重启
+    W->>D: 仅扫描未决 operation / 费用
+    alt 未决且已有 taskId
+      alt 尚在供应商可查询窗口
+        W->>V: 后台查询原账户任务，不新建
+        V-->>W: 进度 / 结果 / 用量或查询失败
+        W->>D: 幂等写回或保留未决，既有画面不受阻
+      else 查询保留期已过
+        W->>D: 标记retentionExpired，停止无效轮询，保留费用责任
+        W-->>P: 需要受控核对，不自动重生成
+      end
+    else submitting 且没有 taskId
+      W->>D: submission_unknown，预留不释放
+      W-->>P: 该操作仅核对，不自动重提
+    else 没有未决操作
+      W-->>P: 按本地节点继续，无需远端查询
+    end
+  end
+  Note over Boot,P: 缺失本地文件是独立修复状态，不把它当作重新生成授权

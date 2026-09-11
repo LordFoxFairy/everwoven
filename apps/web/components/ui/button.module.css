@@ -1,0 +1,10 @@
+/* Doubled class intentionally outranks the legacy .stage button reset. */
+.button.button{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;min-height:44px;border:1px solid transparent;border-radius:12px;padding:10px 16px;font:inherit;font-size:13px;font-weight:550;line-height:1.5;white-space:normal;text-align:center;cursor:pointer;transition:background .16s,border-color .16s;outline-offset:3px}
+.button.button[data-variant=default]{background:var(--accent);color:var(--on-accent);box-shadow:0 3px 10px #4264d71a}
+.button.button[data-variant=default]:hover{background:var(--accent-hover)}
+.button.button[data-variant=outline]{background:var(--surface);color:var(--ink);border-color:var(--line-strong)}
+.button.button[data-variant=outline]:hover{background:var(--surface-soft)}
+.button.button:focus-visible{outline:3px solid var(--focus)}
+.button.button:disabled{opacity:.45;cursor:default;pointer-events:none}
+.button.button[data-size=sm]{min-height:36px;padding:6px 12px}
+@media(prefers-reduced-motion:reduce){.button.button{transition:none}}

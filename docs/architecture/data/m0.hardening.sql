@@ -1,0 +1,3 @@
+-- V1.2 review: intentionally no foreign keys, referential triggers or business triggers.
+-- Cross-record rules and CRUD lifecycle validation belong to the WriteGate application transaction.
+-- See DATA-DESIGN.md; the V1.1 trigger-based sample is archived, not an active migration.

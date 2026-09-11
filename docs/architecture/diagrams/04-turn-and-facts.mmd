@@ -1,0 +1,42 @@
+sequenceDiagram
+  %% SQL 事务不跨模型调用；计划、媒体、事实三次分开提交。
+  participant P as Player
+  participant A as tRPC / 应用 Service
+  participant D as SQLite
+  participant W as Worker / LangGraph
+  participant V as 官方模型
+  P->>A: 请求Quote（动作、节点、剧情版本）
+  A-->>P: 上界、素材、模型版本与有效期；不调用模型
+  P->>A: 确认Intent（幂等键、节点版本、草稿版本、control、quoteId）
+  A->>D: WriteGate短事务：幂等/控制/报价/两级预算/消费节点/一次预留/TurnRun/outbox/命令回执
+  alt 相同幂等键重复请求
+    A-->>P: 同摘要返回原回执，异摘要报冲突；不再次调度
+  else 节点冲突或预算不足
+    D-->>A: 回滚
+    A-->>P: 保留输入，不启动生成
+  else 已提交
+    A-->>P: accepted + turnId
+    W->>D: 获取租约 / 读取固定上下文
+    W->>V: 门禁检查后有界提案与视频请求(事务外)
+    alt 提交超时且受理状态未知
+      W->>D: submission_unknown / 保持预算预留
+      A-->>P: 等待核对，只开放核对或离开
+    else 已取得 taskId
+      W->>D: 保存同一 operation 的 taskId
+      loop 有界退避查询
+        W->>V: 查询既有 taskId
+        V-->>W: 状态 / 最终媒体
+      end
+      W->>W: 落地媒体 / 技术检查 / 语义检查
+      alt 检查未通过或不确定
+        W->>D: needs_attention，不提交候选事实
+        A-->>P: 保留上一画面 / 显式恢复动作
+      else 检查通过
+        W->>D: MediaSegment + 检查证据
+        A-->>P: 受权媒体源 ready
+        P->>A: 整段有效播放完成证据
+        A->>D: WriteGate短事务：核验片段/版本，事实+不可变Snapshot/Savepoint+新节点+事件
+        A-->>P: 片段后情境建议与自由回应入口
+      end
+    end
+  end

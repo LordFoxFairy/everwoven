@@ -1,0 +1,37 @@
+sequenceDiagram
+  participant U as 用户
+  participant P as P02 / P05 前端
+  participant A as tRPC / 应用 Service
+  participant D as SQLite
+  U->>P: 确认起点、人物、模型与初始预算
+  P->>A: 保存角色并freezeCharacter（有修改时）
+  A-->>P: 固定CharacterVersion
+  P->>A: updateStory绑定版本，再freezeStory
+  A-->>P: 固定StoryVersion
+  P->>A: createExperience（版本、绑定、budgetLimit、幂等键）
+  A->>D: WriteGate事务创建零调用根经历、BudgetScope及回执
+  A-->>P: preparing / media为空 / 无支出
+  P->>A: changeControlLease + quoteAction(start)
+  A->>D: 固定Profile与确定性Quote，不预留费用
+  A-->>P: 费用上界、实际输入用途、规格及有效期
+  P-->>U: 开始确认，不展示生成中
+  alt 修改设定、绑定或预算
+    U->>P: 返回编辑并确认新配置
+    Note over P,A: 显式准备新零调用经历；旧经历不变，不隐式PATCH
+  else 仅报价过期
+    P->>A: 同经历重新quoteAction
+    A-->>P: 新报价，重新确认
+  else 配置和报价有效
+    U->>P: 开始经历并接受当前费用
+    P->>A: startExperience(control, revision, acceptedQuoteId, 幂等键)
+    A->>D: 原子准入 / 两级预算 / 消费报价 / 一次预留 / Turn / outbox / 回执
+    alt 回执丢失
+      P->>A: getCommand（原幂等命令）
+      A-->>P: 原受理结果或按契约继续核对，不另起付费命令
+    else 已接受
+      A-->>P: 已接受语义 / operationId / turnId（tRPC wire另行冻结）
+    end
+    P->>A: getExperience + streamExperienceEvents
+    P-->>U: 进入单舞台，展示真实准备状态
+  end
+  Note over A,D: 外部模型调用由后续worker执行，数据库事务不跨网络

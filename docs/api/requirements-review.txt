@@ -1,0 +1,3 @@
+# Document validation only; not runtime application dependencies.
+openapi-spec-validator==0.7.2
+jsonschema==4.26.0

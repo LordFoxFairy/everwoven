@@ -1,0 +1,788 @@
+[
+  {
+    "name": "create story",
+    "schema": "CreateStory",
+    "valid": true,
+    "data": {
+      "title": "我的世界",
+      "settings": {
+        "premise": "玩家与角色的初次相遇，由玩家决定接下来的行动。",
+        "playerRole": "初到访者",
+        "worldRules": [
+          "尊重已经确认的世界事实"
+        ],
+        "tone": "自然温暖"
+      },
+      "cast": [],
+      "assets": []
+    }
+  },
+  {
+    "name": "owner injection",
+    "schema": "CreateStory",
+    "valid": false,
+    "data": {
+      "title": "我的世界",
+      "settings": {
+        "premise": "玩家与角色的初次相遇，由玩家决定接下来的行动。",
+        "playerRole": "初到访者",
+        "worldRules": [
+          "尊重已经确认的世界事实"
+        ],
+        "tone": "自然温暖"
+      },
+      "cast": [],
+      "assets": [],
+      "ownerId": "01993480-0000-7000-8000-000000000001"
+    }
+  },
+  {
+    "name": "empty patch",
+    "schema": "PatchStory",
+    "valid": false,
+    "data": {}
+  },
+  {
+    "name": "partial patch",
+    "schema": "PatchStory",
+    "valid": true,
+    "data": {
+      "title": "新的标题"
+    }
+  },
+  {
+    "name": "settings must be whole",
+    "schema": "PatchStory",
+    "valid": false,
+    "data": {
+      "settings": {
+        "tone": "温暖"
+      }
+    }
+  },
+  {
+    "name": "setup empty",
+    "schema": "Interaction",
+    "valid": true,
+    "data": {
+      "id": "01993480-0000-7000-8000-000000000004",
+      "experienceRevision": 1,
+      "kind": "setup",
+      "suggestions": [],
+      "freeInputAllowed": false,
+      "suggestionState": "not_applicable"
+    }
+  },
+  {
+    "name": "setup refuses options",
+    "schema": "Interaction",
+    "valid": false,
+    "data": {
+      "id": "01993480-0000-7000-8000-000000000004",
+      "experienceRevision": 1,
+      "kind": "setup",
+      "suggestions": [
+        {
+          "id": "01993480-0000-7000-8000-000000000005",
+          "label": "走近看看",
+          "utterance": "我可以看看吗？"
+        },
+        {
+          "id": "01993480-0000-7000-8000-000000000006",
+          "label": "问问近况",
+          "utterance": "你今天过得怎么样？"
+        }
+      ],
+      "freeInputAllowed": false,
+      "suggestionState": "not_applicable"
+    }
+  },
+  {
+    "name": "decision directions",
+    "schema": "Interaction",
+    "valid": true,
+    "data": {
+      "id": "01993480-0000-7000-8000-000000000004",
+      "experienceRevision": 2,
+      "kind": "decision",
+      "suggestions": [
+        {
+          "id": "01993480-0000-7000-8000-000000000005",
+          "label": "走近看看",
+          "utterance": "我可以看看吗？"
+        },
+        {
+          "id": "01993480-0000-7000-8000-000000000006",
+          "label": "问问近况",
+          "utterance": "你今天过得怎么样？"
+        }
+      ],
+      "freeInputAllowed": true,
+      "suggestionState": "ready"
+    }
+  },
+  {
+    "name": "decision without options",
+    "schema": "Interaction",
+    "valid": false,
+    "data": {
+      "id": "01993480-0000-7000-8000-000000000004",
+      "experienceRevision": 2,
+      "kind": "decision",
+      "suggestions": [],
+      "freeInputAllowed": true,
+      "suggestionState": "ready"
+    }
+  },
+  {
+    "name": "decision missing free entry",
+    "schema": "Interaction",
+    "valid": false,
+    "data": {
+      "id": "01993480-0000-7000-8000-000000000004",
+      "experienceRevision": 2,
+      "kind": "decision",
+      "suggestions": [
+        {
+          "id": "01993480-0000-7000-8000-000000000005",
+          "label": "走近看看",
+          "utterance": "我可以看看吗？"
+        },
+        {
+          "id": "01993480-0000-7000-8000-000000000006",
+          "label": "问问近况",
+          "utterance": "你今天过得怎么样？"
+        }
+      ],
+      "freeInputAllowed": false,
+      "suggestionState": "ready"
+    }
+  },
+  {
+    "name": "zero model create",
+    "schema": "CreateExperience",
+    "valid": true,
+    "data": {
+      "storyVersionId": "01993480-0000-7000-8000-000000000008",
+      "providerBindingVersionId": "01993480-0000-7000-8000-000000000009",
+      "budgetLimit": {
+        "amountMicros": "0",
+        "currency": "CNY"
+      }
+    }
+  },
+  {
+    "name": "numeric money rejected",
+    "schema": "Money",
+    "valid": false,
+    "data": {
+      "amountMicros": 0,
+      "currency": "CNY"
+    }
+  },
+  {
+    "name": "negative money rejected",
+    "schema": "Money",
+    "valid": false,
+    "data": {
+      "amountMicros": "-1",
+      "currency": "CNY"
+    }
+  },
+  {
+    "name": "precise integer money",
+    "schema": "Money",
+    "valid": true,
+    "data": {
+      "amountMicros": "1500000",
+      "currency": "CNY"
+    }
+  },
+  {
+    "name": "provider url rejected",
+    "schema": "CreateProviderBinding",
+    "valid": false,
+    "data": {
+      "bindingKey": "official_video",
+      "catalogId": "review-candidate",
+      "aspectRatio": "16:9",
+      "baseUrl": "https://example.invalid"
+    }
+  },
+  {
+    "name": "quote start bound revision",
+    "schema": "QuoteRequest",
+    "valid": true,
+    "data": {
+      "action": {
+        "kind": "start",
+        "expectedExperienceRevision": 1
+      }
+    }
+  },
+  {
+    "name": "quote start missing revision",
+    "schema": "QuoteRequest",
+    "valid": false,
+    "data": {
+      "action": {
+        "kind": "start"
+      }
+    }
+  },
+  {
+    "name": "start quote acceptance",
+    "schema": "StartRequest",
+    "valid": true,
+    "data": {
+      "control": {
+        "leaseId": "01993480-0000-7000-8000-000000000001",
+        "leaseEpoch": 1,
+        "clientInstanceId": "01993480-0000-7000-8000-000000000002",
+        "controlToken": "example-only-not-a-real-control-token-0001"
+      },
+      "expectedExperienceRevision": 1,
+      "acceptedQuoteId": "01993480-0000-7000-8000-000000000011"
+    }
+  },
+  {
+    "name": "boolean consent insufficient",
+    "schema": "StartRequest",
+    "valid": false,
+    "data": {
+      "control": {
+        "leaseId": "01993480-0000-7000-8000-000000000001",
+        "leaseEpoch": 1,
+        "clientInstanceId": "01993480-0000-7000-8000-000000000002",
+        "controlToken": "example-only-not-a-real-control-token-0001"
+      },
+      "expectedExperienceRevision": 1,
+      "confirmed": true
+    }
+  },
+  {
+    "name": "submit free",
+    "schema": "IntentRequest",
+    "valid": true,
+    "data": {
+      "control": {
+        "leaseId": "01993480-0000-7000-8000-000000000001",
+        "leaseEpoch": 1,
+        "clientInstanceId": "01993480-0000-7000-8000-000000000002",
+        "controlToken": "example-only-not-a-real-control-token-0001"
+      },
+      "action": {
+        "kind": "intent",
+        "interactionEventId": "01993480-0000-7000-8000-000000000004",
+        "expectedExperienceRevision": 2,
+        "response": {
+          "kind": "free",
+          "text": "我想看看窗外，可以一起过去吗？"
+        }
+      },
+      "expectedDraftRevision": 1,
+      "acceptedQuoteId": "01993480-0000-7000-8000-000000000011"
+    }
+  },
+  {
+    "name": "blank free rejected",
+    "schema": "FreeResponse",
+    "valid": false,
+    "data": {
+      "kind": "free",
+      "text": ""
+    }
+  },
+  {
+    "name": "ambiguous union rejected",
+    "schema": "PlayerResponse",
+    "valid": false,
+    "data": {
+      "kind": "choice",
+      "suggestionId": "01993480-0000-7000-8000-000000000005",
+      "text": "替换"
+    }
+  },
+  {
+    "name": "save draft",
+    "schema": "DraftUpdate",
+    "valid": true,
+    "data": {
+      "interactionEventId": "01993480-0000-7000-8000-000000000004",
+      "expectedDraftRevision": 1,
+      "expectedExperienceRevision": 2,
+      "text": "还没发出"
+    }
+  },
+  {
+    "name": "pause only confirmed position",
+    "schema": "PauseRequest",
+    "valid": true,
+    "data": {
+      "control": {
+        "leaseId": "01993480-0000-7000-8000-000000000001",
+        "leaseEpoch": 1,
+        "clientInstanceId": "01993480-0000-7000-8000-000000000002",
+        "controlToken": "example-only-not-a-real-control-token-0001"
+      },
+      "expectedRowRevision": 2,
+      "draft": null
+    }
+  },
+  {
+    "name": "takeover explicit",
+    "schema": "LeaseRequest",
+    "valid": true,
+    "data": {
+      "kind": "takeover",
+      "clientInstanceId": "01993480-0000-7000-8000-000000000002",
+      "expectedLeaseEpoch": 1,
+      "confirmed": true
+    }
+  },
+  {
+    "name": "takeover implicit rejected",
+    "schema": "LeaseRequest",
+    "valid": false,
+    "data": {
+      "kind": "takeover",
+      "clientInstanceId": "01993480-0000-7000-8000-000000000002",
+      "expectedLeaseEpoch": 1
+    }
+  },
+  {
+    "name": "local recovery",
+    "schema": "RetryRequest",
+    "valid": true,
+    "data": {
+      "mode": "local_recovery",
+      "control": {
+        "leaseId": "01993480-0000-7000-8000-000000000001",
+        "leaseEpoch": 1,
+        "clientInstanceId": "01993480-0000-7000-8000-000000000002",
+        "controlToken": "example-only-not-a-real-control-token-0001"
+      },
+      "expectedExperienceRevision": 2
+    }
+  },
+  {
+    "name": "new attempt needs quote",
+    "schema": "RetryRequest",
+    "valid": false,
+    "data": {
+      "mode": "new_attempt",
+      "control": {
+        "leaseId": "01993480-0000-7000-8000-000000000001",
+        "leaseEpoch": 1,
+        "clientInstanceId": "01993480-0000-7000-8000-000000000002",
+        "controlToken": "example-only-not-a-real-control-token-0001"
+      },
+      "expectedExperienceRevision": 2
+    }
+  },
+  {
+    "name": "playback complete",
+    "schema": "PlaybackReport",
+    "valid": true,
+    "data": {
+      "control": {
+        "leaseId": "01993480-0000-7000-8000-000000000001",
+        "leaseEpoch": 1,
+        "clientInstanceId": "01993480-0000-7000-8000-000000000002",
+        "controlToken": "example-only-not-a-real-control-token-0001"
+      },
+      "segmentId": "01993480-0000-7000-8000-000000000005",
+      "playbackInstanceId": "01993480-0000-7000-8000-000000000006",
+      "sequence": "3",
+      "positionMs": 6000,
+      "state": "completed"
+    }
+  },
+  {
+    "name": "sequence number rejected",
+    "schema": "Sequence",
+    "valid": false,
+    "data": 9007199254740993
+  },
+  {
+    "name": "large sequence string",
+    "schema": "Sequence",
+    "valid": true,
+    "data": "9007199254740993"
+  },
+  {
+    "name": "epoch cursor",
+    "schema": "EventCursor",
+    "valid": true,
+    "data": "01993480-0000-7000-8000-000000000003:10"
+  },
+  {
+    "name": "legacy bare cursor rejected",
+    "schema": "EventCursor",
+    "valid": false,
+    "data": "10"
+  },
+  {
+    "name": "initial snapshot",
+    "schema": "Experience",
+    "valid": true,
+    "data": {
+      "id": "01993480-0000-7000-8000-000000000007",
+      "storyVersionId": "01993480-0000-7000-8000-000000000008",
+      "providerBindingVersionId": "01993480-0000-7000-8000-000000000009",
+      "createdAt": "2026-09-10T12:00:00.000Z",
+      "updatedAt": "2026-09-10T12:00:00.000Z",
+      "deletedAt": null,
+      "revision": 1,
+      "rowRevision": 1,
+      "status": "preparing",
+      "schedulingPaused": true,
+      "dispatchEpoch": 0,
+      "lastEventSequence": "0",
+      "eventStreamId": "01993480-0000-7000-8000-000000000003",
+      "eventCursor": "01993480-0000-7000-8000-000000000003:0",
+      "currentInteraction": {
+        "id": "01993480-0000-7000-8000-000000000004",
+        "experienceRevision": 1,
+        "kind": "setup",
+        "suggestions": [],
+        "freeInputAllowed": false,
+        "suggestionState": "not_applicable"
+      },
+      "responseDraft": {
+        "id": "01993480-0000-7000-8000-000000000010",
+        "interactionEventId": "01993480-0000-7000-8000-000000000004",
+        "draftRevision": 1,
+        "text": "",
+        "updatedAt": "2026-09-10T12:00:00.000Z"
+      },
+      "media": null,
+      "savedPositionMs": 0,
+      "pendingOperationIds": [],
+      "budget": {
+        "limit": {
+          "amountMicros": "10000000",
+          "currency": "CNY"
+        },
+        "reserved": {
+          "amountMicros": "0",
+          "currency": "CNY"
+        },
+        "settled": {
+          "amountMicros": "0",
+          "currency": "CNY"
+        },
+        "unresolved": {
+          "amountMicros": "0",
+          "currency": "CNY"
+        }
+      },
+      "allowedActions": {
+        "start": false,
+        "respond": false,
+        "pause": false,
+        "resume": false,
+        "retry": false,
+        "reconcile": false,
+        "delete": false
+      },
+      "controlSummary": null,
+      "recoveryTarget": null
+    }
+  },
+  {
+    "name": "event snapshot",
+    "schema": "EventEnvelope",
+    "valid": true,
+    "data": {
+      "eventId": "01993480-0000-7000-8000-000000000011",
+      "sequence": "1",
+      "schemaVersion": 1,
+      "eventStreamId": "01993480-0000-7000-8000-000000000003",
+      "experienceId": "01993480-0000-7000-8000-000000000007",
+      "occurredAt": "2026-09-10T12:00:00.000Z",
+      "type": "experience.snapshot",
+      "payload": {
+        "id": "01993480-0000-7000-8000-000000000007",
+        "storyVersionId": "01993480-0000-7000-8000-000000000008",
+        "providerBindingVersionId": "01993480-0000-7000-8000-000000000009",
+        "createdAt": "2026-09-10T12:00:00.000Z",
+        "updatedAt": "2026-09-10T12:00:00.000Z",
+        "deletedAt": null,
+        "revision": 1,
+        "rowRevision": 1,
+        "status": "preparing",
+        "schedulingPaused": true,
+        "dispatchEpoch": 0,
+        "lastEventSequence": "1",
+        "eventStreamId": "01993480-0000-7000-8000-000000000003",
+        "eventCursor": "01993480-0000-7000-8000-000000000003:1",
+        "currentInteraction": {
+          "id": "01993480-0000-7000-8000-000000000004",
+          "experienceRevision": 1,
+          "kind": "setup",
+          "suggestions": [],
+          "freeInputAllowed": false,
+          "suggestionState": "not_applicable"
+        },
+        "responseDraft": {
+          "id": "01993480-0000-7000-8000-000000000010",
+          "interactionEventId": "01993480-0000-7000-8000-000000000004",
+          "draftRevision": 1,
+          "text": "",
+          "updatedAt": "2026-09-10T12:00:00.000Z"
+        },
+        "media": null,
+        "savedPositionMs": 0,
+        "pendingOperationIds": [],
+        "budget": {
+          "limit": {
+            "amountMicros": "10000000",
+            "currency": "CNY"
+          },
+          "reserved": {
+            "amountMicros": "0",
+            "currency": "CNY"
+          },
+          "settled": {
+            "amountMicros": "0",
+            "currency": "CNY"
+          },
+          "unresolved": {
+            "amountMicros": "0",
+            "currency": "CNY"
+          }
+        },
+        "allowedActions": {
+          "start": false,
+          "respond": false,
+          "pause": false,
+          "resume": false,
+          "retry": false,
+          "reconcile": false,
+          "delete": false
+        },
+        "controlSummary": null,
+        "recoveryTarget": null
+      }
+    }
+  },
+  {
+    "name": "unrecognized event rejected",
+    "schema": "EventEnvelope",
+    "valid": false,
+    "data": {
+      "eventId": "01993480-0000-7000-8000-000000000011",
+      "sequence": "1",
+      "schemaVersion": 1,
+      "eventStreamId": "01993480-0000-7000-8000-000000000003",
+      "experienceId": "01993480-0000-7000-8000-000000000007",
+      "occurredAt": "2026-09-10T12:00:00.000Z",
+      "type": "execute.javascript",
+      "payload": {}
+    }
+  },
+  {
+    "name": "conflict error",
+    "schema": "ApiError",
+    "valid": true,
+    "data": {
+      "error": {
+        "code": "NODE_STALE",
+        "message": "此回应节点已变化，已保留你的输入。",
+        "retryable": false,
+        "retryAction": "refresh_snapshot",
+        "requestId": "req_example_001",
+        "details": {
+          "currentRevision": 3,
+          "snapshotUrl": "/api/v1/experiences/01993480-0000-7000-8000-000000000007"
+        }
+      }
+    }
+  },
+  {
+    "name": "utc invalid calendar",
+    "schema": "UtcTime",
+    "valid": false,
+    "data": "2026-02-30T12:00:00.000Z"
+  },
+  {
+    "name": "uuid wrong version",
+    "schema": "Id",
+    "valid": false,
+    "data": "01993480-0000-4000-8000-000000000001"
+  },
+  {
+    "name": "response meta",
+    "schema": "ResponseMeta",
+    "valid": true,
+    "data": {
+      "requestId": "req_example_001",
+      "replayed": false,
+      "storeEpoch": "01993480-0000-7000-8000-000000000003"
+    }
+  },
+  {
+    "name": "suggestions failure keeps free response",
+    "schema": "Interaction",
+    "valid": true,
+    "data": {
+      "id": "01993480-0000-7000-8000-000000000004",
+      "experienceRevision": 2,
+      "kind": "decision",
+      "suggestions": [],
+      "freeInputAllowed": true,
+      "suggestionState": "unavailable"
+    }
+  },
+  {
+    "name": "failed suggestions no fake options",
+    "schema": "Interaction",
+    "valid": false,
+    "data": {
+      "id": "01993480-0000-7000-8000-000000000004",
+      "experienceRevision": 2,
+      "kind": "decision",
+      "suggestions": [
+        {
+          "id": "01993480-0000-7000-8000-000000000005",
+          "label": "走近看看",
+          "utterance": "我可以看看吗？"
+        },
+        {
+          "id": "01993480-0000-7000-8000-000000000006",
+          "label": "问问近况",
+          "utterance": "你今天过得怎么样？"
+        }
+      ],
+      "freeInputAllowed": true,
+      "suggestionState": "unavailable"
+    }
+  },
+  {
+    "name": "public control summary without secret",
+    "schema": "ControlSummary",
+    "valid": true,
+    "data": {
+      "leaseEpoch": 2,
+      "clientInstanceId": "01993480-0000-7000-8000-000000000002",
+      "expiresAt": "2026-09-10T12:00:30.000Z",
+      "expired": false
+    }
+  },
+  {
+    "name": "silent media explicit confirmation",
+    "schema": "GenerationSummary",
+    "valid": true,
+    "data": {
+      "providerId": "review-provider",
+      "modelId": "review-model",
+      "durationSeconds": 6,
+      "width": 1920,
+      "height": 1080,
+      "aspectRatio": "16:9",
+      "audioMode": "silent",
+      "promptSummary": "依据本轮回应生成下一片段；仅作为契约样本。",
+      "inputs": [],
+      "dimensionMode": "exact",
+      "resolution": "fixture-1080P"
+    }
+  },
+  {
+    "name": "audio mode cannot be omitted",
+    "schema": "GenerationSummary",
+    "valid": false,
+    "data": {
+      "providerId": "review-provider",
+      "modelId": "review-model",
+      "durationSeconds": 6,
+      "width": 1920,
+      "height": 1080,
+      "aspectRatio": "16:9",
+      "promptSummary": "依据本轮回应生成下一片段；仅作为契约样本。",
+      "inputs": [],
+      "dimensionMode": "exact",
+      "resolution": "fixture-1080P"
+    }
+  },
+  {
+    "name": "terminal failure recoverable after reopening",
+    "schema": "RecoveryTarget",
+    "valid": true,
+    "data": {
+      "turnId": "01993480-0000-7000-8000-000000000001",
+      "operationId": "01993480-0000-7000-8000-000000000001",
+      "allowedRetryModes": [
+        "new_attempt"
+      ],
+      "reconcileRequired": false
+    }
+  },
+  {
+    "name": "recovery requires explicit turn",
+    "schema": "RecoveryTarget",
+    "valid": false,
+    "data": {
+      "operationId": "01993480-0000-7000-8000-000000000001",
+      "allowedRetryModes": [],
+      "reconcileRequired": true
+    }
+  },
+  {
+    "name": "binding needs explicit connection",
+    "schema": "CreateProviderBinding",
+    "valid": false,
+    "data": {
+      "bindingKey": "video",
+      "catalogId": "review-model",
+      "aspectRatio": "16:9"
+    }
+  },
+  {
+    "name": "binding selects explicit connection",
+    "schema": "CreateProviderBinding",
+    "valid": true,
+    "data": {
+      "bindingKey": "video",
+      "catalogId": "review-model",
+      "aspectRatio": "16:9",
+      "connectionId": "01993480-0000-7000-8000-000000000001"
+    }
+  },
+  {
+    "name": "provider resolved dimensions not guessed",
+    "schema": "GenerationSummary",
+    "valid": true,
+    "data": {
+      "providerId": "review-provider",
+      "modelId": "review-model",
+      "durationSeconds": 6,
+      "width": null,
+      "height": null,
+      "aspectRatio": "16:9",
+      "audioMode": "silent",
+      "promptSummary": "依据本轮回应生成下一片段；仅作为契约样本。",
+      "inputs": [],
+      "dimensionMode": "provider_resolved",
+      "resolution": "fixture-1080P"
+    }
+  },
+  {
+    "name": "exact dimensions must be known",
+    "schema": "GenerationSummary",
+    "valid": false,
+    "data": {
+      "providerId": "review-provider",
+      "modelId": "review-model",
+      "durationSeconds": 6,
+      "width": null,
+      "height": 1080,
+      "aspectRatio": "16:9",
+      "audioMode": "silent",
+      "promptSummary": "依据本轮回应生成下一片段；仅作为契约样本。",
+      "inputs": [],
+      "dimensionMode": "exact",
+      "resolution": "fixture-1080P"
+    }
+  }
+]

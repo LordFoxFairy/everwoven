@@ -1,0 +1,260 @@
+// M0 initial schema, reviewed V1.2: no database foreign keys, no ORM relations, no triggers.
+// Primary keys + reviewed TRUE business uniqueness only; see UNIQUE-KEY-REGISTER.md.
+// Reference/lifecycle validation belongs to WriteGate; business UNIQUE is also enforced by SQL.
+// IDs and timestamps are supplied by runtime IdFactory / Clock, not database defaults.
+// Runtime jobs/media/facts/ledger will be added in M2/M3; see DATA-DESIGN.md.
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  moduleFormat = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider     = "sqlite"
+  relationMode = "prisma"
+}
+
+model LocalProfile {
+  writeEpoch  Int       @default(0) @map("write_epoch")
+  deletedAt   DateTime? @map("deleted_at")
+  id          String    @id
+  displayName String    @map("display_name")
+  createdAt   DateTime  @map("created_at")
+  updatedAt   DateTime  @map("updated_at")
+  revision    Int       @default(1)
+
+  @@map("local_profiles")
+}
+
+model CommandReceipt {
+  id            String   @id
+  ownerId       String   @map("owner_id")
+  commandId     String   @map("command_id")
+  commandType   String   @map("command_type")
+  payloadHash   String   @map("payload_hash")
+  response      Json
+  schemaVersion Int      @default(1) @map("schema_version")
+  createdAt     DateTime @map("created_at")
+
+  @@unique([ownerId, commandId], map: "uq_command_receipts_owner_command")
+  @@map("command_receipts")
+}
+
+model StoryDraft {
+  deletedAt     DateTime? @map("deleted_at")
+  id            String    @id
+  ownerId       String    @map("owner_id")
+  title         String
+  settings      Json
+  schemaVersion Int       @default(1) @map("schema_version")
+  archivedAt    DateTime? @map("archived_at")
+  createdAt     DateTime  @map("created_at")
+  updatedAt     DateTime  @map("updated_at")
+  revision      Int       @default(1)
+
+  @@index([ownerId, deletedAt, archivedAt, updatedAt, id], map: "ix_story_drafts_owner_list")
+  @@map("story_drafts")
+}
+
+model StoryVersion {
+  sealedAt       DateTime? @map("sealed_at")
+  id             String    @id
+  ownerId        String    @map("owner_id")
+  storyDraftId   String    @map("story_draft_id")
+  versionNo      Int       @map("version_no")
+  sourceRevision Int       @map("source_revision")
+  title          String
+  settings       Json
+  contentHash    String?   @map("content_hash")
+  schemaVersion  Int       @default(1) @map("schema_version")
+  createdAt      DateTime  @map("created_at")
+
+  @@unique([storyDraftId, versionNo], map: "uq_story_versions_number")
+  @@unique([storyDraftId, sourceRevision], map: "uq_story_versions_source")
+  @@map("story_versions")
+}
+
+model Asset {
+  id                String    @id
+  ownerId           String    @map("owner_id")
+  storageKey        String    @map("storage_key")
+  sha256            String
+  mimeType          String    @map("mime_type")
+  byteSize          BigInt    @map("byte_size")
+  rightsDeclaration String    @map("rights_declaration")
+  status            String    @default("ready")
+  deletedAt         DateTime? @map("deleted_at")
+  createdAt         DateTime  @map("created_at")
+  updatedAt         DateTime  @map("updated_at")
+  revision          Int       @default(1)
+
+  @@unique([storageKey], map: "uq_assets_storage_key")
+  @@index([ownerId, sha256], map: "ix_assets_owner_hash")
+  @@map("assets")
+}
+
+model CharacterTemplate {
+  deletedAt       DateTime? @map("deleted_at")
+  id              String    @id
+  ownerId         String    @map("owner_id")
+  name            String
+  settings        Json
+  portraitAssetId String?   @map("portrait_asset_id")
+  schemaVersion   Int       @default(1) @map("schema_version")
+  archivedAt      DateTime? @map("archived_at")
+  createdAt       DateTime  @map("created_at")
+  updatedAt       DateTime  @map("updated_at")
+  revision        Int       @default(1)
+
+  @@index([ownerId, deletedAt, archivedAt, updatedAt, id], map: "ix_character_templates_owner_list")
+  @@index([ownerId, portraitAssetId], map: "ix_character_templates_portrait")
+  @@map("character_templates")
+}
+
+model CharacterVersion {
+  id                  String   @id
+  ownerId             String   @map("owner_id")
+  characterTemplateId String   @map("character_template_id")
+  versionNo           Int      @map("version_no")
+  sourceRevision      Int      @map("source_revision")
+  name                String
+  settings            Json
+  portraitAssetId     String?  @map("portrait_asset_id")
+  schemaVersion       Int      @default(1) @map("schema_version")
+  createdAt           DateTime @map("created_at")
+
+  @@unique([characterTemplateId, versionNo], map: "uq_character_versions_number")
+  @@unique([characterTemplateId, sourceRevision], map: "uq_character_versions_source")
+  @@index([ownerId, portraitAssetId], map: "ix_character_versions_portrait")
+  @@map("character_versions")
+}
+
+model StoryDraftCast {
+  id                 String   @id
+  ownerId            String   @map("owner_id")
+  storyDraftId       String   @map("story_draft_id")
+  characterVersionId String   @map("character_version_id")
+  slotKey            String   @map("slot_key")
+  overrides          Json
+  schemaVersion      Int      @default(1) @map("schema_version")
+  createdAt          DateTime @map("created_at")
+
+  @@unique([storyDraftId, slotKey], map: "uq_story_draft_cast_slot")
+  @@index([ownerId, characterVersionId], map: "ix_story_draft_cast_character")
+  @@map("story_draft_cast")
+}
+
+model StoryDraftAsset {
+  id           String   @id
+  ownerId      String   @map("owner_id")
+  storyDraftId String   @map("story_draft_id")
+  assetId      String   @map("asset_id")
+  slotKey      String   @map("slot_key")
+  purpose      String
+  createdAt    DateTime @map("created_at")
+
+  @@unique([storyDraftId, slotKey], map: "uq_story_draft_assets_slot")
+  @@index([ownerId, assetId], map: "ix_story_draft_assets_asset")
+  @@map("story_draft_assets")
+}
+
+model StoryVersionCast {
+  id                 String   @id
+  ownerId            String   @map("owner_id")
+  storyVersionId     String   @map("story_version_id")
+  characterVersionId String   @map("character_version_id")
+  slotKey            String   @map("slot_key")
+  overrides          Json
+  schemaVersion      Int      @default(1) @map("schema_version")
+  createdAt          DateTime @map("created_at")
+
+  @@unique([storyVersionId, slotKey], map: "uq_story_version_cast_slot")
+  @@index([ownerId, characterVersionId], map: "ix_story_version_cast_character")
+  @@map("story_version_cast")
+}
+
+model StoryVersionAsset {
+  id             String   @id
+  ownerId        String   @map("owner_id")
+  storyVersionId String   @map("story_version_id")
+  assetId        String   @map("asset_id")
+  slotKey        String   @map("slot_key")
+  purpose        String
+  createdAt      DateTime @map("created_at")
+
+  @@unique([storyVersionId, slotKey], map: "uq_story_version_assets_slot")
+  @@index([ownerId, assetId], map: "ix_story_version_assets_asset")
+  @@map("story_version_assets")
+}
+
+model ProviderBindingVersion {
+  id                String   @id
+  ownerId           String   @map("owner_id")
+  bindingKey        String   @map("binding_key")
+  versionNo         Int      @map("version_no")
+  providerId        String   @map("provider_id")
+  modelId           String   @map("model_id")
+  adapterVersion    String   @map("adapter_version")
+  capabilityVersion String   @map("capability_version")
+  mode              String
+  credentialRef     String   @map("credential_ref")
+  parameters        Json
+  capabilities      Json
+  schemaVersion     Int      @default(1) @map("schema_version")
+  createdAt         DateTime @map("created_at")
+
+  @@unique([ownerId, bindingKey, versionNo], map: "uq_provider_binding_versions_number")
+  @@map("provider_binding_versions")
+}
+
+model Experience {
+  budgetLimitMicros        BigInt    @map("budget_limit_micros")
+  budgetCurrency           String    @map("budget_currency")
+  deletedAt                DateTime? @map("deleted_at")
+  rowRevision              Int       @default(1) @map("row_revision")
+  id                       String    @id
+  ownerId                  String    @map("owner_id")
+  storyVersionId           String    @map("story_version_id")
+  providerBindingVersionId String    @map("provider_binding_version_id")
+  status                   String    @default("preparing")
+  schedulingPaused         Boolean   @default(true) @map("scheduling_paused")
+  dispatchEpoch            Int       @default(0) @map("dispatch_epoch")
+  archivedAt               DateTime? @map("archived_at")
+  createdAt                DateTime  @map("created_at")
+  updatedAt                DateTime  @map("updated_at")
+  revision                 Int       @default(1)
+
+  @@index([ownerId, deletedAt, archivedAt, updatedAt, id], map: "ix_experiences_owner_list")
+  @@index([ownerId, storyVersionId], map: "ix_experiences_story_version")
+  @@index([ownerId, providerBindingVersionId], map: "ix_experiences_binding")
+  @@map("experiences")
+}
+
+model InteractionEvent {
+  id                 String   @id
+  ownerId            String   @map("owner_id")
+  experienceId       String   @map("experience_id")
+  kind               String
+  experienceRevision Int      @map("experience_revision")
+  options            Json
+  schemaVersion      Int      @default(1) @map("schema_version")
+  createdAt          DateTime @map("created_at")
+
+  @@unique([experienceId, experienceRevision], map: "uq_interaction_events_revision")
+  @@map("interaction_events")
+}
+
+model ResponseDraft {
+  id                 String   @id
+  ownerId            String   @map("owner_id")
+  experienceId       String   @map("experience_id")
+  interactionEventId String   @map("interaction_event_id")
+  text               String   @default("")
+  createdAt          DateTime @map("created_at")
+  updatedAt          DateTime @map("updated_at")
+  revision           Int      @default(1)
+
+  @@unique([ownerId, interactionEventId], map: "uq_response_drafts_node")
+  @@map("response_drafts")
+}

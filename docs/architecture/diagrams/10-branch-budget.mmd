@@ -1,0 +1,29 @@
+sequenceDiagram
+  participant A as 分支 A
+  participant B as 分支 B
+  participant S as 准入 Service / WriteGate
+  participant D as SQLite 单账本
+  participant W as 内部 Worker
+  A->>S: 接受 Quote A（命令 / 控制 / 节点版本）
+  B->>S: 同时接受 Quote B
+  S->>D: 串行短事务：回执 / scope 与 A 余额 / 原子预留一次
+  D-->>S: 提交 A 预留、回合与回执
+  S-->>A: 已接受
+  S->>D: 下一短事务：以 A 提交后的余额检查 scope 与 B
+  alt 共同余额或 B 子限额不足
+    D-->>S: 回滚，不消费 B 节点或 Quote
+    S-->>B: 额度不足 / 保留回应
+  else 两级额度均足够
+    D-->>S: 提交 B 的独立预留与回执
+    S-->>B: 已接受
+  end
+  Note over S,W: 唯一调度拥有者：scope门锁 → 经历门锁 → WriteGate
+  W->>D: scope门内最终检查并登记提交，再开始发送后释放门锁
+  alt 提交后受理状态未知
+    W->>D: 同scope门内标记 submission_unknown，保留原预留
+    Note over A,W: unknown先提交则禁止新请求；已先开始的请求仍属在途责任
+  else 有可核对终态
+    W->>D: 原子结算原费用一次并释放对应预留
+  end
+  Note over S,W: 同一账本分别按 scope 与 experience 汇总<br/>费用不复制，未决属于预留的一部分
+  Note over A,D: fork、删除或暂停不增加 scope 上限，也不释放既有责任

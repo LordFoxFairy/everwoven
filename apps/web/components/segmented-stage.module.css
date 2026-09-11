@@ -1,0 +1,67 @@
+.stage{position:relative;width:100%;height:100dvh;overflow:hidden;background:var(--stage-bg);color:var(--ink);isolation:isolate}
+
+.media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+
+.noMedia{height:100%;display:grid;place-items:center;background:var(--accent-soft);color:var(--muted)}
+
+.header{position:absolute;inset:20px 24px auto;display:flex;justify-content:space-between;gap:16px;pointer-events:none}
+
+.heading,.tools{pointer-events:auto;display:flex;align-items:center;gap:10px;padding:4px 9px;background:var(--surface-glass);border:1px solid #ffffffb3;backdrop-filter:blur(18px);border-radius:30px;box-shadow:0 4px 20px color-mix(in srgb,var(--stage-bg) 6%,transparent)}
+
+.heading{max-width:65%}
+.heading h1{font-size:14px;font-weight:550;margin:0 12px 0 0;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+
+.stage button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;border:0;border-radius:10px;background:transparent;color:inherit;cursor:pointer;padding:8px 10px;font:inherit;font-size:13px}
+
+.stage button:hover{background:color-mix(in srgb,var(--stage-bg) 6%,transparent)}
+.stage button:disabled{opacity:.45;cursor:default}
+.stage button:focus-visible,.stage textarea:focus-visible{outline:2px solid var(--focus);outline-offset:3px}
+
+.disclosure{position:absolute;top:74px;left:30px;font-size:11px;padding:5px 10px;border-radius:20px;background:var(--surface-glass);color:var(--muted);margin:0}
+
+.deck,.status{position:absolute;bottom:24px;left:24px;width:min(440px,calc(100% - 48px));max-height:calc(100% - 130px);overflow:auto;background:var(--surface-glass);backdrop-filter:blur(24px);border:1px solid #ffffffc9;border-radius:20px;box-shadow:0 12px 50px color-mix(in srgb,var(--stage-bg) 13%,transparent);padding:12px 20px}
+
+.deck>header{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:4px}
+
+.choice{display:flex;align-items:center;border-bottom:1px solid var(--line);gap:4px}
+.choice>button:first-child{justify-content:space-between;flex:1;text-align:left;padding:14px 4px;min-width:0;font-size:15px}
+.choice small{display:block;font-size:12px;font-weight:400;color:var(--muted);margin-top:5px;line-height:1.6}
+.choice span{overflow-wrap:anywhere}
+.choice .edit{font-size:11px;color:var(--muted)}
+
+.deck footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:8px}
+.deck footer small{font-size:10px;color:var(--muted)}
+.deck footer button{color:var(--accent-ink)}
+.deck label{font-size:12px;display:block;margin-top:14px;color:var(--muted)}
+.deck textarea{width:100%;resize:vertical;min-height:80px;max-height:180px;margin-top:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:12px;font:inherit;font-size:14px;line-height:1.6;color:var(--ink)}
+
+.status{padding:20px 24px}
+.status strong{font-size:15px;font-weight:550}
+.status p{font-size:13px;line-height:1.8;margin:8px 0;overflow-wrap:anywhere}
+.status small{display:block;font-size:10px;line-height:1.6;color:var(--muted);margin-top:8px}
+.status button{color:var(--accent-ink);background:var(--accent-soft)}
+
+.stage .reopen{position:absolute;bottom:24px;left:24px;background:var(--surface-glass);border-radius:24px;padding:10px 18px;box-shadow:0 5px 24px color-mix(in srgb,var(--stage-bg) 8%,transparent)}
+
+.error{position:absolute;right:24px;top:108px;bottom:auto;max-width:380px;background:#fff8ed;color:#8a492e;border-radius:16px;padding:14px 18px;display:flex;gap:12px;align-items:center;font-size:13px}
+
+
+@media(max-width:640px){.header{inset:12px 14px auto;gap:8px}
+.heading{max-width:55%}
+.heading h1{font-size:12px;margin-right:3px}
+.tools{gap:0;padding:3px}
+.tools button{font-size:11px;padding:6px}
+.disclosure{left:20px;top:66px;font-size:10px}
+.deck,.status{left:14px;bottom:16px;width:calc(100% - 28px);max-height:calc(100% - 120px)}
+.deck{padding:8px 16px}
+.choice>button:first-child{padding:10px 2px;font-size:14px}
+.error{bottom:16px;right:14px;max-width:calc(100% - 28px)}
+}
+
+@media(prefers-reduced-motion:no-preference){.deck{animation:arrive .18s ease both}
+@keyframes arrive{from{opacity:0;transform:translateY(6px)}
+to{opacity:1;transform:translateY(0)}
+}
+}
+
+@media(max-width:950px){.stage:has(.error) .deck,.stage:has(.error) .status{max-height:calc(100% - 248px)}.stage .error{top:102px;bottom:auto;left:14px;right:14px;max-width:none;max-height:118px;overflow:auto}}

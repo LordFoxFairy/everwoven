@@ -1,0 +1,52 @@
+erDiagram
+  %% 15 个 M0 逻辑关系；无物理FK，owner/引用由应用事务校验。
+  LocalProfile ||--o{ StoryDraft : owns
+  LocalProfile ||--o{ CharacterTemplate : owns
+  LocalProfile ||--o{ Asset : owns
+  LocalProfile ||--o{ CommandReceipt : deduplicates
+  StoryDraft ||--o{ StoryVersion : freezes
+  CharacterTemplate ||--o{ CharacterVersion : freezes
+  StoryDraft ||--o{ StoryDraftCast : configures
+  CharacterVersion ||--o{ StoryDraftCast : references
+  StoryVersion ||--o{ StoryVersionCast : freezes
+  CharacterVersion ||--o{ StoryVersionCast : references
+  StoryDraft ||--o{ StoryDraftAsset : uses
+  Asset ||--o{ StoryDraftAsset : references
+  StoryVersion ||--o{ StoryVersionAsset : uses
+  Asset ||--o{ StoryVersionAsset : references
+  Asset o|--o{ CharacterTemplate : portrait
+  Asset o|--o{ CharacterVersion : portrait
+  StoryVersion ||--o{ Experience : starts
+  ProviderBindingVersion ||--o{ Experience : pins
+  Experience ||--o{ InteractionEvent : presents
+  InteractionEvent ||--o| ResponseDraft : saves
+  StoryDraft {
+    string id PK
+    string ownerId
+    int revision
+  }
+  StoryVersion {
+    string id PK
+    string ownerId
+    string storyDraftId
+    int versionNo
+    int sourceRevision
+  }
+  Experience {
+    string id PK
+    string ownerId
+    string storyVersionId
+    string providerBindingVersionId
+    bigint budgetLimitMicros
+    string budgetCurrency
+    int revision
+    int rowRevision
+    int dispatchEpoch
+  }
+  ResponseDraft {
+    string id PK
+    string ownerId
+    string experienceId
+    string interactionEventId
+    int revision
+  }

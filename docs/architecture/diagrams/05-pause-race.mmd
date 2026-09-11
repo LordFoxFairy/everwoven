@@ -1,0 +1,35 @@
+sequenceDiagram
+  %% 旧暂停命令只返回原回执，不能在 Resume 后再次暂停。
+  participant P as Player
+  participant G as Runtime 经历提交门锁
+  participant D as SQLite
+  participant W as Worker
+  participant V as 官方供应商
+  P->>G: SaveAndPause(commandId, 最新草稿, 版本)
+  G->>D: 查询命令回执快路径
+  alt 同 key 同摘要
+    D-->>G: 原回执
+    G-->>P: 原结果，不改变当前 epoch 或暂停状态
+  else 同 key 异摘要
+    G-->>P: 冲突，保留编辑；不执行暂停
+  else 新命令
+    alt 暂停先取得门锁
+      G->>D: BEGIN / WriteGate / 复查回执 / CAS草稿与经历
+      G->>D: 保存点 + paused + epoch递增 + 命令回执
+      G->>D: COMMIT
+      G-->>P: 已保存并停止新增调度
+      W->>G: 请求提交(旧 epoch)
+      G-->>W: 拒绝新请求，保留任务
+    else 提交先取得门锁
+      W->>G: 检查 epoch / 续租 / 预算
+      G->>D: WriteGate短事务登记 operation 为 submitting
+      G->>V: 开始请求，然后释放门锁
+      G->>D: BEGIN / WriteGate / 复查暂停回执 / CAS保存
+      G->>D: 保存点 + paused + epoch递增 + 回执 / COMMIT
+      G-->>P: 已暂停；列出已开始的在途请求
+      V-->>W: 回执或超时
+      W->>D: 核对既有操作与费用，不新增生成
+    end
+  end
+  Note over G,D: 任一事务冲突整笔回滚，不显示保存成功；并发同key复查后返回既有回执
+  Note over G,V: 门锁不等待外部响应；数据库事务不跨网络

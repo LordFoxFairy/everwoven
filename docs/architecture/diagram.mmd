@@ -1,0 +1,30 @@
+flowchart TB
+  subgraph CLIENT[同一个产品界面]
+    UI[Next / React 单舞台与创作管理]
+    MOCK[前端 Mock 控制器] -->|显式演练 / 不请求模型| UI
+    TAURI[后续 Tauri 薄壳] -.-> UI
+  end
+  subgraph HOST[本机宿主 / 单受控数据实例 · 目标架构]
+    API[Next / tRPC 单一 HTTP 入口]
+    AUTH[会话 / Host / Origin / CSRF]
+    SERVICE[应用 Service / 权限 / CAS / 幂等]
+    DB[(Prisma / SQLite / WriteGate)]
+    ASSET[AssetStore / 不可变文件 / 引用与 GC]
+    WORKER[内部任务 Worker / 租约 / 恢复]
+    GRAPH[LangChain / LangGraph 唯一编排]
+    PROVIDER[Supplier / Connection / Deployment / Binding / Profile]
+    UI -->|正式业务路径 · 待接入| API
+    API --> AUTH --> SERVICE
+    SERVICE --> DB
+    SERVICE --> ASSET
+    DB -.持久任务.-> WORKER
+    WORKER --> GRAPH --> PROVIDER
+    WORKER --> SERVICE
+    API -->|授权媒体读取 / Range| ASSET
+  end
+  REMOTE[用途受限的素材外传]
+  MODEL[选定供应商的官方模型 API]
+  ASSET --> REMOTE --> MODEL
+  PROVIDER -->|事务外有界请求 / 不隐式 fallback| MODEL
+  CHAT[二期创作 Chat / 画布] -.人工确认工具写入.-> SERVICE
+  NOTE[已实现仅配置查询及内部数据切片 / 不代表正式业务链已接通]

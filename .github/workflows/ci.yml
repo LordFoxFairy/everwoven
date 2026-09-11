@@ -1,0 +1,38 @@
+name: Verify Everwoven
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - run: corepack enable && corepack prepare pnpm@12.3.4 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm typecheck
+      - run: pnpm build
+      - run: docker compose config --quiet
+      - run: docker build -t everwoven-web:ci .
+      - name: Smoke-test runtime environments and ports
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'docker logs everwoven-ci 2>/dev/null || true; docker rm -f everwoven-ci 2>/dev/null || true' EXIT
+          for mode in demo dev prod; do
+            for port in 3100 3200; do
+            origin="$(EVERWOVEN_PORT=$port docker compose config --format json | python3 -c 'import json,sys; print(json.load(sys.stdin)["services"]["web"]["environment"]["APP_ORIGIN"])')"
+            test "$origin" = "http://127.0.0.1:$port"
+            docker run -d --name everwoven-ci -p "127.0.0.1:$port:3000" -e "APP_ORIGIN=$origin" -e "APP_ENV=$mode" everwoven-web:ci
+            curl --retry 20 --retry-delay 2 --retry-connrefused --fail "$origin/" -o /tmp/everwoven.html
+            grep -q '未完' /tmp/everwoven.html
+            grep -q "name=\"app-environment\" content=\"$mode\"" /tmp/everwoven.html
+            curl --fail "$origin/api/trpc/video.configuration" | grep -q 'unselected'
+            test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Origin: https://evil.example' "$origin/api/trpc/video.configuration")" = 403
+            docker rm -f everwoven-ci
+            done
+          done

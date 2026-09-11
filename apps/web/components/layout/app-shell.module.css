@@ -1,0 +1,12 @@
+.shell{--sidebar-width:224px;display:grid;grid-template-columns:var(--sidebar-width) minmax(0,1fr);height:100dvh;min-height:0;overflow:hidden}
+.sidebar{min-width:0;min-height:0;display:flex;flex-direction:column;padding:32px 20px 20px;border-right:1px solid var(--line);background:linear-gradient(170deg,#f9fbff 0%,#edf4ff 55%,#f0edff 100%)}
+.brand{flex:none}
+.navigation{flex:1;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-width:thin;padding:0 4px;margin:0 -4px}
+.footer{flex:none;padding-top:16px}
+.workspace{display:flex;flex-direction:column;min-width:0;min-height:0;background:radial-gradient(ellipse at 92% 0%,#ebe8ff66,transparent 42%),var(--bg)}
+.header{flex:none}
+.content{flex:1;min-height:0;width:100%;overflow:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
+@media(max-width:1200px){.shell{--sidebar-width:190px}.sidebar{padding-left:12px;padding-right:12px}}
+@media(max-width:800px){.shell{--sidebar-width:76px}.sidebar{padding:24px 10px}.brand{padding:0;justify-content:center}.brand>span+span,.navigation :global(.nav-group-label),.navigation :global(.nav-item small),.navigation :global(.create-side),.footer{display:none}.navigation{padding-top:26px}.navigation :global(.nav-item){font-size:0;justify-content:center;padding:14px 10px}}
+@media(max-width:650px){.shell{--sidebar-width:64px}.sidebar{padding:20px 8px}}
+@media(max-height:660px){.footer :global(.draft-note){display:none}.sidebar{padding-top:20px;padding-bottom:16px}.navigation :global(.nav-group-label){margin-top:24px}}

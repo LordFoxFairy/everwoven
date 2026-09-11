@@ -1,0 +1,19 @@
+name: everwoven
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: everwoven-web:0.1.0
+    ports:
+      # Local by default. Put a TLS reverse proxy in front for shared Web access.
+      - "127.0.0.1:${EVERWOVEN_PORT:-3100}:3000"
+    environment:
+      APP_ENV: ${APP_ENV:-demo}
+      APP_ORIGIN: ${APP_ORIGIN:-http://127.0.0.1:${EVERWOVEN_PORT:-3100}}
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL

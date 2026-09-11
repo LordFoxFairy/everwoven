@@ -1,0 +1,40 @@
+sequenceDiagram
+  participant U as 用户
+  participant P as Player
+  participant A as tRPC / 应用 Service
+  participant F as AssetStore
+  participant D as SQLite
+  U->>P: 回看 B / 从此另走一条线
+  P->>A: history.getSavepoint（查看经历 / 来源保存点）
+  A-->>P: 历史情境 / 前缀媒体 / hash / 可用性 / 预算摘要
+  Note over P,A: 回看不改当前播放实例，不报告播放，不调用模型
+  opt 当前路线尚未保存暂停
+    P->>A: SaveAndPause 当前路线（可能不是 B 所在源线）
+    A->>D: 原子保存草稿与暂停准入
+    A-->>P: 回执；失败则保留输入，不切换
+  end
+  P->>A: fork（原命令 ID / 来源 B / hash / 子限额）
+  A->>D: 先检查已有命令回执
+  alt 已有相同命令
+    A-->>P: 原 child 引用；不回退 child 当前进度
+  else 新命令
+    A->>F: 事务外预检必要素材可读
+    Note over A,D: 预检失败返回前复查回执，同键并发成功则回放原 child
+    A->>D: WriteGate：重查回执 / owner / 来源 / hash / 素材 / scope
+    alt 来源失效或冲突
+      D-->>A: 整笔回滚
+      A-->>P: 明确错误，保留原位置
+    else 准入通过
+      A->>D: 创建 paused child / fork_base / 新 decision / 空稿 / 引用 / 回执
+      D-->>A: 原子提交
+      A-->>P: child 与初始节点引用（不是当前状态快照）
+    end
+  end
+  opt fork 已确认成功
+    P->>A: 读取 child 当前快照 / 取得控制 / 显式 resume
+    A-->>P: awaiting_input / 本分支新节点
+    U->>P: 选择建议或自由回应
+    P->>A: 独立 Quote / 明确接受
+    Note over A,D: 两级预算通过后才创建 child 自己的新回合
+  end
+  Note over P,D: fork 零模型调用 / 零预留<br/>原线已受理任务保留核对责任

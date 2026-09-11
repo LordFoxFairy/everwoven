@@ -1,0 +1,19 @@
+flowchart TB
+  SCOPE[BudgetScope 根树总上限]
+  ROOT[Experience E0 / 根路线]
+  CHILD[Experience E1 / 新路线 / origin=E0:B]
+  SCOPE -->|同一账本 / E0 子限额| ROOT
+  SCOPE -->|同一账本 / E1 子限额| CHILD
+  ROOT --> A[保存点 A]
+  A --> B[保存点 B]
+  B --> C[保存点 C / 源路线未来]
+  B --> SNAP[不可变 Snapshot B / 仅已确认事实]
+  CHILD --> BASE[fork_base / 本地父点为空 / 无新媒体]
+  BASE -->|共享已确认状态| SNAP
+  BASE --> D[新保存点 D / E1 自己的已确认结果]
+  CHILD --> NODE[独立 decision / 新建议 ID / 空草稿]
+  CHILD --> REF[持久 ExperienceAssetRef]
+  REF --> MEDIA[A/B 前缀必要媒体]
+  B -.来源证明 / 非普通本地父指针.-> BASE
+  C -.禁止进入 E1 上下文.-> BLOCK[不继承未来 / 任务 / 报价 / 许可]
+  NOTE[逻辑关系不是数据库外键 / 故事树是查询投影]

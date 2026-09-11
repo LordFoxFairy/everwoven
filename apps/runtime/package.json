@@ -1,0 +1,26 @@
+{
+  "name": "runtime",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0 <23"
+  },
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:check": "tsx src/main.ts",
+    "build": "pnpm db:generate && tsc -p tsconfig.json",
+    "typecheck": "pnpm db:generate && tsc --noEmit -p tsconfig.json && tsc -p tsconfig.test.json"
+  },
+  "dependencies": {
+    "@prisma/client": "7.10.0",
+    "@prisma/adapter-better-sqlite3": "7.10.0",
+    "uuid": "13.0.0"
+  },
+  "devDependencies": {
+    "prisma": "7.10.0",
+    "@types/node": "22.19.21",
+    "tsx": "4.23.13",
+    "typescript": "7.0.2"
+  }
+}

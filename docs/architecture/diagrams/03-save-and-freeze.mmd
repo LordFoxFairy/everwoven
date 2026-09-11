@@ -1,0 +1,45 @@
+sequenceDiagram
+  %% 回执与业务写入同事务；复用版本不再次装配子引用。
+  participant U as 创作者
+  participant API as Runtime 用例
+  participant DB as Prisma / SQLite
+  U->>API: 保存草稿(commandId, expectedRevision, 内容)
+  API->>DB: BEGIN / WriteGate先写取得写权 / 查询命令回执
+  alt 同 commandId 且内容摘要相同
+    DB-->>API: 既有结果
+    API->>DB: 结束事务，不重复业务写入
+    API-->>U: 返回原回执，不再次写入
+  else 同 commandId 但摘要不同
+    API->>DB: ROLLBACK
+    API-->>U: 幂等键冲突，保留编辑
+  else 新命令
+    API->>DB: 按 ownerId + id + revision 条件更新
+    alt 影响行数为 0
+      API->>DB: ROLLBACK
+      API-->>U: 版本冲突，保留编辑
+    else 更新成功
+      API->>DB: 更新人物/素材关联 + 写回执 / COMMIT
+      API-->>U: 已保存 + 新 revision
+    end
+  end
+  U->>API: freezeStory(expectedRevision, 独立 commandId)
+  API->>DB: BEGIN / WriteGate / 校验身份与回执
+  alt 重复冻结命令
+    API->>DB: 结束事务；同摘要返回原版本，异摘要回滚
+    API-->>U: 原冻结回执或冲突，不重建版本
+  else 新冻结命令
+    API->>DB: 校验 sourceRevision / 角色 / 素材
+    alt 已有该来源修订的封口版本
+      DB-->>API: 直接复用 versionId，不复制关联
+    else 没有对应版本
+      API->>DB: 插入未封口 header + cast/assets
+      API->>DB: 固定内容 hash / sealedAt 封口
+    end
+    API->>DB: 保存冻结版本回执
+    API->>DB: COMMIT
+    API-->>U: 固定 storyVersionId，尚未创建经历
+  end
+
+  U->>API: createExperience(storyVersionId, bindingVersionId, budgetLimit, 独立commandId)
+  API->>DB: WriteGate短事务 / 幂等 / 校验固定版本与所有者 / 创建经历和setup草稿 / 回执
+  API-->>U: 零模型调用经历；重复同键同摘要返回原回执
