@@ -28,7 +28,9 @@ jobs:
             origin="$(EVERWOVEN_PORT=$port docker compose config --format json | python3 -c 'import json,sys; print(json.load(sys.stdin)["services"]["web"]["environment"]["APP_ORIGIN"])')"
             test "$origin" = "http://127.0.0.1:$port"
             docker run -d --name everwoven-ci -p "127.0.0.1:$port:3000" -e "APP_ORIGIN=$origin" -e "APP_ENV=$mode" everwoven-web:ci
-            curl --retry 20 --retry-delay 2 --retry-connrefused --fail "$origin/" -o /tmp/everwoven.html
+            # Docker may accept then reset connections before Node starts listening.
+            # Retry this read-only readiness probe only; fail after a bounded window.
+            curl --retry 20 --retry-delay 2 --retry-all-errors --max-time 5 --retry-max-time 60 --fail "$origin/" -o /tmp/everwoven.html
             grep -q '未完' /tmp/everwoven.html
             grep -q "name=\"app-environment\" content=\"$mode\"" /tmp/everwoven.html
             curl --fail "$origin/api/trpc/video.configuration" | grep -q 'unselected'
