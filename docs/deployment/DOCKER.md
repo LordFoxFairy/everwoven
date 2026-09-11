@@ -78,3 +78,7 @@ curl -s -o /dev/null -w '%{http_code}\n' \
 ## 6. 验证状态
 
 本轮本地已检查 Compose 默认端口、自定义端口与显式公开来源配置，Next standalone 已构建。该宿主的 Docker daemon 返回错误，本地镜像构建/运行尚未验收；`.github/workflows/ci.yml` 定义 Linux Docker 构建与启动冒烟，实际结果以仓库 Actions 为准。此限制不等于已证明镜像通过。
+
+## 7. 直接拉取版本镜像
+
+通过 `v*` 标签自动发布 GHCR 镜像，流程与首次 Public 设置见 [版本镜像发布](IMAGE-RELEASE.md)。部署侧使用 `compose.image.yaml`（无 build），开发侧继续使用 `compose.yaml`；两者运行同一个 Web 应用。

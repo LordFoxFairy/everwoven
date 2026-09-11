@@ -1,3 +1,4 @@
+import {createEntityId} from '../../../../packages/domain/src/id';
 import {assetDatabaseName,type AppEnvironment} from '../environment/config';
 import {validateImageDimensions,validateImageFile} from './validation';
 export type ImageAsset={id:string;name:string;width:number;height:number;blob:Blob;createdAt:string};
@@ -26,7 +27,7 @@ export async function importImageAsset(file:File,environment:AppEnvironment='dem
   blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(result=>result?resolve(result):reject(Error('图片处理失败')),'image/webp',.9));
  }finally{bitmap.close();}
  // Store a display/reference copy without source EXIF; never upload it automatically.
- const asset:ImageAsset={id:crypto.randomUUID(),name:file.name,width,height,blob,createdAt:new Date().toISOString()};
+ const asset:ImageAsset={id:createEntityId(),name:file.name,width,height,blob,createdAt:new Date().toISOString()};
  const db=await openDatabase(environment);
  try{await new Promise<void>((resolve,reject)=>{const tx=db.transaction('images','readwrite');tx.objectStore('images').add(asset);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(Error('本机图片保存失败，请检查剩余空间。'));tx.onabort=()=>reject(Error('图片保存中断，原选择未改变。'));});}finally{db.close();}
  return asset;

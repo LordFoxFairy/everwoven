@@ -1,10 +1,12 @@
 'use client';
+import {createEntityId} from '../../../packages/domain/src/id';
+
 import {useEffect,useState} from 'react';
 import {Plus,ArrowUpRight,Pencil,Check} from 'lucide-react';
 import type {Character} from './storage';
 import {ImageAssetPicker,CharacterPortrait} from './story-assets';
 import styles from './character-library.module.css';
-function blank():Character{return {id:crypto.randomUUID(),name:'',personality:'',appearance:'',speakingStyle:'',boundaries:''};}
+function blank():Character{return {id:createEntityId(),name:'',personality:'',appearance:'',speakingStyle:'',boundaries:''};}
 export function CharacterLibrary({characters,onSave,onUse,onPendingChange}:{characters:Character[];onSave:(c:Character)=>boolean;onUse:(c:Character)=>void;onPendingChange:(state:{dirty:boolean;busy:boolean})=>void}){
  const [draft,setDraft]=useState<Character|null>(null),[saved,setSaved]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const dirty=!!draft&&JSON.stringify(draft)!==saved;

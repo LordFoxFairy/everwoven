@@ -1,4 +1,6 @@
 'use client';
+import {createEntityId} from '../../../packages/domain/src/id';
+
 import {useState,useEffect} from 'react';
 import {ArrowLeft,Check,Play,Save as SaveIcon,Users,BookOpen} from 'lucide-react';
 import {applyCharacterTemplate,characterTemplateFromStory,type Story,type AssetRole} from '../../../packages/domain/src/story';
@@ -14,7 +16,7 @@ export function Editor({initial,characters,onSave,onSaveCharacter,onBack,onPlay,
  function field(key:keyof Story,value:string){setS(prev=>({...prev,[key]:value}));}
  function save(){const ok=onSave(s);if(ok)setSaved(JSON.stringify(s));return ok;}
  function assetPicker(role:AssetRole){return <ImageAssetPicker role={role} assetId={s.assets?.[role]} onChange={id=>setS(prev=>({...prev,assets:{...prev.assets,[role]:id},...(role==='character'?{artId:undefined}:{})}))} onBusyChange={value=>setBusyRoles(prev=>({...prev,[role]:value}))}/>;}
- function saveCharacter(){if(!s.character.trim()||!s.personality.trim()){setFeedback('先填写角色姓名与性格背景，再保存为模板。');return;}if(onSaveCharacter(characterTemplateFromStory(s,crypto.randomUUID())))setFeedback('角色模板已保存。此剧本中的角色与模板独立编辑。');}
+ function saveCharacter(){if(!s.character.trim()||!s.personality.trim()){setFeedback('先填写角色姓名与性格背景，再保存为模板。');return;}if(onSaveCharacter(characterTemplateFromStory(s,createEntityId())))setFeedback('角色模板已保存。此剧本中的角色与模板独立编辑。');}
  return <div className="editor-shell">
   <header className="editor-header"><button disabled={busy} className="text-button" onClick={()=>{if(!dirty||confirm('还有未保存的修改，确定离开吗？'))onBack();}}><ArrowLeft size={18}/>我的剧本</button><span className="editor-title">{s.title||'未命名剧本'}<small>{busy?'正在保存图片…':dirty?'有未保存修改':'本地草稿'}</small></span><div><button disabled={busy} className="secondary" onClick={save}><SaveIcon size={16}/>保存草稿</button><button disabled={busy} className="primary" onClick={()=>{if(save())onPlay(s);}}><Play size={16}/>保存并进入准备</button></div></header>
   <div className="editor-layout"><aside className="editor-nav"><p className="eyebrow">STORY STUDIO</p><h2>构建你的开端</h2>{sections.map((x,i)=><button disabled={busy} className={section===i?'editor-tab active':'editor-tab'} key={x} onClick={()=>setSection(i)}><span>0{i+1}</span>{x}</button>)}<p className="editor-tip">不必写下所有情节。<br/>为角色和世界留一点空间，<br/>让故事在游玩中发生。</p></aside>

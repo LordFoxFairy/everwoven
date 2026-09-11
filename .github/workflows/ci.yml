@@ -1,23 +1,40 @@
 name: Verify Everwoven
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      image: ${{ steps.release.outputs.image }}
+      stable: ${{ steps.release.outputs.stable }}
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
+      - name: Validate release tag
+        id: release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        run: node scripts/release/metadata.mjs
       - run: corepack enable && corepack prepare pnpm@12.3.4 --activate
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
       - run: pnpm typecheck
       - run: pnpm build
       - run: docker compose config --quiet
-      - run: docker build -t everwoven-web:ci .
+      - run: >-
+          docker build -t everwoven-web:ci
+          --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY"
+          --label "org.opencontainers.image.revision=$GITHUB_SHA" .
       - name: Smoke-test runtime environments and ports
         shell: bash
         run: |
@@ -38,3 +55,98 @@ jobs:
             docker rm -f everwoven-ci
             done
           done
+
+      - name: Install browser for HTTP regression check
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Verify the container in an insecure HTTP browser context
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'docker logs everwoven-http 2>/dev/null || true; docker rm -f everwoven-http 2>/dev/null || true' EXIT
+          docker run -d --name everwoven-http -p 127.0.0.1:3100:3000 -e APP_ENV=demo -e APP_ORIGIN=http://everwoven.test:3100 everwoven-web:ci
+          curl --retry 20 --retry-delay 2 --retry-all-errors --max-time 5 --retry-max-time 60 --fail http://127.0.0.1:3100/ -o /dev/null
+          node scripts/smoke/http-browser.mjs
+
+      - name: Save the tested image
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        run: docker save everwoven-web:ci | gzip > "$RUNNER_TEMP/everwoven-image.tar.gz"
+      - name: Transfer the tested image to publishing
+        id: upload
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: tested-image-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/everwoven-image.tar.gz
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: ghcr-everwoven-publish
+      cancel-in-progress: false
+    env:
+      IMAGE: ${{ needs.verify.outputs.image }}
+      VERSION: ${{ needs.verify.outputs.version }}
+      STABLE: ${{ needs.verify.outputs.stable }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.verify.outputs.artifact_id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/tested-image
+      - name: Load the exact image that passed verification
+        run: docker load -i "$RUNNER_TEMP/tested-image/everwoven-image.tar.gz"
+      - name: Login with the built-in workflow token
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          export DOCKER_CONFIG="$RUNNER_TEMP/registry-login"
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Publish version and commit tags
+        run: |
+          set -euo pipefail
+          export DOCKER_CONFIG="$RUNNER_TEMP/registry-login"
+          docker tag everwoven-web:ci "$IMAGE:$VERSION"
+          docker tag everwoven-web:ci "$IMAGE:sha-$GITHUB_SHA"
+          docker push "$IMAGE:$VERSION"
+          docker push "$IMAGE:sha-$GITHUB_SHA"
+          main_sha="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [ "$STABLE" = true ] && [ "$GITHUB_SHA" = "$main_sha" ]; then
+            docker tag everwoven-web:ci "$IMAGE:latest"
+            docker push "$IMAGE:latest"
+          fi
+          docker pull "$IMAGE:$VERSION"
+          test "$(docker image inspect everwoven-web:ci --format '{{.Id}}')" = "$(docker image inspect "$IMAGE:$VERSION" --format '{{.Id}}')"
+          echo "Published and verified: $IMAGE:$VERSION" >> "$GITHUB_STEP_SUMMARY"
+          docker image inspect "$IMAGE:$VERSION" --format '{{join .RepoDigests "\n"}}' >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove registry credentials
+        if: always()
+        run: DOCKER_CONFIG="$RUNNER_TEMP/registry-login" docker logout ghcr.io
+
+  anonymous-pull:
+    needs: [verify, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    env:
+      IMAGE: ${{ needs.verify.outputs.image }}
+      VERSION: ${{ needs.verify.outputs.version }}
+    steps:
+      - name: Verify public access without any login
+        run: |
+          export DOCKER_CONFIG="$RUNNER_TEMP/anonymous-docker"
+          mkdir -p "$DOCKER_CONFIG"
+          if ! docker pull "$IMAGE:$VERSION"; then
+            echo '::error::Image published but anonymous pull failed. For the first release, set the GHCR package visibility to Public, then rerun failed jobs.'
+            exit 1
+          fi
+          echo "Anonymous pull verified: $IMAGE:$VERSION" >> "$GITHUB_STEP_SUMMARY"

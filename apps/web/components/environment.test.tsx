@@ -8,7 +8,7 @@ import {StartDialog} from './story-detail';
 import {AppEnvironmentContext} from '../lib/environment/context';
 import {listExampleStories} from '../mocks/catalog';
 import {libraryStorageKey} from '../lib/environment/config';
-afterEach(()=>{cleanup();localStorage.clear();vi.restoreAllMocks();});
+afterEach(()=>{cleanup();localStorage.clear();vi.restoreAllMocks();vi.unstubAllGlobals();});
 it.each(['dev','prod'] as const)('%s never opens frontend demo and retains authoring',async environment=>{
  render(<Platform environment={environment}/>);
  await screen.findByRole('heading',{name:/让想象发生/});
@@ -41,4 +41,14 @@ it.each(['dev','prod'] as const)('%s start dialog is explicitly disabled',async 
  const button=screen.getByRole('button',{name:'视频生成待接入',hidden:true}) as HTMLButtonElement;
  expect(button.disabled).toBe(true);
  await userEvent.click(button);expect(start).not.toHaveBeenCalled();
+});
+
+it('renders and opens authoring without secure-context-only randomUUID',async()=>{
+ const getRandomValues=globalThis.crypto.getRandomValues.bind(globalThis.crypto);
+ vi.stubGlobal('crypto',{getRandomValues});
+ render(<Platform environment="demo"/>);
+ await screen.findByRole('heading',{name:/让想象发生/});
+ await userEvent.click(screen.getByRole('button',{name:'我的剧本'}));
+ await userEvent.click(screen.getByRole('button',{name:'新建剧本'}));
+ expect(screen.getByRole('button',{name:'保存草稿'})).toBeTruthy();
 });

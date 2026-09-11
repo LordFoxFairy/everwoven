@@ -1,4 +1,6 @@
 'use client';
+import {createEntityId} from '../../../packages/domain/src/id';
+
 import {SessionOpening} from './session-opening';
 import {StoryAssetStatus} from './story-asset-status';
 import {useEffect,useRef,useState,useSyncExternalStore} from 'react';
@@ -78,7 +80,7 @@ export function LiveSession({story,provider,onExit}:{story:Story;provider:LiveVi
  }
  function requestLeave(){if(input.trim()||!terminal&&state.phase!=='prepare')setLeaveConfirm(true);else void leave();}
  function send(){
-  try{controller.send(crypto.randomUUID(),input);setInput('');setExpress(false);setLocalError('');entry.current?.focus();}
+  try{controller.send(createEntityId(),input);setInput('');setExpress(false);setLocalError('');entry.current?.focus();}
   catch(error){setLocalError(error instanceof Error?error.message:'发送失败，草稿已保留。');}
  }
  function restorePlayback(){void video.current?.play().then(()=>setPlayBlocked(false)).catch(()=>setLocalError('播放尚未恢复，请检查浏览器播放权限。'));}

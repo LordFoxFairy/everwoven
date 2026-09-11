@@ -62,6 +62,12 @@ docker compose up --build -d
 
 容器默认非 root、只绑定本机。公开 Web 访问、TLS 反向代理、`APP_ORIGIN`、数据保存边界与更新方式见 [Docker 部署说明](docs/deployment/DOCKER.md)。更换访问域名/端口会改变浏览器存储空间，数据不会自动迁移。
 
+## 版本镜像发布
+
+推送与 package.json 版本一致的 `v*` 标签后，CI 自动测试并将受测镜像发布到 GHCR，使用内置 GITHUB_TOKEN，无需手工配置密钥。随后独立验证匿名拉取。首次镜像包还需设置 Public，不能只看上传成功。
+
+镜像地址：`ghcr.io/lordfoxfairy/everwoven-web`（linux/amd64）。使用 `compose.image.yaml` 可直接拉已发布版本，无需部署机编译。详见[版本发布与部署](docs/deployment/IMAGE-RELEASE.md)，实际可用版本及首次公开检查以 GitHub Actions 为准。
+
 ## 工程结构
 
 ```text
@@ -92,4 +98,4 @@ docs/deployment/      部署与运维说明
 
 中文产品名保持「未完」，仓库与工程标识定为 `everwoven`，Docker 镜像为 `everwoven-web`。当前页面仍保留旧标识，新 Logo 概念尚待确认；仓库命名不代表 Logo 定稿。保留浏览器历史存储键，避免改名导致数据丢失。旧稿与当前 PRD 冲突时，以当前 PRD 及明确的后续决策为准。
 
-研究 ZIP、用户上传素材、本机数据库、密钥、构建缓存、历史静态原型和运行截图不随首版源码分发。第三方组件授权和示例图片来源见 [第三方说明](THIRD_PARTY_NOTICES.md)。当前仓库为私有项目，未向项目整体授予开源许可证。
+研究 ZIP、用户上传素材、本机数据库、密钥、构建缓存、历史静态原型和运行截图不随首版源码分发。第三方组件授权和示例图片来源见 [第三方说明](THIRD_PARTY_NOTICES.md)。当前仓库已公开，尚未向项目整体授予开源许可证。

@@ -1,0 +1,18 @@
+# Same Web app, deployment from a published image rather than a source build.
+name: everwoven
+services:
+  web:
+    image: ghcr.io/lordfoxfairy/everwoven-web:${IMAGE_TAG:-0.1.0}
+    platform: linux/amd64
+    pull_policy: always
+    ports:
+      - "127.0.0.1:${EVERWOVEN_PORT:-3100}:3000"
+    environment:
+      APP_ENV: ${APP_ENV:-demo}
+      APP_ORIGIN: ${APP_ORIGIN:-http://127.0.0.1:${EVERWOVEN_PORT:-3100}}
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
