@@ -39,7 +39,7 @@ pnpm typecheck
 pnpm build     # runtime 检查构建 + Next standalone 构建
 ```
 
-最新验证：**263 项测试、类型检查与构建通过**，见[环境与发布验证](docs/implementation/ENVIRONMENTS-RELEASE-2026-09-11.md)。此前组件验证见[实施记录](docs/implementation/SHADCN-SHELL-2026-09-11.md)。
+最新验证：**278 项测试、类型检查、构建及 HTTP 浏览器交互通过**，见[环境与发布验证](docs/implementation/ENVIRONMENTS-RELEASE-2026-09-11.md)。此前组件验证见[实施记录](docs/implementation/SHADCN-SHELL-2026-09-11.md)。
 
 ## 环境选择
 
@@ -64,9 +64,9 @@ docker compose up --build -d
 
 ## 版本镜像发布
 
-推送与 package.json 版本一致的 `v*` 标签后，CI 自动测试并将受测镜像发布到 GHCR，使用内置 GITHUB_TOKEN，无需手工配置密钥。随后独立验证匿名拉取。首次镜像包还需设置 Public，不能只看上传成功。
+推送与 package.json 版本一致的 `v*` 标签后，CI 自动测试并将受测镜像发布到 GHCR，使用内置 GITHUB_TOKEN，无需手工配置密钥。随后独立验证匿名拉取。当前镜像包已公开，`v0.1.0` 的匿名拉取已通过。
 
-镜像地址：`ghcr.io/lordfoxfairy/everwoven-web`（linux/amd64）。使用 `compose.image.yaml` 可直接拉已发布版本，无需部署机编译。详见[版本发布与部署](docs/deployment/IMAGE-RELEASE.md)，实际可用版本及首次公开检查以 GitHub Actions 为准。
+镜像地址：`ghcr.io/lordfoxfairy/everwoven-web`（linux/amd64）。使用 `compose.image.yaml` 可直接拉已发布版本，无需部署机编译。详见[版本发布与部署](docs/deployment/IMAGE-RELEASE.md)，首版[发布验收全部通过](https://github.com/LordFoxFairy/everwoven/actions/runs/34584227177)。
 
 ## 工程结构
 

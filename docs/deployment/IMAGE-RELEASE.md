@@ -29,7 +29,7 @@ git push origin v0.1.0
 
 ## 首次公开设置与验收
 
-GitHub 规定个人账户首次创建的 GHCR 包默认私有，仓库 Public 不会自动把它变成 Public。首次发布后在 Package settings → Change visibility 设为 Public。以后同一镜像包的新版本延续可见性，无需逐版本设置。
+GitHub 规定个人账户首次创建的 GHCR 包默认私有，仓库 Public 不会自动把它变成 Public。若首次发布后的包仍为 Private，在 Package settings → Change visibility 设为 Public。以后同一镜像包的新版本延续可见性，无需逐版本设置。
 
 工作流末尾用**无登录、无 Token 的独立 runner**拉取镜像。匿名拉取失败会明确使该 job 失败，不把“上传成功”冒充“公开可部署”。完成首次 Public 设置后重跑失败的 job 即可，无需重打版本标签。
 
@@ -37,7 +37,7 @@ GitHub 规定个人账户首次创建的 GHCR 包默认私有，仓库 Public �
 
 ## 只拉镜像部署
 
-首版镜像发布且匿名检查通过后：
+首版已发布且匿名检查通过，可直接执行：
 
 ```sh
 docker pull ghcr.io/lordfoxfairy/everwoven-web:0.1.0
@@ -53,3 +53,13 @@ APP_ENV=demo docker compose -f compose.image.yaml up -d
 内容实体 ID 统一走 `createEntityId()`：原生 `crypto.randomUUID()` 可用时优先调用，否则用 `crypto.getRandomValues()` 生成 UUID v4，不使用 Math.random。覆盖新建剧本、角色、图片、存档、回合与记忆，不改动服务端认证或 ID 规则。
 
 CI 在真实 Chromium 中将 `everwoven.test` 解析到测试容器，显式断言 `isSecureContext === false`、`randomUUID` 缺失；验证首页、新建剧本、角色创建与刷新后持久化，且没有页面 JavaScript 异常。此检查针对 HTTP 开发部署兼容性；正式部署仍应配置 HTTPS，其他需要安全上下文的浏览器能力不因此自动可用。
+
+## v0.1.0 发布验收（2026-09-11）
+
+- Git 标签：`v0.1.0`，代码提交：`38cef510516e3a0061f274bcc48eb4609308fca3`。
+- [Actions 34584227177](https://github.com/LordFoxFairy/everwoven/actions/runs/34584227177)：verify、publish、anonymous-pull 全部成功。
+- 278 项测试、类型检查、生产构建、六组容器冒烟、真实 HTTP Chromium 交互均通过。
+- [镜像包](https://github.com/LordFoxFairy/everwoven/pkgs/container/everwoven-web) 显示 Public；无凭据独立 runner 已拉取成功。本次发布未遇到手动调整可见性的阻塞。
+- 可用标签：`0.1.0`、`latest`、`sha-38cef510516e3a0061f274bcc48eb4609308fca3`。
+- 三个标签对应 digest：`sha256:67b37092aade11a6f9cb4a961d8360cc38617df836d1e4dd90c64bcbfccf82e5`。
+- 平台：linux/amd64；这是 Web 前端演练/本地创作版本，尚未包含真实模型生成闭环。
