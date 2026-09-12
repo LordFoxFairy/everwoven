@@ -1,10 +1,12 @@
 import {describe, expect, it, vi} from 'vitest';
 import {v7} from 'uuid';
+import {isBusinessId} from '../src/contracts/primitives.js';
 import {createDraft, updateDraft, deleteDraft, restoreDraft, listDrafts} from '../src/application/story-drafts.js';
 import {parseCreate, parseUpdate, parseLifecycle} from '../src/contracts/story-draft-validation.js';
 import type {StoryDraftRecord, StoryReceiptInsert, StoryDraftStore} from '../src/ports/story-draft-store.js';
 
 const datasetId = v7(), ownerId = v7(), id = v7(), commandId = v7();
+const nonV7DatasetId = '01994b80-7000-4000-8000-000000000001';
 const settings = {world: '', opening: '', genre: '', playerRole: '', worldRules: [], tone: ''};
 const commands = {
   create: {datasetId, commandId, title: '保留文本', settings},
@@ -19,6 +21,9 @@ function boundary() {
   return {store: {write, read} as StoryDraftStore, write, read, findReceipt};
 }
 describe('dataset command boundary', () => {
+  it('uses an explicitly non-v7 invalid dataset fixture', () => {
+    expect(isBusinessId(nonV7DatasetId)).toBe(false);
+  });
   it.each(['create', 'update', 'delete', 'restore'] as const)('%s rejects same owner / different dataset before entering store or reading a receipt', async action => {
     const b = boundary(), owner = {ownerId, datasetId: v7()};
     const invoke = () => action === 'create' ? createDraft(b.store, owner, commands.create)
@@ -27,7 +32,7 @@ describe('dataset command boundary', () => {
     await expect(invoke()).rejects.toThrow('DATASET_CHANGED');
     expect(b.write).not.toHaveBeenCalled(); expect(b.findReceipt).not.toHaveBeenCalled(); expect(b.read).not.toHaveBeenCalled();
   });
-  it.each([undefined, null, '', 'bad', ownerId.replace('-7', '-4')])('rejects missing or invalid command dataset %s', value => {
+  it.each([undefined, null, '', 'bad', nonV7DatasetId])('rejects missing or invalid command dataset %s', value => {
     for (const [parse, input] of [[parseCreate, commands.create], [parseUpdate, commands.update], [parseLifecycle, commands.delete]] as const) {
       const raw = {...input, datasetId: value}; if (value === undefined) delete raw.datasetId;
       expect(() => parse(raw as never)).toThrow('INVALID_STORY_COMMAND');

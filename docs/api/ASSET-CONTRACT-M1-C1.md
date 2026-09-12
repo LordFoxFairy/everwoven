@@ -57,3 +57,22 @@ AssetDTO包含`id,datasetId,sha256,mimeType,byteSize,originalName,rightsDeclarat
 3. C2：原图片控件经AssetPort上传和预览，保留dataset来源，正式角色/剧本绑定真实Asset；解绑不是删文件。
 
 没有这些门槛的实跑证据，不把C1a解码成功描述为上传成功或创作全链路完成。
+
+
+## C1b内部文件端口（本地已验收，非HTTP接口）
+
+工厂为`createPrivateAssetStore(host, binding, coordinator, faults?)`。binding绑定可信owner/dataset，CleanupCoordinator必填；即便实例只供读取/上传，也不注入生产占位`work => work()`。工厂会创建私有目录，业务调用方必须在真实session、客户端dataset及owner/意图状态检查后才惰性调用。
+
+| 操作/结果 | 证据与用途 |
+|---|---|
+| writeCandidate → durable | 完整核验、file及目录同步成功；尚未是DB ready |
+| writeCandidate → exists | 名称已存在，不表示内容正确或已持久化 |
+| verifyCandidate | 同句柄核验返回实际Buffer，供受保护GET；只读、不是durable |
+| ensureDurableCandidate | exists/崩溃残留核验后补file及目录同步，不补写/覆盖/修复错误文件 |
+| removeDeletingCandidate | 内部删除permit与必选协调器共同约束；仅终态残留，非用户资产删除API |
+
+协调器必须在已提交deleting后取得实际SQLite writer lock，再复核身份和状态，同步调用删除callback并原样返回**同一个结果对象**；锁覆盖真实工作。T2失败不恢复已删除文件或上传状态。文件端口不查数据库，不证明其permit签发前真的发生过CAS；该职责属于C1c。
+
+C1b共享输出验证器与normalizer的两槽预算，验证规范WebP不会再有损重编码，也不误用原图最小256边限制。同步cleanup临界段不包含图片读取/解码/网络/大Buffer。
+
+私有文件异常均为固定标识，不附带path/cause。网络如何映射这些异常由C1c用例与Host白名单实施后补写；当前无可调用上传路由。

@@ -4,10 +4,8 @@ import {IMAGE_LIMITS} from '../../contracts/asset.js';
 import {parseImageInputMetadata} from '../../contracts/asset-validation.js';
 import {ImageNormalizationError, type ImageNormalizer, type NormalizedImage} from '../../ports/image-normalizer.js';
 import {inspectImageContainer} from './image-container.js';
-import {ImageJobBudget} from './image-job-budget.js';
+import {sharedImageJobBudget as budget} from './image-job-budget.js';
 
-// Shared by every normalizer instance in this runtime process; no waiting input buffers.
-const budget = new ImageJobBudget();
 const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 const checkDeadline = (deadline: number) => {
   if (Date.now() >= deadline) throw new ImageNormalizationError('IMAGE_PROCESSING_TIMEOUT');

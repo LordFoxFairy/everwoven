@@ -2,7 +2,7 @@
 
 更新：2026-09-12。**这是实施真值台账，不用设计完成代替功能完成，不用commit代替验收。**
 
-**当前执行入口：M1-B原角色库和修订smoke已推送，CI34715399381成功。C1a严格图片契约与真实解码已通过主仓58文件853/853、双端typecheck、生产构建、三项Chrome与独立规格/质量复核，准备提交。下一步C1b私有文件端口，再上传事务/HTTP、原图片和剧本聚合。普通阶段进度不通知用户。**
+**当前执行入口：M1-B与C1a已推送且CI成功；C1b私有文件端口完成本地验收：62文件928/928、双端typecheck、生产构建、三Chrome、真实宿主跨进程文件读回；Hegel/Dewey规格与Cicero质量复核通过。准备提交后进入C1c真实上传事务/HTTP与SQLite清理协调。图片/原剧本聚合仍未整体完成，普通阶段不通知用户。**
 
 ## 当前决策（按最新用户指令）
 
@@ -152,3 +152,27 @@ HTTP演练smoke修订后同隔离5f037bf生产构建的真实Chrome已通过（�
 C1a实现者停止写入；主仓58文件853/853及双端typecheck通过，隔离生产构建+三Chrome smoke通过，主仓compiled-dist三种合成图输出hash/尺寸/字节核验通过。Dewey契约规格67/67、Hegel解码规格107/107通过；Cicero质量review中。新资产契约和C1实施记录已更新，未把decoder成功称为HTTP上传/文件持久化完成。
 
 C1a Cicero最终代码质量PASS，无确认P1/P2；未以只读review替代主仓实跑。提交主题`feat(assets): add strict contracts and bounded image normalization`。本切片不改schema、不接HTTP、不重置业务数据或调用付费模型。
+
+C1a 88f5940已推送；[CI34716208568](https://github.com/LordFoxFairy/everwoven/actions/runs/34716208568)尚在运行。Feynman已接下一C1b唯一写集：private-asset-store端口、私有文件实现与tests，必要时共享normalizer/verifier两槽预算；不得并发改其源码。仍未有上传HTTP/原图片绑定，继续静默推进。
+
+
+## 当前继续入口（C1b，勿与实现者并发写同一文件）
+
+- 88f5940远程CI34716208568实际成功，verify 4m40s：853项基础回归所在测试步骤、类型检查、生产构建、Docker六环境端口、HTTP演练、原root及原角色进程重启smoke通过。非tag，镜像publish/anonymous-pull跳过，不是发布新镜像。
+- **Feynman `01a09684-1393-7002-b9d4-e6016dd1e988` 正在实现C1b**。先通过原生wait_agent确认是否已停止，再读diff并独立验证；未返回完成时主会话不编辑其private-asset-store端口/私有媒体文件/tests及必要共享decoder预算变更。
+- 后续规格审查可复用Hegel `01a09686-30d5-7931-8a5c-d6b9854653a5`（熟悉文件威胁模型）；接口契约审查Dewey `01a09645-827c-70a0-b25a-30abc5fbc39e`；规格通过后质量审查Cicero `01a09636-f45c-7450-9a1f-710ff2a6328c`。主仓必须重新跑，不能只信agent GREEN。
+- 下一顺序不变：C1b文件→C1c上传意图/事务/HTTP/恢复→C2原图片控件和剧本聚合→D移除临时面板/受限reset/原创作完整验收。没有HTTP/assets服务或剧本聚合就不宣布创作全链路完成。
+- 同一任务heartbeat `everwoven` 已实际读取本地配置为ACTIVE；保持普通阶段静默，不新建第二automation，不用空状态冒充完成。
+- 主仓仍有用户原有未跟踪研究markdown；禁止`git add .`或删除这些资料。当前无用户业务库重置、无模型付费调用、无发布tag。
+
+2026-09-12 20:14 UTC heartbeat继续：已先核对当前进度/总方案/Git和Feynman原生状态（仍running）。C1b已出现private-asset-store真实TDD测试，主会话未碰写集。Dewey完成下一C1c只读边界核查，惰性资产工厂、认证/世代/owner在图片body与资产文件创建之前、有界接收容量、tRPC JSON和SQLite sidecar证据边界已记专属执行计划。
+
+C1b已停写并进入规格复核；主仓60文件907/907通过，类型检查待最后退出确认。重点未闭合问题：O_EXCL cleanup进程崩溃残锁无恢复工具，主会话要求评估自动释放协调端口而非把永久busy记为闭环。暂不commit C1b、不启动C1c源码。
+
+C1b首次主仓907/907及runtime/Webtypecheck已确认退出0。Hegel规格指出两项恢复缺口：永久cleanup空锁、exists后verify无补fsync。已采用ADR-0009并派实现者先RED修订为必选协调端口+同步终态删除临界段、ensureDurableCandidate；当前保持未验收，不把测试数当闭环。
+
+C1b第二轮主仓923/923+typecheck+生产三Chrome通过，但Hegel独立复现wrapped async hook未处理拒绝导致进程退出，以及随机非法UUID构造改错版本位。Feynman修private资产；Dewey独立两契约测试修相同fixture（各自写集不重叠）。修完必须主仓再跑及复审后commit，不发送阶段完成通知。
+
+独立fixture修复：Dewey只改角色校验/dataset命令两测试，固定含第二组7的v7重现旧replace仍合法，报告RED4失败/42通过→GREEN46/46；改固定版本4非法样本并断言isBusinessId=false，未改生产校验器。主仓将在private资产修复停写后统一复跑。
+
+C1b最终证据：主仓62文件928/928+runtime/Web类型检查退出0；最终隔离生产构建及三Chrome退出0。额外两次独立Node进程使用真实initializeLocalHost/validatedHost和compiled文件端口，写入→进程结束→同dataset读回hash/metadata→ensureDurable通过；测试协调器明确拒绝cleanup，未宣称生产SQLite清理协调已实现。Hegel最后P2复核通过，Cicero最终只读质量PASS。

@@ -9,18 +9,19 @@
 ## 1. 契约和纯验证
 
 - [x] UploadIntentDTO与AssetDTO只含公开字段；字节数用十进制字符串，绝不透传storageKey/目录/processingToken/lease。
-- [x] begin固定dataset/command、原hash/原字节数/原始文件名/权利声明。ID和资产路径由服务端产生；文件名只是元数据。
+- [x] begin契约固定dataset/command、原hash/原字节数/原始文件名/权利声明，拒绝客户端assetId/path；实际意图ID由C1c服务分配，文件名只是元数据。
 - [x] JPG/PNG/WebP魔数与实际解码双核验；最多10MiB，每边至少256、至多8000，像素至多24MP。拒绝动画/多页/SVG/URL/path/截断文件。
 - [x] EXIF方向归一，去元数据，最大边2048静态WebP；输出hash/真实宽高/字节数来自产物。
 - [x] 固定编码参数、解码并发、输出上限与处理超时；队列有界，不能无限驻留大Buffer。用实际生成的小型测试图片，不使用用户图片。
 
 ## 2. 私有文件端口
 
-- [ ] Host内私有素材目录，目录0700/文件0600，检查owner/inode/no-follow；世代进入服务端storageKey。
-- [ ] 有界二进制写入；不得把现有writeExclusive文本助手用于图片字符串化。
-- [ ] 明确采用无覆盖发布原语并测试崩溃窗口。可选择O_EXCL直接写最终私有候选文件（ready之前绝不公开），避免先exists再rename覆盖；若选hard-link必须单独处理合法瞬态nlink=2，不能放宽通用安全检查。
-- [ ] 完整写入与文件fsync、父目录fsync结束，核验hash/宽高/字节数后才允许完成。读取核验和返回字节来自同一已校验句柄。
-- [ ] 部分文件/不匹配文件不“继续补写为正确”，拒绝准入并走终态清理。已完成文件缺失/损坏返回明确不可用，不用演练图冒充。
+- [x] Host内私有素材目录，目录0700/文件0600，检查owner/inode/no-follow；世代进入私有路径，DB storageKey关联待C1c。
+- [x] 有界二进制写入；不得把现有writeExclusive文本助手用于图片字符串化。
+- [x] 明确采用无覆盖发布原语并测试崩溃窗口。可选择O_EXCL直接写最终私有候选文件（ready之前绝不公开），避免先exists再rename覆盖；若选hard-link必须单独处理合法瞬态nlink=2，不能放宽通用安全检查。
+- [x] 完整写入与文件fsync、父目录fsync结束，核验hash/宽高/字节数后才返回durable文件证据，非业务ready。读取核验和返回字节来自同一已校验句柄。
+- [x] 部分/不匹配/缺失文件返回固定错误，不补写、覆盖或盲删，不用演练图冒充。
+- [ ] C1c接通终态清理与Asset unavailable状态/HTTP传播；仅文件错误不等于业务状态服务已完成。
 
 ## 3. 上传用例、Store、恢复
 
@@ -80,3 +81,15 @@ B的原页面生产Chrome验收已通过（5f037bf），开始C1；下面是单�
 测试包括整链权限、symlink/身份可检测变动、无覆盖竞争、短写/中断/file+dir sync故障、同handle返回、cleanup交错。不得用这些测试宣称抵御任意同UID恶意TOCTOU；macOS与Linux都需实际验证。当前HTTP入口核查未发现可由请求重命名素材祖先的路由。
 
 C1a主仓58文件853/853、双端typecheck、生产构建、三Chrome及compiled-dist三格式核验通过；Dewey/Hegel规格与Cicero质量通过。仅第1节实现，后续文件/状态服务/HTTP不在本次完成范围。
+
+
+## C1b规格复核修订：两项恢复门槛
+
+详见[ADR-0009](../../architecture/adr/0009-sqlite-asset-cleanup-coordination.md)。初版161项聚焦与主仓907项通过并不覆盖这两项缺口：
+
+- [x] 删除永久O_EXCL cleanup空锁，强制CleanupCoordinator；同步固定删除临界段不返回Promise/不等待异步hook。C1c在T1已提交deleting后用T2 SQLite协调，实际跨进程崩溃/超时证据留C1c。没有默认进程内fallback。
+- [x] 新增ensureDurableCandidate：exists/崩溃恢复必须补file+dir fsync；只读verify不等于durable，partial/错内容不补写。
+
+原“文件I/O不持写事务”仅对终态cleanup固定元数据/unlink/fsync作明确例外；读取/解码/上传/网络仍全部事务外。禁止直接拿现有3秒事务包异步FS，导致锁先释放而旧工作继续。主会话已派FeynmanTDD修订，尚未重验收。
+
+C1b最终本地验收：主仓928/928、双端typecheck、生产构建/三Chrome、真实宿主两个Node进程文件写入与读回；Hegel/Dewey规格及Cicero质量通过。仍不包含实际SQLite CleanupCoordinator、HTTP、Asset意图/ready服务。

@@ -2,7 +2,7 @@
 
 **版本：0.2 / 2026-09-12 / 可分批实施的设计基线，非整体验收。**
 
-实施增量：[M1-A1](../implementation/M1-A1-CLEAN-BASELINE-2026-09-12.md)已替换根StorySettings与单一Prisma baseline；M1-A2已贯通dataset命令；[M1-B](CHARACTER-AUTHORING-M1-B.md)角色六操作与共享会话已落地，原角色页处于最终验收。本文的剧本聚合、私有图片协议及定向reset仍待实施，不因角色切片通过而标总体完成。
+实施增量：[M1-A1](../implementation/M1-A1-CLEAN-BASELINE-2026-09-12.md)已替换根StorySettings与单一Prisma baseline；M1-A2已贯通dataset命令；[M1-B](CHARACTER-AUTHORING-M1-B.md)角色六操作与共享会话已落地并通过原页面及CI验收。C1a图片严格契约/解码与C1b私有文件端口已通过本地验收。本文的剧本聚合、私有图片协议及定向reset仍待实施，不因角色切片通过而标总体完成。
 
 用户已确认继续推进前端、后端、端到端及文档，随后明确：**不要旧协议/旧数据兼容，允许清空本项目业务数据重建。** 本文据此采用全新基线，不建设迁移兼容层。本方案承接[范围设计](../superpowers/specs/2026-09-12-integrated-authoring-design.md)，不是再创建一套原型。当前实现与测试证据只在 [PROGRESS](../PROGRESS.md) 登记。本文标为“拟增”的契约/SQL尚未上线，不应据此直接调用接口或迁移用户库。
 
@@ -320,6 +320,8 @@ M1-A1已用202609120001_authoring_baseline替换旧迁移定义，schema gate只
 不为开发期重建增加旧库升级/自动备份迁移框架。本次允许清空旧业务资料，但**不等于关闭将来正式用户数据的备份要求**；未来生产备份可独立实现，不参与当前兼容设计。当前尚未执行任何数据删除。
 
 ## 7. 图片协议与崩溃恢复
+
+恢复增量决策见[ADR-0009](adr/0009-sqlite-asset-cleanup-coordination.md)：exists后不能仅凭只读verify进入ready，须ensureDurableCandidate补file/dir同步。终态cleanup先独立提交deleting，再用必选SQLite协调器执行同步小删除临界段，替换不可恢复的永久空文件锁；这是元数据/unlink/fsync进入写锁事务的有限例外，读图/解码/上传/网络仍在事务外。跨进程崩溃与超时语义在C1c验证，设计接受不是实现已验收。
 
 文件系统威胁模型：防御不可信HTTP输入、其他OS用户和合作worker；同UID恶意进程/管理员属于宿主失陷。Node22路径重检不是原子dirfd防御，必须校验整条祖先权限并保持私有根/dataset目录运行期稳定；失败worker不自动按固定路径删除文件，终态cleanup负责残留。具体端口、检查和局限见[私有图片计划](../superpowers/plans/2026-09-12-private-asset-upload.md)。reset必须确认全部相关进程和在途操作停止，不能把租约过期当进程停止。
 

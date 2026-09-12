@@ -26,3 +26,6 @@ export class ImageJobBudget {
     });
   }
 }
+
+/** One process-wide budget for normalization AND readback verification. Never queue decoders. */
+export const sharedImageJobBudget = new ImageJobBudget();

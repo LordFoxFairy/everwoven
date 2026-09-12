@@ -1,5 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import {v7} from 'uuid';
+import {isBusinessId} from '../src/contracts/primitives.js';
+const nonV7DatasetId = '01994b80-7000-4000-8000-000000000001';
 const settings = {personality: '', appearance: '', speakingStyle: '', boundaries: ''};
 const command = {datasetId: v7(), commandId: v7(), name: '角色', settings, portraitAssetId: null};
 async function parsers() {
@@ -7,6 +9,9 @@ async function parsers() {
   expect(module, 'character parsers must exist').not.toBeNull(); return module!;
 }
 describe('strict CharacterTemplate contracts', () => {
+  it('uses an explicitly non-v7 invalid dataset fixture', () => {
+    expect(isBusinessId(nonV7DatasetId)).toBe(false);
+  });
   it('accepts empty settings and canonicalizes name/settings/portrait without trimming user text', async () => {
     const p = await parsers();
     const input = {...command, name: '  😀角色  ', settings: {boundaries: '', speakingStyle: '', appearance: '', personality: ''}};
@@ -32,7 +37,7 @@ describe('strict CharacterTemplate contracts', () => {
     expect(() => p.parseCreate({...command, [key]: v7()} as never)).toThrow('INVALID_CHARACTER_COMMAND');
     expect(() => p.parseUpdate({datasetId: command.datasetId, commandId: v7(), id: v7(), expectedRevision: 1, patch: {[key]: v7()}} as never)).toThrow('INVALID_CHARACTER_COMMAND');
   });
-  it.each([undefined, null, 'bad', v7().replace('-7', '-4')])('rejects malformed or missing dataset for every command %j', async datasetId => {
+  it.each([undefined, null, 'bad', nonV7DatasetId])('rejects malformed or missing dataset for every command %j', async datasetId => {
     const p = await parsers(), lifecycle = {datasetId, commandId: v7(), id: v7(), expectedRevision: 1};
     expect(() => p.parseCreate({...command, datasetId} as never)).toThrow('INVALID_CHARACTER_COMMAND');
     expect(() => p.parseUpdate({...lifecycle, patch: {name: '角色'}} as never)).toThrow('INVALID_CHARACTER_COMMAND');
