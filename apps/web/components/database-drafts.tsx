@@ -2,21 +2,10 @@
 
 import {useEffect, useId, useRef, useState} from 'react';
 import {v7 as uuidv7} from 'uuid';
-import type {DraftCreate, DraftCommandResult, DraftDTO, DraftListInput, DraftPage, DraftUpdate, DraftLifecycle} from '../../runtime/src/contracts/story-draft';
+import type {DraftCreate, DraftDTO, DraftListInput, DraftPage, DraftUpdate, DraftLifecycle} from '../../runtime/src/contracts/story-draft';
+import type {DatabaseDraftsClient} from '../lib/authoring/ports';
 import {Button} from './ui/button';
 import styles from './database-drafts.module.css';
-
-export interface DatabaseDraftsClient {
-  session(): Promise<{authenticated: boolean}>;
-  connect(code: string): Promise<void>;
-  logout(): Promise<void>;
-  create(input: DraftCreate): Promise<DraftCommandResult>;
-  get(id: string): Promise<DraftDTO>;
-  list(input?: DraftListInput): Promise<DraftPage>;
-  update(input: DraftUpdate): Promise<DraftCommandResult>;
-  delete(input: DraftLifecycle): Promise<DraftCommandResult>;
-  restore(input: DraftLifecycle): Promise<DraftCommandResult>;
-}
 
 type Fields = {title: string; premise: string; playerRole: string; worldRules: string; tone: string};
 type Filter = NonNullable<DraftListInput['deleted']>;

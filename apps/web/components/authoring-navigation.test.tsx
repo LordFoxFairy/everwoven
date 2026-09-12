@@ -4,7 +4,7 @@ import {cleanup, render, screen, waitFor} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {Platform} from './platform';
 import {createDatabaseDraftsClient} from '../lib/authoring/database-client';
-import type {DatabaseDraftsClient} from './database-drafts';
+import type {DatabaseDraftsClient} from '../lib/authoring/ports';
 vi.mock('../lib/authoring/database-client',()=>({createDatabaseDraftsClient:vi.fn()}));
 afterEach(()=>{cleanup(); localStorage.clear(); vi.restoreAllMocks();});
 it('keeps an unknown command mounted across sidebar, storage-tab and create navigation',async()=>{

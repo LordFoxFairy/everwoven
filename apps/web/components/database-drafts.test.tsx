@@ -2,7 +2,8 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {act, cleanup, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import type {DraftDTO, DraftPage, DraftCommandResult} from '../../runtime/src/contracts/story-draft';
-import {DatabaseDrafts, type DatabaseDraftsClient} from './database-drafts';
+import {DatabaseDrafts} from './database-drafts';
+import type {DatabaseDraftsClient} from '../lib/authoring/ports';
 
 const draft = (overrides: Partial<DraftDTO> = {}): DraftDTO => ({
   id: '01994b80-0000-7000-8000-000000000001', title: '海岛来信',
@@ -280,7 +281,7 @@ describe('DatabaseDrafts injected port', () => {
     await waitFor(() => expect((button('保存') as HTMLButtonElement).disabled).toBe(false));
     expect(value()).toBe('海岛来信');
     expect(client.update.mock.calls[1][0]).toEqual(original);
-    expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false});
+    await waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false}));
     fireEvent.click(button('保存')); await screen.findByText('已保存 · 修订 3');
     expect(client.update.mock.calls[2][0]).toMatchObject({expectedRevision: 2, patch: {title: '海岛来信'}});
     expect(client.update.mock.calls[2][0].commandId).not.toBe(original.commandId);
@@ -382,6 +383,6 @@ describe('DatabaseDrafts injected port', () => {
     await waitFor(() => expect((button('保存') as HTMLButtonElement).disabled).toBe(false));
     expect(value()).toBe('海岛来信');
     expect(client.update.mock.calls.map(([input]) => input)).toEqual([original, original, original]);
-    expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false});
+    await waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false}));
   });
 });

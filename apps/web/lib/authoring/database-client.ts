@@ -1,18 +1,27 @@
 import { createAppClient } from '../../trpc/client';
-import type { DatabaseDraftsClient } from '../../components/database-drafts';
+import type { DatabaseDraftsClient } from './ports';
 export function createDatabaseDraftsClient(): DatabaseDraftsClient {
   const client = createAppClient();
-  async function sessionRequest(method: string, code?: string) {
-    const response = await fetch('/api/local-session', {
-      method,
-      credentials: 'same-origin',
-      cache: 'no-store',
-      headers: { 'content-type': 'application/json', 'x-everwoven-request': '1' },
-      ...(code === undefined ? {} : { body: JSON.stringify({ code }) }),
-    });
-    const data = await response.json();
-    if (!response.ok) throw Error(typeof data.error === 'string' ? data.error : '本机连接失败，请重试');
-    return data as { authenticated: boolean };
+  async function sessionRequest(method: 'GET' | 'POST' | 'DELETE', code?: string): Promise<{ authenticated: boolean }> {
+    try {
+      const response = await fetch('/api/local-session', {
+        method,
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: { 'content-type': 'application/json', 'x-everwoven-request': '1' },
+        ...(code === undefined ? {} : { body: JSON.stringify({ code }) }),
+      });
+      if (!response.ok) throw Error();
+      const data: unknown = await response.json();
+      if (!data || typeof data !== 'object' || Array.isArray(data) ||
+          !('authenticated' in data) || typeof data.authenticated !== 'boolean' ||
+          (method !== 'GET' && data.authenticated !== (method === 'POST'))) throw Error();
+      return { authenticated: data.authenticated };
+    } catch {
+      // Session failures may contain response bodies, parser snippets or private URLs.
+      // Keep their message fixed; CRUD errors below must retain their domain metadata.
+      throw Error('本机连接失败，请重试');
+    }
   }
   return {
     session: () => sessionRequest('GET'),
