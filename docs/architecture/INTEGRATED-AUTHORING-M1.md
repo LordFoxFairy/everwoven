@@ -2,7 +2,7 @@
 
 **版本：0.2 / 2026-09-12 / 可分批实施的设计基线，非整体验收。**
 
-实施增量：[M1-A1](../implementation/M1-A1-CLEAN-BASELINE-2026-09-12.md)已替换根StorySettings与单一Prisma baseline；M1-A2已贯通dataset命令；[M1-B](CHARACTER-AUTHORING-M1-B.md)角色六操作与共享会话已落地并通过原页面及CI验收。C1a图片严格契约/解码与C1b私有文件端口已通过本地验收。本文的剧本聚合、私有图片协议及定向reset仍待实施，不因角色切片通过而标总体完成。
+实施增量：[M1-A1](../implementation/M1-A1-CLEAN-BASELINE-2026-09-12.md)已替换根StorySettings与单一Prisma baseline；M1-A2已贯通dataset命令；[M1-B](CHARACTER-AUTHORING-M1-B.md)角色六操作与共享会话已落地并通过原页面及CI验收。C1a图片严格契约/解码、C1b私有文件、C1c-1清理协调及C1c-2显式生命周期/有界接收器已通过本地验收，Host/HTTP仍待接线。本文的剧本聚合、私有图片协议及定向reset仍待实施，不因角色切片通过而标总体完成。
 
 用户已确认继续推进前端、后端、端到端及文档，随后明确：**不要旧协议/旧数据兼容，允许清空本项目业务数据重建。** 本文据此采用全新基线，不建设迁移兼容层。本方案承接[范围设计](../superpowers/specs/2026-09-12-integrated-authoring-design.md)，不是再创建一套原型。当前实现与测试证据只在 [PROGRESS](../PROGRESS.md) 登记。本文标为“拟增”的契约/SQL尚未上线，不应据此直接调用接口或迁移用户库。
 
@@ -407,3 +407,5 @@ M1-A端口/新契约/dataset与M1-B原角色页已完成本地验收；角色切
 ## 11. 本轮评审结论
 
 2026-09-12独立复审通过，批准作为分批实施基线。修复2个P1（complete与清理竞争、reset跨世代重放）及1个P2（已有角色绑定输入歧义）；增加相应事务规则、datasetId与验收场景。批准不代表M1代码已实现；实际端口小批次与测试结果见PROGRESS。
+
+资产begin回执身份增量：[ADR0010](adr/0010-asset-begin-identity.md)。仅begin共享server uploadId/receipt主键作为独立于响应JSON的创建绑定；complete独立回执ID，首次签发与重放均核对不可变字段。无schema/FK/旧兼容修改，已通过本地主仓与独立复核；HTTP和维护调度待后续。

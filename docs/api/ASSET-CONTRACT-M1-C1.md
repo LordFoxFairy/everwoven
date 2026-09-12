@@ -1,6 +1,6 @@
 # M1-C1 · 图片协议边界
 
-**2026-09-12，C1a源码契约。HTTP上传/读取、私有文件与数据库意图服务尚未注册，本文不是可调用接口公告。** 验收状态见[PROGRESS](../PROGRESS.md)。实现类型在runtime的`contracts/asset`与`contracts/asset-validation`公开导出；不接受旧结构、不补默认字段。
+**2026-09-12，源码协议与内部端口记录。C1a解码、C1b私有文件、C1c-1清理协调及有界接收器已本地验收；C1c-2显式生命周期已本地验收。HTTP上传/读取尚未注册，本文不是可调用接口公告。** 验收状态见[PROGRESS](../PROGRESS.md)。实现类型在runtime的`contracts/asset`与`contracts/asset-validation`公开导出；不接受旧结构、不补默认字段。
 
 ## 请求与身份
 
@@ -31,7 +31,7 @@ AssetDTO包含`id,datasetId,sha256,mimeType,byteSize,originalName,rightsDeclarat
 - mimeType固定image/webp，status为ready或unavailable；byteSize同样为正十进制字符串，宽高1..2048。
 - 时间为规范UTC ISO8601，revision为1..2147483647；deletedAt为null或合法时间。
 - storageKey、owner、绝对目录、处理token和lease不出现在DTO中。后续网络序列化使用严格解析器，不直接返回Prisma实体。
-- `AssetCommandResult<T> = {data:T,replayed:boolean}`只定义结构；本批没有伪造已实现的回执服务。
+- `AssetCommandResult<T> = {data:T,replayed:boolean}`用于历史命令回执；C1c-2事务实现已本地验收，网络尚未注册。
 
 ## 真实图片处理端口
 
@@ -76,3 +76,20 @@ AssetDTO包含`id,datasetId,sha256,mimeType,byteSize,originalName,rightsDeclarat
 C1b共享输出验证器与normalizer的两槽预算，验证规范WebP不会再有损重编码，也不误用原图最小256边限制。同步cleanup临界段不包含图片读取/解码/网络/大Buffer。
 
 私有文件异常均为固定标识，不附带path/cause。网络如何映射这些异常由C1c用例与Host白名单实施后补写；当前无可调用上传路由。
+
+
+## 有界接收器（内部，非HTTP路由）
+
+`ImageBodyReceiver.withBody(source, expected, work)`；source提供惰性openBody与可选AbortSignal，调用前由用例完成准入。两个共享槽覆盖接收与实际work，无排队；接收最多30秒，实际长度/原hash核验后才调用work。槽不是在返回Buffer时释放。每次只注册当前read的中断处理，不随微chunk累积Promise订阅。
+
+接收中止/超时先返回固定错误、尝试cancel和释放reader锁；cancel一直pending时隔离保留该槽，最多两处，不宣称底层已取消。work内部领域错误原样交应用/Host，source异常净化为固定IMAGE_BODY错误。HTTP内容长度/状态码与浏览器体验待接线后验收。
+
+## C1c-2应用生命周期（本地已验收，网络未注册）
+
+- begin/getUpload/process/complete/getBytes/cleanup均绑定可信owner/dataset；按严格公开输入执行，文件工厂与正文保持惰性。
+- begin同事务意图+回执；24小时意图TTL，processing/finalizing租约120秒。新claim在TTL后拒绝；有效期内已领取且租约仍有效的token可完成。completed历史回执仍可重放。
+- output元数据提交后才发布文件；exists不是成功证据，必须ensureDurable。complete在有效token/revision/lease条件下同事务ready+completed+回执。
+- 显式complete可恢复完整候选未published；缺失可process原hash/大小重传；partial/损坏不覆盖修补。清理先提交deleting再T2同步删除，重复deleting保持可重试。
+- 当前没有启动扫描/自动调度，不能把这些显式用例描述为自动恢复服务。Host/HTTP后续接线；当前测试的可信上下文和模拟revalidate不是正式认证证据。
+
+回执身份设计增量见[ADR0010](../architecture/adr/0010-asset-begin-identity.md)：begin采用服务端uploadId与receipt主键共享创建身份，不以response.id自证；complete维持独立receipt身份，首次写入与重放均核对固定意图/素材字段。当前已通过本地最终回归，未作为已注册HTTP协议发布。

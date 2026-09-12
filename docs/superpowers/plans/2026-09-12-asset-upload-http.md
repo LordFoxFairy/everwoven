@@ -107,3 +107,5 @@ Dewey只负责新增图片接收端口/媒体实现/专属测试；Feynman只负
 Web新增local-assets访问器、assets tRPC router和二进制handler，两个App Router薄route标nodejs/force-dynamic。PUT用专属dataset header和既有x-everwoven-request标记；GET允许正常无Origin但检查存在的Origin/Host/cross-site。tRPC assets写命令补标记检查；现有来源/config提前返回缺nosniff分支同步补齐。
 
 错误码需对照服务/接收器最终枚举冻结：会话401，来源403，参数/hash/意图大小不匹配400，不存在/跨owner404，状态/租约/幂等409，dataset412，实际超限413，格式415，容量/暂不可用503，未知500；不透传任意message/prefix。真实Host测试暂停在重验前撤销或换dataset/inode，验证旧绑定拒绝且零图片body/文件副作用；返回同Buffer且成功/失败都有no-store/nosniff。
+
+C1c-2显式生命周期最终本地已验收：主仓1090/1090、双端typecheck、生产三Chrome；回执两次独立审查发现的问题已按ADR0010修复并复核。接收器50d67cb远程CI34720501448成功。下一片实际Host/HTTP接线；自动扫描与bounded maintenance尚未实施，不改为完成。

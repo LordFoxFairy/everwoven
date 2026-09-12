@@ -191,3 +191,7 @@ P05的StoryVersion、ProviderBindingVersion和初始budgetLimit由CreateExperien
 - Snapshot/媒体共享必须保留child持久引用与可访问前缀边界。删除源经历不级联破坏存活child，也不开放源未来内容。
 - BudgetScope在首个正式预算/账本迁移中建立；Experience预算是本分支新增费用子限额。Usage/Reservation只有一份，含scope/experience双重归属；接收Quote原子检查两级，不复制父分支余额。
 - 普通索引/候选真实唯一见专项§3.1；尤其禁止parent/sourceSavepoint做唯一。新增DDL、schema与真实SQLite故障测试通过后才进入登记表的“已应用”部分。
+
+### M1-C1c-2：asset begin共享创建身份
+
+仅asset begin在同事务使用同一服务端UUIDv7作为AssetUpload.id与CommandReceipt.id，重放以receipt.id核对对应意图，禁止仅凭response.id自证。complete以及其它业务回执仍独立ID。两表PK与owner/command真唯一未变，无FK/新增unique；应用维护关系而非ORM关联。M1保留意图与回执，未来归档需一起评审重放期限，见[ADR0010](adr/0010-asset-begin-identity.md)。

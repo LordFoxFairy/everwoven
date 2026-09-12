@@ -2,7 +2,7 @@
 
 更新：2026-09-12。**这是实施真值台账，不用设计完成代替功能完成，不用commit代替验收。**
 
-**当前执行入口：C1b私有文件端口08de822已推送，CI34718307948成功；本地主仓928/928、双端typecheck、生产构建/三Chrome、真实Host跨进程文件读回及独立复核通过。C1c-1已提交推送bd580f7，主仓956/956、双端typecheck、生产构建/三Chrome与独立审核通过，远程CI待核实。Feynman实施C1c-2生命周期，Dewey独立有界接收器。上传生命周期/HTTP、原图片与剧本聚合仍待打通，普通阶段不通知用户。**
+**当前执行入口：C1c-2显式资产生命周期最终主仓1090/1090、双端typecheck、生产三Chrome和独立复核通过，准备提交。bd580f7 / 50d67cb均已推送且远程CI成功；Host/HTTP、原图片/剧本聚合及维护/reset仍待打通，不通知总体完成。**
 
 ## 当前决策（按最新用户指令）
 
@@ -198,3 +198,23 @@ C1c-1 bd580f7已实际推送成功，无发布tag。Feynman接C1c-2应用/Store/
 Receiver P2已修复：Dewey先RED2失败/原39通过→41/41；主会话独立41/41，Hegel再审41/41及50万微chunk GC常量保留堆通过，abort/严格未处理拒绝模式无回归。Cicero只读质量审核中；最终接收器切片在隔离稳定源码做全量/类型验证，生命周期仍由Feynman实施。
 
 Receiver稳定切片主仓41/41+独立规格/质量PASS；隔离版本管理源码61文件954/954+双端typecheck退出0。计划单独提交这四个新增文件与实际证据，不混入在途生命周期，不将隔离全量误写为主仓全量。
+
+Receiver50d67cb本地commit成功，但git push退出128（GitHub443 SSL_ERROR_SYSCALL），不写已推送；bd580f7 push先前成功，CI查询多次TLS timeout未证实结果。未改凭证/代理/网络配置，继续生命周期实现；网络问题不阻塞本地可做的闭环工作。
+
+C1c-2 Feynman已停写14个新增文件，报告聚焦55/55及runtime build/typecheck通过；TTL新claim24h后拒绝、显式恢复和T1→T2已实现，但启动扫描/自动调度/真实HostHTTP未实现。主会话正在主仓全量验证；Hegel规格/并发、Dewey契约/Store独立只读审核。生命周期源码已显式复制到隔离快照用于生产回归，不复制用户数据。
+
+C1c-2首轮主仓独立全量：68文件1052/1052，runtime/Web类型检查，exit0（含receiver修复及主仓本地prototype43项）。隔离生产构建/三Chrome仍在执行，Hegel/Dewey规格审核未结束，不提前提交或宣布总体完成。
+
+C1c-2主仓1052/1052与生产三Chrome已通过，Hegel生命周期/质量Cicero原审PASS，但Dewey额外确认P2：结构合法回执response可与原命令/意图错配，begin原hash/文件名及complete assetId被改仍重放成功。已交Feynman RED补固定输入与upload→asset不可变语义绑定校验；需保留历史回执不依赖当前ready/删除状态。未提交此生命周期切片，修后重新审核与主仓验证。
+
+bd580f7远程已通过精确check-runs实际核实：[CI34719283402](https://github.com/LordFoxFairy/everwoven/actions/runs/34719283402) verify=completed/success，publish/anonymous-pull skipped。此前TLS错误没有改配置，后续只读重试成功。正在重试50d67cb push；未确认结果前不写已到达。
+
+50d67cb重试git push已确认退出0，远程bd580f7→50d67cb成功；未发布tag。C1c-2新增asset-service-receipts.test.ts正在RED/GREEN修复，保持不提交未验收源码。
+
+回执第一修订主仓1082/1082、生产三Chrome通过，但独立再审仍2个P2：合法同内容A/B意图整份begin DTO互换；completed新command写入错配Asset回执后自身重放失败。Feynman继续RED修固定绑定与首次提交检查；拟begin receipt.id复用server uploadId作为独立于response的1:1创建身份（无新schema/FK），Hegel正独立评估。保持未提交生命周期，不通知完成。
+
+50d67cb远程精确check-runs确认[CI34720501448](https://github.com/LordFoxFairy/everwoven/actions/runs/34720501448) verify=success，发布/匿名拉取非tag跳过。Hegel认可begin回执与upload共享服务端创建ID，无新schema/FK；约束和未来保留成本记ADR0010，代码修复仍待验收。
+
+第二回执修订Feynman已停写：RED9失败/39通过→48/48，生命周期93/93、runtime类型通过报告。主仓再次全量与隔离生产三Chrome执行中；Dewey/Cicero分别复核两项P2。identity共享规则采用ADR0010，无schema/其他业务回执兼容修改。
+
+C1c-2最终主仓69文件1090/1090及双端typecheck退出0；最后修订隔离生产build和三Chrome退出0。Dewey48/48、Cicero双向原repro拒绝+质量PASS，关闭两项追加P2。准备提交本切片；未发生用户数据删除、模型调用或tag发布。
