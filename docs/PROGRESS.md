@@ -304,3 +304,23 @@ C2最后两小修订均停写：A Demo明确rejected缓存允许显式重试，p
 
 
 C2最终本地验收已闭合：主会话取回最后两个完整进程exit0，85文件1340/1340及双端types；隔离production build/五Chrome（含Studio复制与ready防重复按钮）exit0。Dewey最后增量独立80/80规格PASS，Cicero独立78/78最终质量PASS，当前P1/P2均0。精确提交/CI另核对，不称整体M1创作闭环。用户3100未替换、业务数据未重置、无付费模型调用。
+
+C2已commit `3cbad61`（44文件），实际本地验收见上；push正在核对，未发布tag。下一切片开始：Hegel `01a09686-30d5-7931-8a5c-d6b9854653a5` 为显式有界资产维护唯一writer（runtime维护/Host CLI/必要非唯一索引与fresh baseline门禁/专属tests）；Feynman `01a09684-1393-7002-b9d4-e6016dd1e988` 只读准备原剧本聚合严格契约及后端/前端分工，未获写入授权。主会话持有docs和生产smoke，不触及活跃parallel cut。资产维护先真实RED再实现，待双review/主仓核验；聚合仍未实现。
+
+3cbad61 push已实际退出0；精确check-runs为[CI34725829207](https://github.com/LordFoxFairy/everwoven/actions/runs/34725829207) verify=in_progress，尚未认定远程通过。Cicero追加只读核对角色命令unknown是否有同类早于receipt拒绝问题，要求最小复现，不凭推测扩大重构。
+
+角色unknown聚焦发现已确认P2（不是C2新增回归）：Cicero真实Controller内存提交/receipt复现saveCopy提交丢响应→精确INVALID_CHARACTER_COMMAND400早于receipt→错误清pending→再saveCopy同文本创建第二行。任意INVALID_CHARACTER_前缀也误判；普通generic400当前正确，不泛化报告。主会话原角色生产smoke追加真实提交丢响应后精确400，旧production实际RED（确认控件消失，下一确认无请求超时exit1）。新spawn达原生上限而未创建，实际复用已停止的Einstein `01a09639-298c-75c1-81e9-f6ee63897f9f`，唯一writer仅角色controller/viewmodel/专属tests；维护writer/runtime、聚合只读、主会话smoke/docs均不重叠。不以已通过C2掩盖新发现。
+
+3cbad61精确CI34725829207的jobs已实际读取：verify=completed/success，publish/anonymous-pull=skipped。没有新镜像/tag。另只读确认用户3100监听PID83321为本项目apps/web下next-server16.3.4，HTTP元信息APP_ENV=demo；未读取密钥/整进程环境、未停止服务。最终正式启用仍后续，不把当前演练称为已落地正式创作。新增原创作验收矩阵，并更新本机部署说明中已过时的“人物/图片未实现”范围。
+
+原聚合冻结已记录2026-09-12-story-aggregate-contract-freeze.md：采用Feynman只读严格请求/DTO建议，主会话定显式null/完整槽、全量正式viewmodel、标题字面q、scopeHash、不batch的2MiB故事请求、独立create身份回执、非演示准备路径。主会话新scripts/smoke/local-story-ui.mjs初始真实原Editor保存门槛RED（button disabled true≠false，exit1），完整字段/图片/重启/生命周期断言待实际DTO与原UI落地扩充；未接CI，不冒称完整测试已写好。
+
+Feynman `01a09684-1393-7002-b9d4-e6016dd1e988` 已从只读转为M1-D runtime聚合唯一writer：故事contracts/parser/store/application/composition及专属tests、必要exports；先报告实际纯契约，再供Web接线。明确排除Hegel持有的Host index、schema/baseline/资产维护，排除Web/主会话docs-smoke。Host故事错误调整需等维护停写后协调。Einstein角色修复仍独立Web三文件。当前均未整体验收。
+
+Pascal `01a0963a-4e45-7940-aa97-30aa76dc2070` 现为M1-D Web传输writer，唯一写集story tRPC/local-runtime/HTTP预算与纯story协议、StoryDraftClient端口/适配器及tests；不改runtime或原组件。依赖Feynman已落的唯一纯types，非batch单story2MiB，角色/图片共享batch保持。旧database-client/ports待原UI替换时统一删除，不先造旧签名兼容。主会话和runtime协调公共DTO parser实际导出，避免两套校验。
+
+角色恢复修复主会话聚焦4文件86/86 exit0；稳定C2隔离源码+明确三文件修复全量82文件1332/1332、类型、生产build与五Chrome exit0，其中原角色精确400生产RED已GREEN。当前runtime聚合/维护并行写入，不把隔离结果称为活跃主仓全量；Dewey规格复核中，尚未提交角色修复。
+
+角色修复Dewey规格独立64/64 PASS，三文件无确认P1/P2；已交Cicero质量关闭原报告，主会话生产证据与隔离范围已明确。Hegel维护内部54项聚焦GREEN，实际EXPLAIN按assetId从SCAN变非唯一索引SEARCH；尚未最终停写/主仓验收，未记录维护完成。
+
+角色恢复最终Cicero独立64/64质量PASS，指定三源码/测试及smoke当前P1/P2均0。仅此修复与主会话文档准备提交；活跃维护/聚合源码不纳入该提交。新增原剧本smoke仍是未完成RED门槛，不加入CI或此提交。

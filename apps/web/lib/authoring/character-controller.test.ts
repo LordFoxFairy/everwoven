@@ -144,3 +144,104 @@ it('retained portrait keeps its original read namespace until explicit cross-dat
  expect(controller.getSnapshot().portraitDatasetId).toBe(datasetId);controller.bind({...binding,datasetId:other});expect(controller.getSnapshot().portraitDatasetId).toBe(datasetId);
  controller.fromRetained();expect(controller.getSnapshot()).toMatchObject({portraitDatasetId:null,fields:{portraitAssetId:null}});
 });
+
+const invalidCommand={message:'INVALID_CHARACTER_COMMAND',data:{code:'BAD_REQUEST',httpStatus:400}};
+const proxyGarbage={message:'INVALID_CHARACTER_PROXY_GARBAGE',data:{code:'BAD_REQUEST',httpStatus:400}};
+const generic400={message:'Bad Request',data:{code:'BAD_REQUEST',httpStatus:400}};
+const writes=['create','update','delete','restore'] as const;
+async function editable(action:typeof writes[number]){
+ const context=await setup();
+ if(action==='create'){context.controller.newDraft();context.controller.field('name','A');}
+ else{context.c.get.mockResolvedValue({...dto(),deletedAt:action==='restore'?'2026-09-12T01:00:00.000Z':null});await context.controller.open(dto().id);if(action==='update')context.controller.field('name','A updated');}
+ return {...context,submit:()=>action==='delete'||action==='restore'?context.controller.lifecycle(action):context.controller.save()};
+}
+describe('character command recovery never forgets an earlier uncertain write',()=>{
+ it.each(writes)('%s retains its immutable command through exact 400, non-protocol prefix, and generic 400',async action=>{
+  const {controller,c,submit}=await editable(action);
+  c[action].mockRejectedValueOnce(Error('response lost'));await expect(submit()).rejects.toThrow('response lost');
+  const original=structuredClone(c[action].mock.calls[0]![0]);controller.field('name','Later text B');
+  for(const error of [invalidCommand,proxyGarbage,generic400]){
+   c[action].mockRejectedValueOnce(error);await expect(controller.confirm()).rejects.toEqual(error);
+   expect(controller.getSnapshot()).toMatchObject({unknown:true,saving:false,dirty:true,fields:{name:'Later text B'}});
+  }
+  c[action].mockResolvedValueOnce({data:{...dto(),revision:action==='create'?1:2},replayed:true});await controller.confirm();
+  expect(c[action].mock.calls.map(([input])=>input)).toEqual(Array.from({length:5},()=>original));
+  expect(controller.getSnapshot()).toMatchObject({unknown:false,fields:{name:'Later text B'}});
+ });
+ it.each([invalidCommand,proxyGarbage,generic400])('saveCopy A replays one receipt and never creates a second row after $message',async failure=>{
+  const {controller,c}=await setup();
+  const fields={name:'A',personality:'',appearance:'',speakingStyle:'',boundaries:'',portraitAssetId:null};
+  const rows:CharacterDTO[]=[],receipts=new Map<string,CharacterDTO>();let calls=0;
+  c.create.mockImplementation(async input=>{
+   if(++calls===2)throw failure; // Rejected before receipt lookup; this does not settle call 1.
+   const receipt=receipts.get(input.commandId);if(receipt)return{data:receipt,replayed:true};
+   const saved={...dto(input.name),id:`01994b80-0000-7000-8000-${String(rows.length+1).padStart(12,'0')}`,settings:input.settings};
+   rows.push(saved);receipts.set(input.commandId,saved);
+   if(calls===1)throw Error('committed, response lost');
+   return{data:saved,replayed:false};
+  });
+  await expect(controller.saveCopy(fields)).rejects.toThrow('committed, response lost');
+  await expect(controller.confirm()).rejects.toEqual(failure);
+  // Exercise the original bug path before asserting UI state: a cleared pending sends a new ID here.
+  const recovered=await controller.saveCopy({...fields});
+  expect(rows).toHaveLength(1);expect(receipts.size).toBe(1);expect(recovered.id).toBe(rows[0]!.id);
+  expect(new Set(c.create.mock.calls.map(([input])=>input.commandId)).size).toBe(1);
+  expect(controller.getSnapshot()).toMatchObject({unknown:false,confirmed:{id:recovered.id}});
+ });
+ it.each(writes)('%s preserves an in-flight scope-fenced command after same-dataset rebind and exact rejection',async action=>{
+  const {controller,c,binding,submit}=await editable(action),late=deferred<{data:CharacterDTO;replayed:boolean}>();
+  c[action].mockReturnValueOnce(late.promise);const old=submit().catch(error=>error),original=structuredClone(c[action].mock.calls[0]![0]);
+  const next=client(),invalidate=vi.fn();controller.bind({...binding,client:next,invalidate});
+  expect(controller.getSnapshot().unknown).toBe(true);next[action].mockRejectedValueOnce(invalidCommand);
+  await expect(controller.confirm()).rejects.toEqual(invalidCommand);expect(controller.getSnapshot().unknown).toBe(true);
+  late.resolve({data:dto('Old epoch'),replayed:false});await old;
+  expect(controller.getSnapshot().unknown).toBe(true);expect(controller.getSnapshot().confirmed?.name).not.toBe('Old epoch');
+  next[action].mockResolvedValueOnce({data:dto('Confirmed receipt'),replayed:true});await controller.confirm();
+  expect(next[action].mock.calls.map(([input])=>input)).toEqual([original,original]);
+  expect(binding.invalidate).not.toHaveBeenCalled();expect(invalidate).not.toHaveBeenCalled();
+ });
+ it.each(writes)('%s never replays its unknown command into another dataset after a pre-receipt rejection',async action=>{
+  const {controller,c,binding,submit}=await editable(action);c[action].mockRejectedValueOnce(Error('response lost'));
+  await expect(submit()).rejects.toThrow();const original=c[action].mock.calls[0]![0];
+  c[action].mockRejectedValueOnce(invalidCommand);await expect(controller.confirm()).rejects.toEqual(invalidCommand);
+  const next=client();controller.bind({...binding,client:next,datasetId:other,invalidate:vi.fn()});
+  await expect(controller.confirm()).rejects.toThrow();await expect(controller.save()).rejects.toThrow();
+  for(const write of writes)expect(next[write]).not.toHaveBeenCalled();
+  controller.fromRetained();controller.field('name','Explicit new dataset');await controller.save();
+  expect(next.create.mock.calls[0]![0].datasetId).toBe(other);expect(next.create.mock.calls[0]![0].commandId).not.toBe(original.commandId);
+ });
+ it.each(writes)('%s terminates a trusted first rejection without permanently locking the editor',async action=>{
+  const {controller,c,submit}=await editable(action);c[action].mockRejectedValueOnce(invalidCommand);
+  await expect(submit()).rejects.toEqual(invalidCommand);expect(controller.getSnapshot()).toMatchObject({unknown:false,saving:false,busy:false});
+  await expect(controller.confirm()).rejects.toThrow('原命令暂不可确认');
+  c[action].mockResolvedValueOnce({data:dto('Accepted'),replayed:false});await submit();expect(c[action]).toHaveBeenCalledTimes(2);
+ });
+ it('a synchronous first rejection with the exact protocol error releases the flight lock',async()=>{
+  const {controller,c,submit}=await editable('create');c.create.mockImplementationOnce(()=>{throw invalidCommand;});
+  await expect(submit()).rejects.toEqual(invalidCommand);expect(controller.getSnapshot()).toMatchObject({unknown:false,busy:false});
+  await submit();expect(c.create).toHaveBeenCalledTimes(2);
+ });
+ it.each([proxyGarbage,generic400,{message:'INVALID_CHARACTER_COMMAND',data:{code:'INTERNAL_SERVER_ERROR',httpStatus:500}}])('an untrusted first $message keeps the original command',async failure=>{
+  const {controller,c,submit}=await editable('create');c.create.mockRejectedValueOnce(failure);await expect(submit()).rejects.toEqual(failure);
+  expect(controller.getSnapshot().unknown).toBe(true);await controller.confirm();expect(c.create.mock.calls[1]![0]).toEqual(c.create.mock.calls[0]![0]);
+ });
+});
+
+describe('character definitive errors require exact protocol identifiers and matching tRPC metadata',()=>{
+ const known=[
+  ['INVALID_CHARACTER_COMMAND','BAD_REQUEST',400],['INVALID_CHARACTER_QUERY','BAD_REQUEST',400],['INVALID_CHARACTER_PORTRAIT','BAD_REQUEST',400],
+  ['REVISION_CONFLICT','CONFLICT',409],['IDEMPOTENCY_CONFLICT','CONFLICT',409],['CHARACTER_NOT_DELETED','CONFLICT',409],['CHARACTER_NOT_FOUND','NOT_FOUND',404],
+ ] as const;
+ it.each(known)('%s accepts its tRPC code, and validates httpStatus when supplied',async(message,code,httpStatus)=>{
+  const {characterFailure}=await import('./character-viewmodel');
+  expect(characterFailure({message,data:{code,httpStatus}}).definitive).toBe(true);
+  expect(characterFailure({message,data:{code}}).definitive).toBe(true);
+  for(const error of [{message},{message,status:httpStatus},{message,data:{httpStatus}},{message,data:{code:'INTERNAL_SERVER_ERROR',httpStatus:500}},
+   {message,data:{code,httpStatus:502}},{message,data:{code:'UNAUTHORIZED',httpStatus:401}},{message,data:{code:'FORBIDDEN',httpStatus:403}}]){
+   expect(characterFailure(error).definitive).toBe(false);
+  }
+ });
+ it.each(['INVALID_CHARACTER_PROXY_GARBAGE','INVALID_CHARACTER_SETTINGS','INVALID_CHARACTER_COMMAND_SUFFIX','REVISION_EXHAUSTED','Bad Request'])('does not infer definitive rejection from %s',async message=>{
+  const {characterFailure}=await import('./character-viewmodel');expect(characterFailure({message,data:{code:'BAD_REQUEST',httpStatus:400}}).definitive).toBe(false);
+ });
+});

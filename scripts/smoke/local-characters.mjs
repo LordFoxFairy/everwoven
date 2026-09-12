@@ -61,6 +61,15 @@ await withLocalBrowser(async({page,origin,datasetId,connectionCode,restart})=>{
  await page.getByRole('button',{name:'保存角色模板',exact:true}).click();
  await page.getByRole('button',{name:'确认上次角色命令',exact:true}).waitFor();
  await page.getByLabel('角色姓名').fill('未知角色 B');
+ // A later confirmation can be rejected before receipt lookup. That rejection
+ // must not erase the original command whose server-side commit was observed.
+ await page.route('**/api/trpc/characters.create*',route=>{
+  const envelope={error:{message:'INVALID_CHARACTER_COMMAND',code:-32600,data:{code:'BAD_REQUEST',httpStatus:400}}};
+  return route.fulfill({status:400,contentType:'application/json',body:JSON.stringify(new URL(route.request().url()).searchParams.get('batch')==='1'?[envelope]:envelope)});
+ },{times:1});
+ const rejected=page.waitForResponse(response=>response.request().method()==='POST'&&response.url().includes('/api/trpc/characters.create'));
+ const [,rejection]=await Promise.all([page.getByRole('button',{name:'确认上次角色命令',exact:true}).click(),rejected]);
+ assert.equal(rejection.status(),400);
  const confirmed=await clickMutation(page.getByRole('button',{name:'确认上次角色命令',exact:true}),'create');
  assert.equal(confirmed.replayed,true);assert.equal(confirmed.data.id,lostId);
  assert.equal(await page.getByLabel('角色姓名').inputValue(),'未知角色 B');
@@ -75,5 +84,5 @@ await withLocalBrowser(async({page,origin,datasetId,connectionCode,restart})=>{
  assert.equal(await page.getByLabel('选择角色参考',{exact:true}).count(),1,'Original formal role exposes the authenticated asset picker; IndexedDB remains disabled');
  if(process.env.SMOKE_SCREENSHOT)await page.screenshot({path:process.env.SMOKE_SCREENSHOT,fullPage:true});
  assert.deepEqual(boundaryErrors,[]);assert(writes.size>=6);
- console.log('Original character library smoke passed: direct host connection, name-only draft, all-field update, delete/restore, lost-response immutable replay, preserved newer input, unavailable browser storage, refresh and process restart. No model calls.');
+ console.log('Original character library smoke passed: direct host connection, name-only draft, all-field update, delete/restore, lost-response and pre-receipt 400 immutable replay, preserved newer input, unavailable browser storage, refresh and process restart. No model calls.');
 });

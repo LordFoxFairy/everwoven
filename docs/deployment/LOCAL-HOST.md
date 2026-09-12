@@ -1,8 +1,8 @@
 > 2026-09-12开发基线已重建：旧库不支持兼容启动，尚未实现受限reset命令。请先使用新的专属空目录验证，不要对现有业务目录手动执行migrate deploy或清空整个工作区；源码和凭证不属于业务清理范围。
 
-# 本机数据库启动与验收（M0-C2/C3）
+# 本机数据库启动与验收
 
-这是同一个 Web 应用的显式本机存储模式，不是第二套站点。当前支持 **剧本世界设定 CRUD**；人物、图片、分支和生成任务尚未接入正式存储。
+这是同一个 Web 应用的显式本机存储模式，不是第二套站点。当前已接通原角色库六操作、真实图片上传/读取、Editor另存角色；原剧本完整聚合仍待接入。剧本根测试面板不是完整产品验收。分支与模型生成任务属于后续M2，不将静态画面或草稿保存称为视频已生成。
 
 ## 1. 启动前提
 
@@ -30,7 +30,7 @@ APP_ENV=dev RUNTIME_DATA_DIR="$HOME/.everwoven/local-dev" pnpm local
 pnpm runtime:host connect --directory "$HOME/.everwoven/local-dev" --environment dev
 ```
 
-打开 `http://127.0.0.1:3100/` → 我的剧本 → 本机数据库 → 粘贴连接码 → 连接。原码只显示在自己的终端，不发聊天、不截图、不存日志；有效期 5 分钟且仅兑换一次。丢失兑换响应或过期后重新签发，不重复使用旧码。会话有效期 8 小时，退出连接撤销会话。
+打开 `http://127.0.0.1:3100/` → 原角色库 → 本机连接码 → 连接本机。共享会话用于同一应用的正式创作。原码只显示在自己的终端，不发聊天、不截图、不存日志；有效期 5 分钟且仅兑换一次。丢失兑换响应或过期后重新签发，不重复使用旧码。会话有效期 8 小时，退出连接撤销会话。
 
 若运行生产构建，保持宿主环境一致：
 
@@ -45,6 +45,7 @@ APP_ENV=dev RUNTIME_DATA_DIR="$HOME/.everwoven/local-dev" pnpm local --productio
 
 - `runtime.db`：Prisma/SQLite，16 张领域/操作表、无外键。DB 文件 0600，私有宿主目录 0700。敏感目录内有 WAL/SHM 时同样检查权限。
 - `manifest.json`：最后发布的 ready 标志，包含环境和本机 owner，不含连接码。
+- `assets/`：真实规范化静态WebP，完成发布和数据库确认后才可读；清除表单图片仅解除引用，不删除文件。清理服务已有显式生命周期，但有界CLI维护入口尚在实施，启动时不自动扫描。
 - `security/`：短期连接码/会话的 SHA-256 文件名与期限记录，不保存原始凭证。会话能跨 Web 进程重启。
 - 初始化中断后不把残留目录误认作 ready，也不自动清理锁/目录。先停止相关进程并保留残留用于检查；可选择全新的目标目录。备份/修复工具后续交付。
 - 当前 owner 是本机宿主唯一身份，HTTP 请求不能提供 ownerId；不是多人账号系统。没有 against same-OS-user 恶意进程隔离保证。
@@ -65,8 +66,11 @@ pnpm typecheck
 pnpm build
 pnpm exec playwright install chromium
 node scripts/smoke/local-authoring.mjs
+node scripts/smoke/local-characters.mjs
+node scripts/smoke/local-assets.mjs
+node scripts/smoke/local-asset-ui.mjs
 ```
 
-可指定 `PLAYWRIGHT_CHANNEL=chrome` 使用已安装的 Chrome。smoke 使用独立临时目录、临时浏览器、3198 端口，结束后只清理自己创建的数据与进程；验收登录、CRUD、删除/恢复、刷新、进程重启后读回和退出，不调用模型。用户端口 3100 不受影响。
+可指定 `PLAYWRIGHT_CHANNEL=chrome` 使用已安装的 Chrome。smoke 使用独立临时目录、临时浏览器、各自3195–3199测试端口（按脚本顺序执行），结束后只清理自己创建的数据与进程；验收登录、CRUD、删除/恢复、刷新、进程重启后读回和退出，不调用模型。用户端口 3100 不受影响。
 
 当前manifest还包含随机datasetId，连接码/会话与该业务库世代绑定；重启原宿主保持世代。新初始化创建新owner和dataset；旧页面中的命令不跨世代重放。没有自动补齐旧manifest的兼容逻辑。

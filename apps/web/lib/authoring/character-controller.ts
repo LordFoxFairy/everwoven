@@ -99,7 +99,9 @@ export class CharacterController{
    this.baseline=fingerprint(characterFields(dto));this.pending=null;this.attempt=null;
    this.publish({confirmed:dto,unknown:false,message:confirming?'原命令已确认；后续修改尚需保存。':dto.deletedAt?'角色已删除，可在回收列表恢复。':'角色模板已保存到本机 SQLite。',saving:false});
    void this.load();return dto;
-  }catch(error){if(current()){const info=characterFailure(error);const unknown=info.reset||!info.definitive;
+  }catch(error){if(current()){const info=characterFailure(error);
+    // A later pre-receipt rejection cannot settle a lost response or a scope-fenced write.
+    const unknown=this.state.unknown||info.reset||!info.definitive;
     if(!unknown)this.pending=null;this.publish({unknown,error:info.message,saving:false});if(info.reset)this.reset();if(info.denied||info.reset)binding.invalidate();}
    throw error;
   }finally{if(epoch===this.epoch){this.flight=null;this.publish({saving:false});}}})().then(resolve,reject);return task;

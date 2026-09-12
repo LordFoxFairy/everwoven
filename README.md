@@ -14,11 +14,11 @@
 
 | 已实现 | 当前边界 |
 |---|---|
-| 剧本浏览/编辑、角色管理、自定义图片、个人接续入口 | 创作设定在浏览器 localStorage，图片在 IndexedDB；非云同步 |
+| 演练剧本浏览/编辑、角色、图片与个人接续入口 | 仅demo：前端localStorage/IndexedDB；非正式存储或云同步 |
 | 自适应单舞台、全屏、情境建议、自由回应、草稿保护 | Mock 数据与行为由前端管理；不调用模型 |
 | T3 组合：Next.js + TypeScript + tRPC + TanStack Query + Zod | 供应商配置元数据读取；专用本机模式已接入受保护的剧本根 tRPC CRUD |
 | shadcn AlertDialog/Button 与独立布局组件 | 复用 Radix 的焦点/模态能力；非全站组件迁移完成 |
-| Prisma + SQLite 本机剧本根 CRUD、短期本机会话 | 已接入同一我的剧本页面；无数据库外键，仅保留已登记的真实唯一约束 |
+| Prisma + SQLite 原角色库六操作、真实图片上传/读取、短期本机会话 | 正式模式不依赖浏览器业务存储；原剧本完整聚合正在实施，临时根测试面板不代表闭环；零外键，仅真实唯一 |
 | 供应商—模型绑定、MiniMax 官方任务适配基础代码 | 指定模型的可用性、付费端到端生成与恢复尚未验收；不自动转到 fal |
 | Docker Web 打包与 CI | 同一个应用的另一种启动方式，不是第二套站点或完整多用户服务 |
 
@@ -43,11 +43,11 @@ pnpm typecheck
 pnpm build     # runtime 检查构建 + Next standalone 构建
 ```
 
-当前本机存储切片与验证状态见 [M0-C2/C3 实施记录](docs/implementation/M0-C2-C3-LOCAL-AUTHORING-2026-09-12.md)。已发布 v0.1.0 的验证另见[环境与发布验证](docs/implementation/ENVIRONMENTS-RELEASE-2026-09-11.md)，不要把本地新实现当作旧镜像已有功能。
+当前本机存储切片与验证状态见 [PROGRESS](docs/PROGRESS.md) 与 [原图片接线记录](docs/implementation/M1-C2-ORIGINAL-IMAGES-2026-09-12.md)，完整原创作门槛见[验收矩阵](docs/implementation/M1-ORIGINAL-CREATION-ACCEPTANCE.md)。已发布 v0.1.0 的验证另见[环境与发布验证](docs/implementation/ENVIRONMENTS-RELEASE-2026-09-11.md)，不要把本地新实现当作旧镜像已有功能。
 
 ## 启用本机数据库
 
-普通开发默认保留前端存储。正式 SQLite 草稿使用**同一应用**的显式本机启动器：初始化专用数据目录 → `pnpm local` → 我的剧本/本机数据库 → 一次性连接码。它固定监听 loopback，当前支持世界设定保存/删除/恢复；不自动导入浏览器数据、不冒充真实视频生成。
+普通开发默认保留前端存储。正式 SQLite 创作使用**同一应用**的显式本机启动器：初始化专用数据目录 → `pnpm local` → 原角色库 → 一次性连接码。它固定监听 loopback，原角色保存/删除/恢复及图片已接通；完整原剧本聚合仍在实施。不自动导入浏览器数据、不冒充真实视频生成。
 
 详见[启动与数据边界](docs/deployment/LOCAL-HOST.md)及[当前 tRPC/会话契约与时序](docs/api/LOCAL-AUTHORING-M0-C.md)。
 
@@ -102,7 +102,7 @@ docs/deployment/      部署与运维说明
 - [Provider 设计](docs/architecture/PROVIDER-DESIGN.md) · [供应商—模型映射](docs/PROVIDER-MODEL-BINDING.md)
 - [成熟组件复用审计](docs/architecture/FRAMEWORK-REUSE-AUDIT-2026-09-10.md)
 
-下一工程门槛：本机身份与数据保护 → 受保护的创作 CRUD 接入 → 明确供应商/模型/预算后的真实两轮视频验证 → 分支存档恢复。二期再接独立 AI 创作对话与工作画布，避免把创作工具塞进游玩现场。
+下一工程门槛：原角色/图片/剧本聚合完整持久化与当前单入口启用 → 明确供应商/模型/预算后的真实两轮视频验证 → 分支存档恢复。二期再接独立 AI 创作对话与工作画布，避免把创作工具塞进游玩现场。
 
 ## 源码与素材边界
 
