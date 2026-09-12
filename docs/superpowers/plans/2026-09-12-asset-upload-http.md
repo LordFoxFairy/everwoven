@@ -1,6 +1,6 @@
 # M1-C1c · 上传事务与HTTP接入计划
 
-**依赖：C1a/C1b本地验收通过，08de822已推送，C1b Linux CI34718307948成功。此文件仍是HTTP接入计划，不表示路由可用。** 依据已批准的INTEGRATED-AUTHORING-M1第7节与Dewey对现有Host/HTTP代码的只读核查。不增加第二后端，不替代原页面。
+**依赖：C1a/C1b本地验收通过，08de822已推送，C1b Linux CI34718307948成功。C1c-3入口现已注册并通过真实生产HTTP验证；下列原始清单保留实施意图，最终证据及尚未闭合事项见文末。** 依据已批准的INTEGRATED-AUTHORING-M1第7节与Dewey对现有Host/HTTP代码的只读核查。不增加第二后端，不替代原页面。
 
 ## 最小切片
 
@@ -9,7 +9,7 @@
 3. 受保护二进制PUT/GET，以及有界接收器、真实临时宿主HTTP/重启/角色头像绑定验收。
 4. 服务闭环后接C2原图片控件；本切片不创建新的上传管理页面。
 
-## 唯一网络契约（待注册）
+## 唯一网络契约（C1c-3已注册）
 
 - tRPC三操作使用现有`contracts/asset`公开结构，不新增REST CRUD。
 - `PUT /api/local-assets/uploads/:uploadId`：dataset使用`x-everwoven-dataset-id`header；内容是原始二进制，严格Origin/请求标记/真实session准入。
@@ -109,3 +109,18 @@ Web新增local-assets访问器、assets tRPC router和二进制handler，两个A
 错误码需对照服务/接收器最终枚举冻结：会话401，来源403，参数/hash/意图大小不匹配400，不存在/跨owner404，状态/租约/幂等409，dataset412，实际超限413，格式415，容量/暂不可用503，未知500；不透传任意message/prefix。真实Host测试暂停在重验前撤销或换dataset/inode，验证旧绑定拒绝且零图片body/文件副作用；返回同Buffer且成功/失败都有no-store/nosniff。
 
 C1c-2显式生命周期最终本地已验收：主仓1090/1090、双端typecheck、生产三Chrome；回执两次独立审查发现的问题已按ADR0010修复并复核。接收器50d67cb远程CI34720501448成功。下一片实际Host/HTTP接线；自动扫描与bounded maintenance尚未实施，不改为完成。
+
+C1c-3实际派发：Hegel只写runtimeHost及专属测试；Feynman只写Web路由/handler/tRPC及测试，固定withLocalAssets绑定服务签名与dataset header。必须真实临时Host认证/撤销/身份替换和真实HTTP PNG→WebP→重连读回验证；fake access仅路由单元证据。全部写入结束后主仓统一验证，不将中途编译通过当后端已接通。
+
+最终数据/维护验收补项：生命周期新增全局assetId身份核对查询，当前AssetUpload只有status/lease与owner/createdAt索引。聚合用例全部落地后，以真实SQLite EXPLAIN QUERY PLAN统一审查实际路径，必要时补非唯一assetId索引并同步单基线/门禁/DDL，而不是为性能加伪唯一。活跃Host/Web实现期间不并发修改schema。该项属于M1最终数据规范检查，不宣称已有性能验收。
+
+
+## C1c-3本轮验证记录
+
+- [x] Hegel真实Host绑定与重验；主仓专属34/34，Dewey Host规格74/74，Cicero Host质量PASS。
+- [x] Feynman Web/tRPC/二进制真实接线；Dewey独立7文件93/93，含真实Host/独立Node重启读回。
+- [x] 主仓重新运行runtime build、全量74文件1202/1202、双端typecheck，exit0。上轮丢失输出未作为证据。
+- [x] 隔离最终生产build与四Chrome（新资产HTTP、演练、原角色、原root）exit0。CI新增同一资产smoke，远程结果需提交后另核实。
+- [x] Cicero Web及新smoke最终质量PASS；撤销证据P2经mutation RED/GREEN关闭。打包路径增加1条真实Git回归后主仓最终75文件1203/1203及双端类型通过，准备提交本片，不标整个M1完成。
+
+原始接收草案现由withBody端口取代，取消不settle时隔离占槽，并非立即释放；明确细节以接收器实施段/契约为准。生命周期显式cleanup真实，但仍无启动扫描/HTTP维护入口，后续有界维护需独立实施/验收。原图片控件尚未接线，不因HTTP成功而启用剧本正式图片假保存。

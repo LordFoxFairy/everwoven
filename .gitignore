@@ -31,6 +31,12 @@ apps/runtime/dist/
 /assets/
 /docs/archive/
 **/uploads/
+# Only this source route is public; sibling media remains private.
+!/apps/web/app/api/local-assets/uploads/
+/apps/web/app/api/local-assets/uploads/*
+!/apps/web/app/api/local-assets/uploads/\[uploadId\]/
+/apps/web/app/api/local-assets/uploads/\[uploadId\]/*
+!/apps/web/app/api/local-assets/uploads/\[uploadId\]/route.ts
 **/backups/
 **/private-data/
 *.zip

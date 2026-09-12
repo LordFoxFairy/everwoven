@@ -37,3 +37,18 @@
 - [ ] 演练零正式网络写入；正式禁浏览器存储后依然成功。
 - [ ] 原剧本聚合在独立用例接通后才启用正式图片槽保存；未保存引用不进入生成。
 - [ ] 主仓全量、typecheck、生产Chrome及规格/质量复核通过，更新PROGRESS后继续聚合/单入口验收。
+
+## C2执行接口冻结（源码复核后的增量）
+
+C1c-3 HTTP已通过本轮1202项与生产浏览器，最终修正smoke撤销证据后进入本批。采用两个不重叠写集：Feynman端口/传输/上传状态机/读取hook；Hegel原控件/角色/Editor组合，主会话维护docs/生产smoke/CI。实现者先发送/读取同一个纯类型接口，再开始依赖写入，禁止两边各发明协议。
+
+- AssetRef严格判别：`{kind:'demo',id}` 或 `{kind:'formal',datasetId,id}`，null为空；不以裸ID推断来源。
+- AssetClient同样判别：demo只本地import/read，formal只begin/getUpload/process/complete/read。正式读取fetch→校验HTTP/mime→Blob，组件hook持有URL并按失连/卸载/替换回收。初期无全局资产内容缓存。
+- 单一纯协议模块存dataset header，直接改server引用，客户端不导入server代码，无兼容re-export。
+- Controller绑定client/连接/dataset/失效callback/编辑实例，start(file,rights)、confirm、retry、subscribe/getSnapshot/suspend。同帧锁与pending先于异步；begin/complete各冻结唯一命令，未确认只重放原命令；PUT未知先getUpload，不重建意图。begin历史响应后读取当前意图再推进。
+- 控制器活在编辑容器，配置页切换不丢命令；新建首次确认ID不切编辑实例。跨session/dataset/编辑实例的迟到回调不改新表单；普通退出挡住busy/unknown，硬关闭恢复本期不声称实现。
+- 原正式角色controller提供专用portrait选择入口并核对dataset。当前选择与CharacterSource不可变来源快照分离，换图→另存角色使用当前选择，不被旧source覆盖。
+- 权利checkbox默认未选，确认后才发送begin；上传完成只更新表单/dirty，清除仅解除引用。明确失败/unknown恢复操作，错误不是全部“图片缺失”。缩略图读取使用有界调度，避免一页同时耗尽服务端两槽。
+- 原剧本正式封面/开场保存仍等聚合接口；可先贯通角色头像和另存角色，禁止在本片让原草稿伪保存正式assetId。
+
+主会话维护原角色生产smoke及新UI用例，原测试的“正式file input为0”在真实控件启用后更新为实际上传断言，而非直接删除断言。每个writer先RED测试，再实现；主仓及独立两阶段review后才能记此批验收。

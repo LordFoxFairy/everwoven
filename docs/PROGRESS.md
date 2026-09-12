@@ -2,7 +2,7 @@
 
 更新：2026-09-12。**这是实施真值台账，不用设计完成代替功能完成，不用commit代替验收。**
 
-**当前执行入口：C1c-2显式资产生命周期最终主仓1090/1090、双端typecheck、生产三Chrome和独立复核通过，准备提交。bd580f7 / 50d67cb均已推送且远程CI成功；Host/HTTP、原图片/剧本聚合及维护/reset仍待打通，不通知总体完成。**
+**当前执行入口：C1c-2显式资产生命周期已提交bd4b1db，最终主仓1090/1090、双端typecheck、生产三Chrome和独立复核通过。bd580f7 / 50d67cb均已推送且远程CI成功；Host/HTTP、原图片/剧本聚合及维护/reset仍待打通，不通知总体完成。**
 
 ## 当前决策（按最新用户指令）
 
@@ -218,3 +218,36 @@ bd580f7远程已通过精确check-runs实际核实：[CI34719283402](https://git
 第二回执修订Feynman已停写：RED9失败/39通过→48/48，生命周期93/93、runtime类型通过报告。主仓再次全量与隔离生产三Chrome执行中；Dewey/Cicero分别复核两项P2。identity共享规则采用ADR0010，无schema/其他业务回执兼容修改。
 
 C1c-2最终主仓69文件1090/1090及双端typecheck退出0；最后修订隔离生产build和三Chrome退出0。Dewey48/48、Cicero双向原repro拒绝+质量PASS，关闭两项追加P2。准备提交本切片；未发生用户数据删除、模型调用或tag发布。
+
+
+## 当前继续入口 · C1c-3真实Host与HTTP并行接线
+
+- **Hegel `01a09686-30d5-7931-8a5c-d6b9854653a5`** 独占runtime Host入口/必要host模块/host-assets专属测试。扩展现withLocalDatabase提供pinned host/db identity及真实revalidate，组合AssetService，不改已验收生命周期或Web。
+- **Feynman `01a09684-1393-7002-b9d4-e6016dd1e988`** 独占Web local-assets、二进制handler/route、assets tRPC及现root/http/context和专属tests。不改runtime源码/UI/schema。
+- 固定协作接口`withLocalAssets(directory,environment,token,work:(service:AssetService)=>Promise<T>)`，service已绑定owner；runtime/host导出AssetService类型。Hegel先runtime build，Feynman先fakeaccess RED测试再真实Host接线，避免并发写generated/dist。
+- PUT的dataset header统一`x-everwoven-dataset-id`，既有请求标记和来源校验继续；只有真实Host/session/dataset/意图与容量准入后才读body。GET返回已核验字节、固定WebP/no-store/nosniff。三个assets tRPC操作，不新建另一站点/上传管理页。
+- 主会话先native wait确认两个writer均停写，再统一主仓回归/生产HTTP/独立规格与质量审查。Dewey可审Web契约，Cicero最终质量；不编辑任何活跃writer写集。
+- 本片不实现自动扫描/调度；后续bounded maintenance入口仍须实际落地或明确收敛，再做C2原图片/原剧本聚合与D移除临时面板/reset。没有原页面完整闭环不通知用户。
+- 同一任务hourly heartbeat `everwoven` 本轮实际读配置仍ACTIVE；未新建任务/站点/automation，未调用付费模型、发布tag或重置用户数据。
+
+bd4b1db已实际推送成功（50d67cb→bd4b1db，exit0）；下一轮只读核实精确commit CI。C1c-3两个writer已获分离写集与固定接口，普通阶段继续静默。
+
+bd4b1db首次精确CI读取返回EOF，尚未核实该commit的CI结果；已推送事实不受影响。后续先查原生两个writer状态，源文件出现不代表完成。当前主会话没有留存运行中的验证命令，用户3100未停止；隔离验证树仍为/tmp/everwoven-verify.zRVKTD（固定Node22 PATH），不把用户忽略的assets/prototypes/研究文件加入Git。
+
+2026-09-12 21:54 UTC heartbeat继续：已先实读PROGRESS/总架构、Git及两writer原生状态（均未完成）。按分离写集继续，不编辑在途Host/Web；当前不把派发或接口约定当已接通。
+
+bd4b1db远程精确check-runs已确认[CI34721124228](https://github.com/LordFoxFairy/everwoven/actions/runs/34721124228) verify=completed/success，publish/anonymous-pull skipped；此前EOF后只读重试成功。
+
+C1c-3A Hegel已停写真实Host入口/组合/专属fixture，报告RED23→34/34及旧Host回归合74/74，runtime build/typecheck与compiled Node真实认证读图。主会话聚焦Host34/34退出0，Dewey独立规格审查中；Feynman Web切片仍在写，尚未整体主仓验证/提交。本片实际无启动自动清理，不能将显式cleanup称为后台维护。
+
+C1c-3A Host独立规格Dewey74/74与Cicero质量PASS；主会话34/34实际通过，待Web停写后一并全量。主会话另持有scripts/smoke/local-assets.mjs生产HTTP验收脚本（不属两worker写集），复用隔离浏览器/临时Host harness；旧production实际认证后assets.beginUpload返回404而期望200，正确RED已确认。后续新构建须真实上传/浏览器WebP解码/头像绑定/重启/撤销通过，不拿模块内Request测试替代Next路由实跑，也不把此脚本称为原图片UI已实现。
+
+C1c-3恢复验证：上轮7544/9461输出未保留，未据此认定成功；本轮重新将主仓与隔离生产完整命令输出保存在/tmp专属日志。Dewey Web规格独立7文件93/93 PASS；隔离生产最终build及新资产HTTP/原演练/原角色/原root四Chrome实际exit0。新smoke覆盖真实Next begin/PUT/complete/GET、Chrome图片解码、头像绑定、服务进程重启、错dataset与会话撤销；它没有声称原图片上传UI已实现。CI新增同一资产smoke步骤，Cicero正在最终Web与smoke质量审核；主仓全量仍在运行，尚未提交本片。
+
+主仓C1c-3完整验证已退出0：74文件1202/1202及runtime/Web类型。Cicero确认新生产smoke撤销证据P2：清cookie后的匿名401不证明旧凭据已作废，Web实现本身未发现确认漏洞。主会话已补内存保存旧cookie并显式携带它验证401、不输出凭据；隔离树先故意省略服务端revoke做mutation RED，后恢复真实源码再跑GREEN，不以原四smoke成功掩盖该缺口。
+
+C1c-3生产撤销证据修复：隔离仅清cookie、不执行revoke的mutation实际RED 200≠401；恢复真实源码后production build与四Chrome最终exit0，旧凭据显式请求401。不修改服务端撤销逻辑。
+
+提交前发现.gitignore的通用**/uploads/隐藏真实PUT源码路径。主会话先加真实临时Git source-boundary.test.ts，RED1→精确route例外GREEN1；uploads其他媒体继续忽略，.dockerignore既有apps/web白名单包含路由。没有强制添加用户文件。再次运行最终主仓全量（新增1条打包边界测试）及typecheck，完成后记录最终计数；Cicero最终复核中。
+
+C1c-3最终本地门槛闭合：最后主仓75文件1203/1203、双端typecheck exit0；恢复真实revoke后的production build/四Chromeexit0；Dewey规格PASS、Cicero Web/脚本/精确Git例外最终质量PASS。所有PUT源码将普通add纳入，不包括用户研究/图片。自动维护、C2原图片UI及聚合依然待做；下一计划已写明，不发送创作完成通知。

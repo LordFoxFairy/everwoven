@@ -1,3 +1,4 @@
+import {localAssetAccess} from '../local-assets';
 import {localCharacterAccess} from '../local-characters';
 import { localStoryAccess } from '../local-runtime';
 import { boundedJSONRequest } from '../local-boundary';
@@ -24,7 +25,7 @@ export async function handleTRPCRequest(
   } catch {
     return Response.json(
       { error: '部署来源配置无效' },
-      { status: 500, headers: { 'Cache-Control': 'no-store' } },
+      { status: 500, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } },
     );
   }
   const url = new URL(request.url);
@@ -38,16 +39,16 @@ export async function handleTRPCRequest(
   ) {
     return Response.json(
       { error: '来源不受信任' },
-      { status: 403, headers: { 'Cache-Control': 'no-store' } },
+      { status: 403, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } },
     );
   }
   if (request.method === 'POST') {
     if (origin !== expected.origin)
       return Response.json(
         { error: '来源不受信任' },
-        { status: 403, headers: { 'Cache-Control': 'no-store' } },
+        { status: 403, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } },
       );
-    if ((url.pathname.includes('storyDrafts.') || url.pathname.includes('characters.')) && request.headers.get('x-everwoven-request') !== '1')
+    if ((url.pathname.includes('storyDrafts.') || url.pathname.includes('characters.') || url.pathname.includes('assets.')) && request.headers.get('x-everwoven-request') !== '1')
       return Response.json(
         { error: '请求标记缺失' },
         { status: 403, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } },
@@ -65,7 +66,7 @@ export async function handleTRPCRequest(
     endpoint: '/api/trpc',
     req: request,
     router: appRouter,
-    createContext: () => ({ env, withStories: localStoryAccess(request, env), withCharacters: localCharacterAccess(request, env) }),
+    createContext: () => ({ env, withAssets: localAssetAccess(request, env), withStories: localStoryAccess(request, env), withCharacters: localCharacterAccess(request, env) }),
   });
   response.headers.set('Cache-Control', 'no-store');
   response.headers.set('X-Content-Type-Options', 'nosniff');

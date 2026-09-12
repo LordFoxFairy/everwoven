@@ -2,7 +2,7 @@
 
 **版本：0.2 / 2026-09-12 / 可分批实施的设计基线，非整体验收。**
 
-实施增量：[M1-A1](../implementation/M1-A1-CLEAN-BASELINE-2026-09-12.md)已替换根StorySettings与单一Prisma baseline；M1-A2已贯通dataset命令；[M1-B](CHARACTER-AUTHORING-M1-B.md)角色六操作与共享会话已落地并通过原页面及CI验收。C1a图片严格契约/解码、C1b私有文件、C1c-1清理协调及C1c-2显式生命周期/有界接收器已通过本地验收，Host/HTTP仍待接线。本文的剧本聚合、私有图片协议及定向reset仍待实施，不因角色切片通过而标总体完成。
+实施增量：[M1-A1](../implementation/M1-A1-CLEAN-BASELINE-2026-09-12.md)已替换根StorySettings与单一Prisma baseline；M1-A2已贯通dataset命令；[M1-B](CHARACTER-AUTHORING-M1-B.md)角色六操作与共享会话已落地并通过原页面及CI验收。C1a图片严格契约/解码、C1b私有文件、C1c-1清理协调及C1c-2显式生命周期/有界接收器已通过本地验收，C1c-3真实Host/HTTP已接线并通过本轮主仓1202项与生产四Chrome，最终质量审查见PROGRESS。本文的剧本聚合、原图片控件及定向reset仍待实施，不因角色切片通过而标总体完成。
 
 用户已确认继续推进前端、后端、端到端及文档，随后明确：**不要旧协议/旧数据兼容，允许清空本项目业务数据重建。** 本文据此采用全新基线，不建设迁移兼容层。本方案承接[范围设计](../superpowers/specs/2026-09-12-integrated-authoring-design.md)，不是再创建一套原型。当前实现与测试证据只在 [PROGRESS](../PROGRESS.md) 登记。本文标为“拟增”的契约/SQL尚未上线，不应据此直接调用接口或迁移用户库。
 
@@ -21,8 +21,8 @@
 | 层 | 已有且需复用 | 本批缺口 |
 |---|---|---|
 | 前端 | 原角色库异步六操作、共享会话、Editor另存角色；原图片与剧本控件仍待接 | 原图片端口、原剧本聚合控制器，删除临时DatabaseDrafts |
-| HTTP | 受保护 storyDrafts/characters 六操作、一次性本机会话、来源校验 | 剧本聚合契约、受保护图片二进制路由 |
-| 应用 | 剧本根/角色模板CRUD、owner+dataset、WriteGate、CAS、事务回执 | 固定角色版本、剧本聚合保存、素材发布恢复 |
+| HTTP | 受保护 storyDrafts/characters、assets三操作与二进制路由、一次性本机会话、来源校验 | 剧本聚合契约、原页面图片调用 |
+| 应用 | 根/角色CRUD、资产显式生命周期/文件恢复、owner+dataset、WriteGate、CAS/绑定回执 | 固定角色版本、剧本聚合及有界维护入口 |
 | 数据 | 新baseline16表、零FK、固定DDL指纹/checksum门禁；作用域/图片元数据/上传意图结构 | 引用用例/上传协议与受限重置流程 |
 | 验收 | 原角色与原root真实生产Chrome CRUD/重启、unknown/跨库回归 | 图片/剧本聚合完整原页面链路、异常与隔离 |
 
@@ -38,7 +38,7 @@ flowchart TB
   B --> A[应用用例\nowner + CAS + 幂等 + 聚合约束]
   A --> S[事务 Store Ports]
   S --> DB[(Prisma / SQLite)]
-  A --> F[AssetStore\n临时文件 / 发布 / 核对]
+  A --> F[PrivateAssetStore\n无覆盖候选 / 发布 / 核对]
   F --> FS[(宿主私有文件)]
   DB -. 后续显式固定版本 .-> V[StoryVersion / Experience]
   V -. M2 .-> W[持久任务 Worker]
@@ -354,7 +354,7 @@ sequenceDiagram
 - 已实现C1a/C1b使用有界内存接收/解码和固定候选文件无覆盖创建，不另写原图或token临时图。token区分处理权，文件路径由服务端dataset/asset ID生成；已有候选只有完整核验并完成必要同步才可用于后续确认，不按hash跨owner自动共享。
 - 文件先发布再写ready，所以失败最多留下可核对孤儿，不产生“DB ready但从未写文件”的正常路径。ready文件之后被外部删除/损坏仍可能发生，读取检测后标记unavailable并停止绑定，禁止返回假成功。
 - worker租约超时后新处理者须CAS领取新token。旧持有者即使继续执行也不得提交新状态；发布路径固定且不可覆盖，完整核对后由当前token确认，不能用过期删除动作破坏新结果。
-- 重启扫描reserved/processing/published：有正确文件可继续complete；无文件且租约过期允许原内容重传；不一致则failed并保留诊断，不静默发布。
+- 重启后显式恢复：有正确文件可继续complete；无文件且租约过期允许原内容重传；不一致则failed，不静默发布。未完成/终态残留由[有界维护计划](../superpowers/plans/2026-09-12-asset-maintenance.md)提供后续显式命令；不宣称已有启动扫描/后台清理。
 - complete也参加相同互斥协议：查回执后，CAS把published（或可接管的过期finalizing）置finalizing并领取新token/租约，再检查文件；最终事务要求状态仍为finalizing、token匹配且租约有效，才能同时提交Asset ready/completed/回执。
 - 未完成意图拟定24小时过期。清理必须先CAS进入终态deleting：只接受非completed且没有有效租约的状态，抢占后所有旧processing/finalizing提交都失败。deleting不能再回到published/ready，不得复用其assetId/storageKey；清理可重试删除，但不会删新任务的文件。completed意图M1保留，清理永不删除它的ready文件。
 - complete与清理竞争的安全结果只有两种：complete先提交completed，清理CAS失败；清理先提交deleting，complete的token/状态CAS失败并不创建Asset。即使租约过期后旧处理者继续运行，也只能留下受控孤儿，不能产生缺文件ready。故障测试必须刻意在“核验文件后/提交ready前”让清理接管。
@@ -408,4 +408,4 @@ M1-A端口/新契约/dataset与M1-B原角色页已完成本地验收；角色切
 
 2026-09-12独立复审通过，批准作为分批实施基线。修复2个P1（complete与清理竞争、reset跨世代重放）及1个P2（已有角色绑定输入歧义）；增加相应事务规则、datasetId与验收场景。批准不代表M1代码已实现；实际端口小批次与测试结果见PROGRESS。
 
-资产begin回执身份增量：[ADR0010](adr/0010-asset-begin-identity.md)。仅begin共享server uploadId/receipt主键作为独立于响应JSON的创建绑定；complete独立回执ID，首次签发与重放均核对不可变字段。无schema/FK/旧兼容修改，已通过本地主仓与独立复核；HTTP和维护调度待后续。
+资产begin回执身份增量：[ADR0010](adr/0010-asset-begin-identity.md)。仅begin共享server uploadId/receipt主键作为独立于响应JSON的创建绑定；complete独立回执ID，首次签发与重放均核对不可变字段。无schema/FK/旧兼容修改，已通过本地主仓与独立复核；HTTP已接线，显式有界维护入口待后续。
