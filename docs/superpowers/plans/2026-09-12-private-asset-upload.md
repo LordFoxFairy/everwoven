@@ -51,3 +51,30 @@
 - [ ] 主仓全量、typecheck、独立规格与代码质量审查；只在新建的隔离宿主验收，不清用户目录。
 
 完成后进入M1-C2原图片控件与角色绑定，再剧本聚合。测试通过仅表示对应服务切片，不发总体闭环完成通知。
+
+
+## 执行拆分与文件所有权（2026-09-12）
+
+B的原页面生产Chrome验收已通过（5f037bf），开始C1；下面是单一协议逐层实现，不是多套功能。
+
+1. **C1a（进行中）**：严格公开契约、image-normalizer端口与sharp真实解码。写集runtime/contracts/asset*、ports/image-normalizer、infrastructure/media、相关tests、直接sharp依赖和lock；Feynman唯一实现者。最多2个活跃解码，不建立无界等待队列；超时后必须等真实处理结束/取消才归还容量。
+2. **C1b**：私有无覆盖文件端口，安全目录/句柄/持久化故障测试。依赖C1a规范化输出，不修改Web表现层。
+3. **C1c**：上传意图与receipt/CAS/租约/清理状态、Host及HTTP边界、全上传HTTP与重启验收。
+4. **C2**：接原图片控件、角色绑定和原剧本聚合，全流程验收后删除旧页面路径。
+
+每层由主仓重新验证；契约/decoder完成不等于文件持久化或上传API可用。主会话维护docs/CI，其余writer不并发修改这些文件。
+
+
+## C1b 文件安全边界补充（Hegel只读核查）
+
+纯Node22（macOS/Linux）不声称提供openat/dirfd或条件unlink原子语义。防御HTTP不可信输入、其他OS用户和合作worker；同UID恶意进程/管理员已属宿主失陷，不宣称受保护。
+
+- 私有素材根与dataset目录运行期稳定，不允许应用重命名/替换/递归删除；reset须阻止新启动，并确认全部宿主/worker/在途文件操作停止。过期租约不是进程已结束。
+- 验证整条祖先目录链：拒绝其他OS用户可替换路径分量的非sticky共享可写目录；OS临时根必须单独核实sticky及目录所有权。现有targetDirectory只检查直接父目录权限，不能拿它单独当整链证明；C1b补独立素材根验证，不扩张成旧数据兼容。
+- 端口实例绑定初始目录身份，发现变化即失效，不自动采纳替代目录。反复recheck只是检测，不是无TOCTOU证明。失败worker仅关闭句柄，不自动unlink固定候选。
+- `writeCandidate(assetId, normalizedBytes, expected, signal)`返回durable证据/exists/失败；O_RDWR|O_CREAT|O_EXCL|O_NOFOLLOW，短写循环、file sync、同handle读回核对、目录sync。EEXIST不等于成功，不覆盖、不补写。
+- `verifyCandidate(assetId, expected)`从同一个被核验句柄返回实际Buffer/hash/宽高/字节数；不得检查后重新按路径读取。
+- `removeDeletingCandidate(assetId, deletionPermit)`只由C1c不可逆deleting状态授予，cleanup同asset串行；只删除未完成意图残留，completed永不发许可。检查后unlink不是按inode原子删除；依赖合作进程命名空间规则，异常保留残留。
+- partial、fsync失败和迟到writer创建的文件归原意图终态清理。删除失败保持deleting供重试；不恢复为reserved，不重用assetId，不由失败writer删除其他任务的文件。
+
+测试包括整链权限、symlink/身份可检测变动、无覆盖竞争、短写/中断/file+dir sync故障、同handle返回、cleanup交错。不得用这些测试宣称抵御任意同UID恶意TOCTOU；macOS与Linux都需实际验证。当前HTTP入口核查未发现可由请求重命名素材祖先的路由。

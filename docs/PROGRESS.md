@@ -132,3 +132,15 @@ M1-B接口/连接切片主仓最终证据：51文件700/700 + runtime/Web typech
 最后来源修复后的主仓验收：`pnpm --filter runtime build && pnpm exec vitest run --maxWorkers=1 && pnpm typecheck`退出0，**55文件746/746、runtime/Web类型检查通过**。隔离Node22生产`pnpm build`退出0；Chrome `local-characters.mjs`和`local-authoring.mjs`均通过，零模型调用。主会话复看1440×1000角色页截图，原sidebar/连接状态/卡片与编辑栏正常，姓名必填星号和筛选active/命中区修复可见。代码质量审查尚待结果，未提前写总体完成。
 
 M1-B最终代码质量：Cicero只读审查PASS，无确认P1/P2（其未重跑测试，不以审查报告替代主仓746/746与Chrome证据）。本切片提交主题`feat(authoring): connect original character library to local services`。无用户数据重置、tag或付费模型调用。
+
+M1-B已提交并推送`5f037bf`（23文件），原角色浏览器smoke已加入CI。M1-C1a已交Feynman独立实现图片严格契约与真实解码规范化器；只写runtime边界/媒体/tests/直接sharp依赖，不并发编辑其写集。下一C1b私有文件、C1c意图/事务/HTTP恢复，再C2原图片和聚合。主会话继续维护文档与CI证据，未重置用户数据。
+
+远程原角色切片CI：[34715019332](https://github.com/LordFoxFairy/everwoven/actions/runs/34715019332)，head=5f037bf，当前in_progress；非tag，未发布镜像。
+
+角色架构图/时序图已在隔离Mermaid12.0.0+真实Chrome渲染，并人工复看两张图；未向外部站点上传文档，未把渲染工具加进项目依赖。
+
+C1b只读设计复核：明确纯Node22文件系统威胁模型与局限，补整条祖先权限、稳定私有命名空间、失败worker不unlink、终态cleanup拥有删除权；不为不承诺的同UID宿主失陷引入native addon，不把recheck写成原子防护。详细修订已记私有图片执行计划；源文件端口尚未实现。
+
+远程5f037bf CI34715019332失败：verify 4m47s，测试/typecheck/生产构建/Docker六组合通过，旧HTTP演练smoke仍按已变更placeholder定位性格框超时；原角色smoke因此未执行。主会话核对失败日志后更新测试可访问名称和新浏览器保存状态，并加强重载字段与demo零正式写入断言；正在同隔离生产构建Chrome复验，不改产品代码迁就旧文案。
+
+HTTP演练smoke修订后同隔离5f037bf生产构建的真实Chrome已通过（退出0），Dewey聚焦review PASS；测试继续验证非安全HTTP环境crypto、原导航、浏览器角色重载和零正式角色写入。仅提交smoke/docs修订，C1a进行中的runtime源码不混入。

@@ -69,3 +69,5 @@ Feynman停止写入后，主仓55文件731/731测试及runtime/Web类型检查�
 最后来源修复后的主仓验收：`pnpm --filter runtime build && pnpm exec vitest run --maxWorkers=1 && pnpm typecheck`退出0，**55文件746/746、runtime/Web类型检查通过**。隔离Node22生产`pnpm build`退出0；Chrome `local-characters.mjs`和`local-authoring.mjs`均通过，零模型调用。主会话复看1440×1000角色页截图，原sidebar/连接状态/卡片与编辑栏正常，姓名必填星号和筛选active/命中区修复可见。代码质量审查尚待结果，未提前写总体完成。
 
 最终Cicero代码质量审查PASS，无确认P1/P2；其只读审查未运行测试，验证证据为上方主会话实跑。原角色Web切片验收完成，M1-C/D及真实生成仍未完成。
+
+远程5f037bf CI34715019332的旧HTTP演练smoke因过期placeholder失败（后续正式smoke跳过），已根据实际日志改可访问textbox/status定位并加强重载字段、demo零正式mutation断言。同生产构建真实Chrome GREEN，Dewey只读审查PASS；不是应用缺陷的文案兼容修补。远程复跑待新commit。

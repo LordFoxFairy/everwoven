@@ -321,6 +321,8 @@ M1-A1已用202609120001_authoring_baseline替换旧迁移定义，schema gate只
 
 ## 7. 图片协议与崩溃恢复
 
+文件系统威胁模型：防御不可信HTTP输入、其他OS用户和合作worker；同UID恶意进程/管理员属于宿主失陷。Node22路径重检不是原子dirfd防御，必须校验整条祖先权限并保持私有根/dataset目录运行期稳定；失败worker不自动按固定路径删除文件，终态cleanup负责残留。具体端口、检查和局限见[私有图片计划](../superpowers/plans/2026-09-12-private-asset-upload.md)。reset必须确认全部相关进程和在途操作停止，不能把租约过期当进程停止。
+
 输入限制：JPG/PNG/WebP，原文件≤10MiB，每边≥256、最大边≤8000、总像素≤24MP；服务端按魔数+实际解码复核。拒绝动画、多页、SVG、URL/path输入及超限解码；按EXIF方向归一化，去除元数据，生成最大边2048的静态WebP，实际输出hash/宽高/字节数才是Asset元数据。实现需固定解码依赖与并发预算，不能仅检查前端accept。
 
 ```mermaid
