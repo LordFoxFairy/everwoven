@@ -270,7 +270,7 @@ describe('DatabaseDrafts injected port', () => {
     change('标题', '提交 B'); fireEvent.click(button('保存')); await screen.findByRole('alert');
     const original = client.update.mock.calls[0][0];
     change('标题', '海岛来信');
-    expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false});
+    expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false, unknown: true});
     const event = new Event('beforeunload', {cancelable: true}); window.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
     vi.spyOn(window, 'confirm').mockReturnValue(true);
@@ -308,7 +308,7 @@ describe('DatabaseDrafts injected port', () => {
     const replay = deferred<DraftCommandResult>();
     client[action].mockRejectedValueOnce(new Error('生命周期操作已提交，响应丢失')).mockReturnValueOnce(replay.promise);
     fireEvent.click(button(isDelete ? '删除草稿' : '恢复草稿')); await screen.findByRole('alert');
-    expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false});
+    expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false, unknown: true});
     if (isDelete) change('标题', '删除结果确认前的新输入');
     const retry = button(isDelete ? '确认上次删除' : '确认上次恢复');
     act(() => {fireEvent.click(retry); fireEvent.click(retry);});
@@ -338,7 +338,7 @@ describe('DatabaseDrafts injected port', () => {
     const original = client.update.mock.calls[0][0];
     change('标题', '海岛来信'); fireEvent.click(button('确认上次保存'));
     await screen.findByLabelText('一次性连接码');
-    expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false});
+    expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false, unknown: true});
     change('一次性连接码', 'new-session'); fireEvent.click(button('连接'));
     const confirm = await screen.findByRole('button', {name: '确认上次保存'});
     await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false));
@@ -375,7 +375,7 @@ describe('DatabaseDrafts injected port', () => {
     change('标题', '之前提交 B'); fireEvent.click(button('保存')); await screen.findByRole('alert');
     const original = client.update.mock.calls[0][0];
     change('标题', '海岛来信'); fireEvent.click(button('确认上次保存'));
-    await waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false}));
+    await waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false, unknown: true}));
     const event = new Event('beforeunload', {cancelable: true}); window.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true); expect(value()).toBe('海岛来信');
     fireEvent.click(button('确认上次保存'));

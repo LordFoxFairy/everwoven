@@ -46,7 +46,7 @@ function errorInfo(error: unknown) {
     ? '版本冲突：数据库草稿已被修改。当前输入仍保留；请先复制需要保留的内容，再确认重新载入草稿，人工合并后保存。' : message};
 }
 
-export function DatabaseDrafts({client, onPendingChange}: {client: DatabaseDraftsClient; onPendingChange?: (s: {dirty: boolean; busy: boolean}) => void}) {
+export function DatabaseDrafts({client, onPendingChange}: {client: DatabaseDraftsClient; onPendingChange?: (s: {dirty: boolean; busy: boolean; unknown?: boolean}) => void}) {
   const fieldId = useId();
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [code, setCode] = useState('');
@@ -71,7 +71,7 @@ export function DatabaseDrafts({client, onPendingChange}: {client: DatabaseDraft
   const attempts = useRef(new Map<string, {payload: string; commandId: string}>());
 
   useEffect(() => {pendingCallback.current = onPendingChange;}, [onPendingChange]);
-  useEffect(() => {pendingCallback.current?.({dirty, busy});}, [dirty, busy]);
+  useEffect(() => {pendingCallback.current?.({dirty, busy, ...(unknown ? {unknown: true} : {})});}, [dirty, busy, unknown]);
   useEffect(() => () => {pendingCallback.current?.({dirty: false, busy: false});}, []);
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {

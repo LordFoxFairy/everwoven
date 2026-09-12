@@ -22,7 +22,7 @@ export function Platform({environment='demo',databaseEnabled=false}:{environment
 function PlatformContent({databaseEnabled}:{databaseEnabled:boolean}){
  const [databaseClient]=useState(createDatabaseDraftsClient);
  const [storageTab,setStorageTab]=useState<'browser'|'database'>('browser');
- const [databasePending,setDatabasePending]=useState({dirty:false,busy:false});
+ const [databasePending,setDatabasePending]=useState<{dirty:boolean;busy:boolean;unknown?:boolean}>({dirty:false,busy:false});
  const environment=useAppEnvironment(),demo=environment==='demo';
  const [examples]=useState(()=>demo?listExampleStories():[]);
  const [view,setView]=useState<View>('home'),[data,setData]=useState<Library>(emptyLibrary),[ready,setReady]=useState(false),[error,setError]=useState(''),[query,setQuery]=useState(''),[genre,setGenre]=useState('全部'),[selected,setSelected]=useState<Story|null>(null),[draft,setDraft]=useState<Story>(blankStory),[active,setActive]=useState<Save|null>(null),[notice,setNotice]=useState(''),[characterPending,setCharacterPending]=useState({dirty:false,busy:false});
@@ -31,7 +31,7 @@ function PlatformContent({databaseEnabled}:{databaseEnabled:boolean}){
  function saveDraft(s:Story){const problems=validateDraft(s);if(problems.length){setNotice('请填写：'+problems.join('、'));return false;}const ok=persist({...data,drafts:[s,...data.drafts.filter(x=>x.id!==s.id)]});if(ok)setNotice('已保存到本机 · 非云同步');return ok;}
  function start(s:Story){if(!demo){setNotice('真实生成尚未接通；不会使用演练替代。');return;}const save=newSave(s);if(persist({...data,saves:[save,...data.saves]})){setActive(save);setSelected(null);setView('player');}}
  function updateSave(s:Save){if(persist({...data,saves:data.saves.map(x=>x.id===s.id?s:x)})){setActive(s);return true;}return false;}
- function mayLeave(){return !characterPending.busy&&!databasePending.busy&&(!(characterPending.dirty||databasePending.dirty)||confirm('有未保存的修改，确定离开吗？'));}
+ function mayLeave(){if(databasePending.unknown){setNotice('上次保存结果待确认，请先确认原命令再离开。');return false;}return !characterPending.busy&&!databasePending.busy&&(!(characterPending.dirty||databasePending.dirty)||confirm('有未保存的修改，确定离开吗？'));}
  function navigate(next:View){if(next!==view&&!mayLeave())return;setView(next);setQuery('');setGenre('全部');}
  function saveCharacter(c:Character){const ok=persist({...data,characters:[c,...data.characters.filter(x=>x.id!==c.id)]});if(ok)setNotice('角色模板已保存到本机。');return ok;}
  function edit(s?:Story){if(!mayLeave())return;setNotice('');setDraft(s?structuredClone(s):blankStory());setView('editor');}
