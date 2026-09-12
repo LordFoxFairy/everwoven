@@ -30,7 +30,7 @@ it('keeps an unknown command mounted across sidebar, storage-tab and create navi
  expect(confirm).not.toHaveBeenCalled();
  expect(client.create).toHaveBeenCalledTimes(1);
  expect((screen.getByLabelText('标题',{exact:true}) as HTMLInputElement).value).toBe('等待确认');
- client.create.mockResolvedValueOnce({data:{id:'01994b80-0000-7000-8000-000000000001',title:'等待确认',settings:{premise:'',playerRole:'',worldRules:[],tone:''},schemaVersion:1,revision:1,createdAt:'2026-09-12T00:00:00.000Z',updatedAt:'2026-09-12T00:00:00.000Z',deletedAt:null,archivedAt:null},replayed:true});
+ client.create.mockResolvedValueOnce({data:{id:'01994b80-0000-7000-8000-000000000001',title:'等待确认',settings:{world:'',opening:'',genre:'',playerRole:'',worldRules:[],tone:''},schemaVersion:1,revision:1,createdAt:'2026-09-12T00:00:00.000Z',updatedAt:'2026-09-12T00:00:00.000Z',deletedAt:null,archivedAt:null},replayed:true});
  await user.click(screen.getByRole('button',{name:'确认上次保存'}));
  await waitFor(()=>expect(screen.queryByRole('button',{name:'确认上次保存'})).toBeNull());
  await user.click(screen.getByRole('button',{name:'角色库'}));

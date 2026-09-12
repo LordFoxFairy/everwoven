@@ -1,8 +1,8 @@
-// M0 initial schema, reviewed V1.2: no database foreign keys, no ORM relations, no triggers.
+// Authoring clean baseline: no database foreign keys, no ORM relations, no triggers.
 // Primary keys + reviewed TRUE business uniqueness only; see UNIQUE-KEY-REGISTER.md.
 // Reference/lifecycle validation belongs to WriteGate; business UNIQUE is also enforced by SQL.
 // IDs and timestamps are supplied by runtime IdFactory / Clock, not database defaults.
-// Runtime jobs/media/facts/ledger will be added in M2/M3; see DATA-DESIGN.md.
+// No legacy database migration/compatibility. Runtime jobs/media/facts/ledger remain M2/M3.
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -82,6 +82,9 @@ model Asset {
   sha256            String
   mimeType          String    @map("mime_type")
   byteSize          BigInt    @map("byte_size")
+  originalName      String    @map("original_name")
+  width             Int
+  height            Int
   rightsDeclaration String    @map("rights_declaration")
   status            String    @default("ready")
   deletedAt         DateTime? @map("deleted_at")
@@ -95,6 +98,8 @@ model Asset {
 }
 
 model CharacterTemplate {
+  scope              String    @default("library")
+  sourceStoryDraftId  String?   @map("source_story_draft_id")
   deletedAt       DateTime? @map("deleted_at")
   id              String    @id
   ownerId         String    @map("owner_id")
@@ -107,7 +112,8 @@ model CharacterTemplate {
   updatedAt       DateTime  @map("updated_at")
   revision        Int       @default(1)
 
-  @@index([ownerId, deletedAt, archivedAt, updatedAt, id], map: "ix_character_templates_owner_list")
+  @@index([ownerId, scope, deletedAt, updatedAt, id], map: "ix_character_templates_scope_list")
+  @@index([ownerId, sourceStoryDraftId], map: "ix_character_templates_story")
   @@index([ownerId, portraitAssetId], map: "ix_character_templates_portrait")
   @@map("character_templates")
 }
@@ -257,4 +263,31 @@ model ResponseDraft {
 
   @@unique([ownerId, interactionEventId], map: "uq_response_drafts_node")
   @@map("response_drafts")
+}
+
+// Operational intent, not user content. Terminal deletion/expiry is status-based.
+// Asset is inserted ready only after verified publication; no FK/cross-owner dedup.
+model AssetUpload {
+  id                 String   @id
+  ownerId            String   @map("owner_id")
+  assetId            String   @map("asset_id")
+  inputSha256        String   @map("input_sha256")
+  inputByteSize      BigInt   @map("input_byte_size")
+  originalName       String   @map("original_name")
+  rightsDeclaration String   @map("rights_declaration")
+  status             String
+  outputSha256       String?  @map("output_sha256")
+  outputByteSize     BigInt?  @map("output_byte_size")
+  outputWidth        Int?     @map("output_width")
+  outputHeight       Int?     @map("output_height")
+  processingToken    String?  @map("processing_token")
+  leaseExpiresAt     DateTime? @map("lease_expires_at")
+  createdAt          DateTime @map("created_at")
+  updatedAt          DateTime @map("updated_at")
+  expiresAt          DateTime @map("expires_at")
+  revision           Int      @default(1)
+
+  @@index([status, leaseExpiresAt, id], map: "ix_asset_uploads_recovery")
+  @@index([ownerId, createdAt, id], map: "ix_asset_uploads_owner")
+  @@map("asset_uploads")
 }

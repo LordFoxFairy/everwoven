@@ -1,5 +1,7 @@
 # 数据与 CRUD 规范 · V1.3 无外键与来源关系评审稿
 
+> 2026-09-12实际结构更新：单一 `202609120001_authoring_baseline`，16表/13业务唯一/零FK；CharacterTemplate作用域、必填图片元数据及AssetUpload结构已建。旧M0迁移定义已替换，无旧库迁移/旧DTO兼容；原业务数据未删除。M1用例落地进度见[PROGRESS](../PROGRESS.md)，建表不是上传/角色链路完成。
+
 2026-09-10。按用户新要求修订：**禁止数据库外键，保留真实业务唯一、剔除伪唯一和冗余唯一，明确 create/update/delete 及三个生命周期时间字段**。这是本项目约定，不把它宣称为所有大型公司的统一标准。替代 V1.1 的复合外键/触发器设计。
 
 [总体方案](ARCHITECTURE.md) · [逻辑关系与时序图](DIAGRAMS.md) · [Prisma/SQL及验证边界](data/README.md)

@@ -70,13 +70,17 @@ try {
   await page.getByRole('button', {name: '新建数据库草稿'}).click();
   const title = '浏览器闭环验收';
   await page.getByLabel('标题', {exact: true}).fill(title);
-  await page.getByLabel('故事前提', {exact: true}).fill('从一封尚未寄出的信开始，用户决定下一幕。');
+  await page.getByLabel('世界背景', {exact: true}).fill('海边小镇，潮汐记录每一次选择。');
+  await page.getByLabel('开局情境', {exact: true}).fill('从一封尚未寄出的信开始，用户决定下一幕。');
+  await page.getByLabel('故事题材', {exact: true}).fill('日常');
   await page.getByLabel('玩家身份', {exact: true}).fill('刚回到海边小镇的旅人');
   await page.getByLabel('世界规则（每行一条）', {exact: true}).fill('选择会留下分支\n角色记住已发生的事');
   await page.getByLabel('语气', {exact: true}).fill('明亮、克制');
   await page.getByRole('button', {name: '创建草稿', exact: true}).click();
   await page.getByText('已保存 · 修订 1', {exact: true}).waitFor();
-  await page.getByLabel('故事前提', {exact: true}).fill('第二版：这个世界等待玩家回应。');
+  await page.getByLabel('世界背景', {exact: true}).fill('第二版：这个世界等待玩家回应。');
+  await page.getByLabel('开局情境', {exact: true}).fill('第二版：旅人收到一封信。');
+  await page.getByLabel('故事题材', {exact: true}).fill('奇幻');
   await page.getByRole('button', {name: '保存', exact: true}).click();
   await page.getByText('已保存 · 修订 2', {exact: true}).waitFor();
   await page.getByRole('button', {name: '删除草稿', exact: true}).click();
@@ -115,13 +119,24 @@ try {
   await page.reload({waitUntil: 'networkidle'});
   await openLibrary();
   await page.getByRole('button', {name: `编辑 ${title}`, exact: true}).click();
-  assert.equal(await page.getByLabel('故事前提', {exact: true}).inputValue(), '第二版：这个世界等待玩家回应。');
+  async function assertSettings() {
+    const expected = [
+      ['世界背景', '第二版：这个世界等待玩家回应。'],
+      ['开局情境', '第二版：旅人收到一封信。'],
+      ['故事题材', '奇幻'],
+      ['玩家身份', '刚回到海边小镇的旅人'],
+      ['世界规则（每行一条）', '选择会留下分支\n角色记住已发生的事'],
+      ['语气', '明亮、克制'],
+    ];
+    for (const [label, value] of expected) assert.equal(await page.getByLabel(label, {exact: true}).inputValue(), value);
+  }
+  await assertSettings();
   await stop(); await start();
   await page.reload({waitUntil: 'networkidle'});
   await openLibrary();
   await page.getByRole('button', {name: `编辑 ${title}`, exact: true}).click();
   await page.getByText('已保存 · 修订 4', {exact: true}).waitFor();
-  assert.equal(await page.getByLabel('世界规则（每行一条）', {exact: true}).inputValue(), '选择会留下分支\n角色记住已发生的事');
+  await assertSettings();
   const cookies = await page.context().cookies();
   assert(cookies.some(cookie => cookie.name === 'everwoven_local' && cookie.httpOnly && cookie.sameSite === 'Strict'));
   await page.getByRole('button', {name: '退出连接', exact: true}).click();

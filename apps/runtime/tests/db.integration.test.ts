@@ -50,7 +50,7 @@ describe('M0 real Prisma / file-backed SQLite', () => {
     expect(await db.$queryRawUnsafe('PRAGMA journal_mode')).toEqual([{ journal_mode: 'wal' }]);
     expect(await db.$queryRawUnsafe('PRAGMA foreign_keys')).toEqual([{ foreign_keys: 1n }]);
     const tables = await db.$queryRawUnsafe<Array<{name: string}>>("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE '\\_%' ESCAPE '\\'");
-    expect(tables).toHaveLength(15);
+    expect(tables).toHaveLength(16);
     for (const {name} of tables) {
       expect(await db.$queryRawUnsafe(`PRAGMA foreign_key_list("${name}")`)).toEqual([]);
     }
@@ -62,7 +62,7 @@ describe('M0 real Prisma / file-backed SQLite', () => {
     const ownerId = v7();
     const now = new Date('2026-09-10T12:34:56.789Z');
     await db.localProfile.create({data: {id: ownerId, displayName: '本地测试', createdAt: now, updatedAt: now}});
-    const story = await db.storyDraft.create({data: {id: v7(), ownerId, title: '同名世界', settings: {premise: '海边', worldRules: ['尊重拒绝']}, createdAt: now, updatedAt: now}});
+    const story = await db.storyDraft.create({data: {id: v7(), ownerId, title: '同名世界', settings: {world: '海边', opening: '', genre: '', playerRole: '', worldRules: ['尊重拒绝'], tone: ''}, createdAt: now, updatedAt: now}});
     const version = await db.storyVersion.create({data: {id: v7(), ownerId, storyDraftId: story.id, versionNo: 1, sourceRevision: 1, title: story.title, settings: {}, createdAt: now, sealedAt: now, contentHash: '0'.repeat(64)}});
     const binding = await db.providerBindingVersion.create({data: {id: v7(), ownerId, bindingKey: 'fixture', versionNo: 1, providerId: 'fixture', modelId: 'fixture', adapterVersion: '1', capabilityVersion: '1', mode: 'job', credentialRef: 'not-a-secret', parameters: {}, capabilities: {}, createdAt: now}});
     const exp = await db.experience.create({data: {id: v7(), ownerId, storyVersionId: version.id, providerBindingVersionId: binding.id, budgetLimitMicros: 9007199254740993n, budgetCurrency: 'CNY', createdAt: now, updatedAt: now}});
@@ -161,10 +161,10 @@ describe('WriteGate and minimal internal title-update repository', () => {
 
 
 describe('database guardrails and standalone diagnostic entry', () => {
-  it('matches all 13 reviewed unique indexes by name and columns, with 15 primary keys', async () => {
+  it('matches all 13 reviewed unique indexes by name and columns, with 16 primary keys', async () => {
     const db = await connect();
-    const migration = await readFile(join(root, 'prisma/migrations/202609100001_m0_foundation/migration.sql'), 'utf8');
-    const review = await readFile(join(root, '../../docs/architecture/data/m0.generated.sql'), 'utf8');
+    const migration = await readFile(join(root, 'prisma/migrations/202609120001_authoring_baseline/migration.sql'), 'utf8');
+    const review = await readFile(join(root, '../../docs/architecture/data/authoring.generated.sql'), 'utf8');
     expect(migration.trim()).toBe(review.trim());
     const expected = [...migration.matchAll(/CREATE UNIQUE INDEX "([^"]+)" ON "([^"]+)"\(([^)]+)\)/g)]
       .map(m => ({name: m[1]!, table: m[2]!, columns: m[3]!.replaceAll('"', '').split(',').map(v => v.trim())}));
@@ -185,7 +185,7 @@ describe('database guardrails and standalone diagnostic entry', () => {
   it('permits repeated titles and content hashes but rejects duplicate storage keys', async () => {
     const db = await connect(); const {ownerId, story, now} = await seedStory(db);
     await db.storyDraft.create({data: {id: v7(), ownerId, title: story.title, settings: {}, createdAt: now, updatedAt: now}});
-    const asset = {ownerId, storageKey: 'one', sha256: '0'.repeat(64), mimeType: 'image/png', byteSize: 1n, rightsDeclaration: 'fixture', createdAt: now, updatedAt: now};
+    const asset = {originalName: 'fixture.png', width: 256, height: 256, ownerId, storageKey: 'one', sha256: '0'.repeat(64), mimeType: 'image/png', byteSize: 1n, rightsDeclaration: 'fixture', createdAt: now, updatedAt: now};
     await db.asset.create({data: {...asset, id: v7()}});
     await db.asset.create({data: {...asset, id: v7(), storageKey: 'two'}});
     await expect(db.asset.create({data: {...asset, id: v7()}})).rejects.toMatchObject({code: 'P2002'});
@@ -195,7 +195,7 @@ describe('database guardrails and standalone diagnostic entry', () => {
   it('rejects an unexpected FK or trigger schema instead of using foreign_keys=OFF to disguise it', async () => {
     const db = await connect();
     await db.$executeRawUnsafe('ALTER TABLE story_drafts ADD COLUMN illegal_owner TEXT REFERENCES local_profiles(id)');
-    // Keep 15 business tables so only the FK scan can reject this schema.
+    // Keep 16 business tables so only the FK scan can reject this schema.
     const status = await openRuntimeDatabase(dbPath).then(async client => { await client.$disconnect(); return 'opened'; }, error => error.message);
     expect(status).toBe('DATABASE_SCHEMA_NOT_APPROVED');
     await db.$executeRawUnsafe('ALTER TABLE story_drafts DROP COLUMN illegal_owner');
@@ -218,5 +218,53 @@ describe('database guardrails and standalone diagnostic entry', () => {
     expect(output.sqliteVersion).toMatch(/^3\.\d+\.\d+$/);
     expect(output.httpListening).toBe(false);
     expect(result.stdout).not.toContain(dbPath);
+  });
+});
+
+// A matching table count is not a matching schema. These cases preserve the count.
+describe('approved baseline structural identity', () => {
+  it.each([
+    ['renamed table', 'ALTER TABLE story_drafts RENAME TO wrong_story_table'],
+    ['extra column', 'ALTER TABLE story_drafts ADD COLUMN unapproved TEXT'],
+    ['missing column', 'ALTER TABLE story_drafts DROP COLUMN settings'],
+    ['missing index', 'DROP INDEX ix_story_drafts_owner_list'],
+    ['extra index', 'CREATE INDEX unapproved_index ON story_drafts(title)'],
+    ['trigger named like the migration table', 'CREATE TRIGGER _prisma_migrations AFTER INSERT ON story_drafts BEGIN DELETE FROM story_drafts WHERE id = NEW.id; END'],
+    ['migration-table trigger', 'CREATE TRIGGER wrong_migration_trigger AFTER UPDATE ON _prisma_migrations BEGIN SELECT 1; END'],
+    ['near-internal-name view', 'CREATE VIEW sqlitex_unapproved AS SELECT id FROM story_drafts'],
+    ['changed index order', 'DROP INDEX ix_story_drafts_owner_list'],
+  ])('rejects %s even with the approved table count', async (kind, sql) => {
+    const db = await connect();
+    await db.$executeRawUnsafe(sql);
+    if (kind === 'changed index order') await db.$executeRawUnsafe('CREATE INDEX ix_story_drafts_owner_list ON story_drafts(id, owner_id)');
+    const outcome = await openRuntimeDatabase(dbPath).then(async client => {await client.$disconnect(); return 'opened';}, (error: Error) => error.message);
+    expect(outcome).toBe('DATABASE_SCHEMA_NOT_APPROVED');
+  });
+  it('rejects a changed migration checksum', async () => {
+    const db = await connect();
+    await db.$executeRawUnsafe("UPDATE _prisma_migrations SET checksum = 'unapproved'");
+    const outcome = await openRuntimeDatabase(dbPath).then(async client => {await client.$disconnect(); return 'opened';}, (error: Error) => error.message);
+    expect(outcome).toBe('DATABASE_MIGRATION_NOT_APPROVED');
+  });
+});
+
+
+describe('clean authoring baseline fields', () => {
+  it('keeps the reviewed SQL and runtime fingerprints reproducible', () => {
+    const result = spawnSync(process.execPath, [join(root, 'scripts/sync-schema-baseline.mjs'), '--check'], {cwd: root, encoding: 'utf8'});
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('artifacts verified');
+  });
+  it('persists scoped characters, complete asset metadata and upload intents after reopening', async () => {
+    const db = await connect(); const {ownerId, story, now} = await seedStory(db);
+    const library = await db.characterTemplate.create({data: {id: v7(), ownerId, name: '可重复姓名', settings: {}, createdAt: now, updatedAt: now}});
+    expect(library.scope).toBe('library'); expect(library.sourceStoryDraftId).toBeNull();
+    const inline = await db.characterTemplate.create({data: {id: v7(), ownerId, name: library.name, scope: 'story', sourceStoryDraftId: story.id, settings: {}, createdAt: now, updatedAt: now}});
+    const asset = await db.asset.create({data: {id: v7(), ownerId, storageKey: 'reviewed-file.webp', originalName: '用户图片.png', width: 1024, height: 768, mimeType: 'image/webp', byteSize: 1234n, sha256: 'a'.repeat(64), rightsDeclaration: 'user-confirmed', status: 'ready', createdAt: now, updatedAt: now}});
+    const upload = await db.assetUpload.create({data: {id: v7(), ownerId, assetId: v7(), inputSha256: 'b'.repeat(64), inputByteSize: 2468n, originalName: '待上传.jpg', rightsDeclaration: 'user-confirmed', status: 'reserved', createdAt: now, updatedAt: now, expiresAt: new Date(now.getTime() + 86400000)}});
+    await db.$disconnect(); const reopened = await connect();
+    expect(await reopened.characterTemplate.findUnique({where: {id: inline.id}})).toMatchObject({scope: 'story', sourceStoryDraftId: story.id});
+    expect(await reopened.asset.findUnique({where: {id: asset.id}})).toMatchObject({width: 1024, height: 768, originalName: '用户图片.png', byteSize: 1234n});
+    expect(await reopened.assetUpload.findUnique({where: {id: upload.id}})).toMatchObject({assetId: upload.assetId, inputByteSize: 2468n, status: 'reserved', processingToken: null, leaseExpiresAt: null, revision: 1});
   });
 });

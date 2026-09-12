@@ -8,7 +8,7 @@ import {v7} from 'uuid';
 import {openRuntimeDatabase} from '../src/infrastructure/db/client.js';
 import type {PrismaClient} from '../src/generated/prisma/client.js';
 import {createDraft, getDraft, listDrafts, updateDraft, deleteDraft, restoreDraft} from '../src/application/story-drafts.js';
-import type {DraftSettings} from '../src/contracts/story-draft.js';
+import type {StorySettings} from '../src/contracts/story-draft.js';
 import {PrismaStoryDraftStore} from '../src/infrastructure/db/prisma-story-draft-store.js';
 import {createStoryDraftService} from '../src/composition/story-draft-service.js';
 import type {StoryDraftInsert, StoryReceiptInsert} from '../src/ports/story-draft-store.js';
@@ -17,7 +17,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 let baseDir: string, base: string, dir: string, path: string, db: PrismaClient;
 let connections: PrismaClient[] = [];
 let owner: {ownerId: string};
-const settings: DraftSettings = {premise: '', playerRole: '', worldRules: [], tone: ''};
+const settings: StorySettings = {world: '', opening: '', genre: '', playerRole: '', worldRules: [], tone: ''};
 const command = (title = '新的世界') => ({commandId: v7(), title, settings: structuredClone(settings)});
 async function connect() {const client = await openRuntimeDatabase(path); connections.push(client); return client;}
 beforeAll(async () => {
@@ -49,7 +49,8 @@ describe('internal story root CRUD on a real SQLite file', () => {
     const {data: created} = await createDraft(new PrismaStoryDraftStore(db), owner, command());
     const {data: changed} = await updateDraft(new PrismaStoryDraftStore(db), owner, {commandId: v7(), id: created.id, expectedRevision: 1, patch: {title: '打磨后的世界'}});
     expect(changed.title).toBe('打磨后的世界'); expect(changed.settings).toEqual(settings); expect(changed.createdAt).toBe(created.createdAt); expect(changed.revision).toBe(2);
-    const replacement = {...settings, premise: '一座安静的海边小镇', worldRules: ['不替玩家决定感情']};
+    const replacement = {world: '一座安静的海边小镇', opening: '收到一封来信', genre: '日常',
+      playerRole: '旅人', worldRules: ['不替玩家决定感情'], tone: '温柔'};
     const {data: next} = await updateDraft(new PrismaStoryDraftStore(db), owner, {commandId: v7(), id: created.id, expectedRevision: 2, patch: {settings: replacement}});
     expect(next.settings).toEqual(replacement); expect(next.title).toBe(changed.title); expect(next.revision).toBe(3);
   });
@@ -78,7 +79,7 @@ describe('internal story root CRUD on a real SQLite file', () => {
   });
   it('canonicalizes settings key order but rejects changed payloads and command types', async () => {
     const input = command(); const created = await createDraft(new PrismaStoryDraftStore(db), owner, input);
-    expect((await createDraft(new PrismaStoryDraftStore(db), owner, {...input, settings: {tone: '', worldRules: [], playerRole: '', premise: ''}})).replayed).toBe(true);
+    expect((await createDraft(new PrismaStoryDraftStore(db), owner, {...input, settings: {tone: '', worldRules: [], playerRole: '', genre: '', opening: '', world: ''}})).replayed).toBe(true);
     await expect(createDraft(new PrismaStoryDraftStore(db), owner, {...input, title: '不同内容'})).rejects.toThrow('IDEMPOTENCY_CONFLICT');
     await expect(deleteDraft(new PrismaStoryDraftStore(db), owner, {commandId: input.commandId, id: created.data.id, expectedRevision: 1})).rejects.toThrow('IDEMPOTENCY_CONFLICT');
   });
@@ -125,7 +126,7 @@ describe('internal story root CRUD on a real SQLite file', () => {
     {title: '  '}, {title: 'x'.repeat(121)}, {id: v7()}, {ownerId: v7()},
     {commandId: 'not-an-id'}, {settings: {...settings, hidden: true}},
     {settings: {...settings, worldRules: Array(31).fill('rule')}},
-    {settings: {...settings, premise: 'x'.repeat(12001)}},
+    {settings: {...settings, world: 'x'.repeat(12001)}},
   ])('rejects invalid create data with no persisted side effects (%#)', async patch => {
     await expect(createDraft(new PrismaStoryDraftStore(db), owner, {...command(), ...patch} as never)).rejects.toThrow('INVALID_STORY_COMMAND');
     expect(await db.storyDraft.count()).toBe(0); expect(await db.commandReceipt.count()).toBe(0);
@@ -133,7 +134,7 @@ describe('internal story root CRUD on a real SQLite file', () => {
   });
   it('rejects empty/unknown updates, invalid limits and forged cursor scope', async () => {
     const {data} = await createDraft(new PrismaStoryDraftStore(db), owner, command());
-    for (const patch of [{}, {title: null}, {ownerId: v7()}, {settings: {premise: 'partial'}}]) {
+    for (const patch of [{}, {title: null}, {ownerId: v7()}, {settings: {world: 'partial'}}]) {
       await expect(updateDraft(new PrismaStoryDraftStore(db), owner, {commandId: v7(), id: data.id, expectedRevision: 1, patch} as never)).rejects.toThrow('INVALID_STORY_COMMAND');
     }
     for (const input of [{limit: 0}, {limit: 101}, {limit: 1.5}, {cursor: 'invalid'}]) await expect(listDrafts(new PrismaStoryDraftStore(db), owner, input)).rejects.toThrow();
@@ -223,7 +224,7 @@ const draftRecord = (title = '端口草稿'): StoryDraftInsert => {
     createdAt: now, updatedAt: now, deletedAt: null, archivedAt: null};
 };
 const receiptRecord = (draft: StoryDraftInsert): StoryReceiptInsert => ({
-  id: v7(), commandId: v7(), commandType: 'm0.story-root.create.v1', payloadHash: '0'.repeat(64), schemaVersion: 1,
+  id: v7(), commandId: v7(), commandType: 'authoring.story.create.v1', payloadHash: '0'.repeat(64), schemaVersion: 1,
   response: {...draft, createdAt: draft.createdAt.toISOString(), updatedAt: draft.updatedAt.toISOString(), deletedAt: null, archivedAt: null},
   createdAt: draft.updatedAt,
 });

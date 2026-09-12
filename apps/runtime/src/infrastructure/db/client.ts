@@ -2,6 +2,7 @@ import { stat, realpath } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 import { PrismaClient } from '../../generated/prisma/client.js';
+import {approvedMigration, approvedSchemaObjects} from './schema-baseline.js';
 
 /** Internal connection factory. No HTTP access, automatic migration or profile bootstrap. */
 export async function openRuntimeDatabase(path: string): Promise<PrismaClient> {
@@ -19,20 +20,29 @@ export async function openRuntimeDatabase(path: string): Promise<PrismaClient> {
         version[0]! < 3 || (version[0] === 3 && (version[1]! < 53 || (version[1] === 53 && version[2]! < 1)))) {
       throw new Error('DATABASE_ENGINE_NOT_APPROVED');
     }
-    const migrations = await client.$queryRawUnsafe<Array<{ migration_name: string; finished_at: unknown; rolled_back_at: unknown }>>(
-      'SELECT migration_name, finished_at, rolled_back_at FROM _prisma_migrations',
+    const migrations = await client.$queryRawUnsafe<Array<{migration_name: string; checksum: string; finished_at: unknown; rolled_back_at: unknown}>>(
+      'SELECT migration_name, checksum, finished_at, rolled_back_at FROM _prisma_migrations',
     );
-    const active = migrations.filter(row => row.rolled_back_at === null);
-    if (active.length !== 1 || active[0]?.migration_name !== '202609100001_m0_foundation' || active[0].finished_at === null) {
+    const migration = migrations[0];
+    if (migrations.length !== 1 || !migration || migration.migration_name !== approvedMigration.name ||
+        migration.checksum !== approvedMigration.checksum || migration.finished_at === null || migration.rolled_back_at !== null) {
       throw new Error('DATABASE_MIGRATION_NOT_APPROVED');
     }
-    const tables = await client.$queryRawUnsafe<Array<{ name: string }>>(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name <> '_prisma_migrations'",
+    // Match the actual persisted DDL, not only table count or migration bookkeeping.
+    // Exclude only SQLite internals and the migration table itself, not arbitrary
+    // indexes/triggers attached to that table. GLOB keeps underscore literal.
+    // Extra views/triggers/tables/indexes, altered columns/defaults/PKs and changed
+    // index order/uniqueness all differ from this single approved baseline.
+    const objects = await client.$queryRawUnsafe<Array<{type: string; name: string; tableName: string; sql: string | null}>>(
+      "SELECT type, name, tbl_name AS tableName, sql FROM sqlite_master WHERE name NOT GLOB 'sqlite_*' AND NOT (type = 'table' AND name = '_prisma_migrations') ORDER BY type, name",
     );
-    const triggers = await client.$queryRawUnsafe<Array<{ name: string }>>("SELECT name FROM sqlite_master WHERE type='trigger'");
-    if (tables.length !== 15 || triggers.length !== 0) throw new Error('DATABASE_SCHEMA_NOT_APPROVED');
-    for (const { name } of tables) {
-      const escapedName = name.replaceAll('"', '""');
+    if (objects.length !== approvedSchemaObjects.length || objects.some((object, index) => {
+      const expected = approvedSchemaObjects[index];
+      return !expected || object.type !== expected.type || object.name !== expected.name ||
+        object.tableName !== expected.tableName || object.sql !== expected.sql;
+    })) throw new Error('DATABASE_SCHEMA_NOT_APPROVED');
+    for (const object of objects.filter(object => object.type === 'table')) {
+      const escapedName = object.name.replaceAll('"', '""');
       const keys = await client.$queryRawUnsafe(`PRAGMA foreign_key_list("${escapedName}")`);
       if (!Array.isArray(keys) || keys.length !== 0) throw new Error('DATABASE_SCHEMA_NOT_APPROVED');
     }

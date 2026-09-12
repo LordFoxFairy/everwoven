@@ -2,16 +2,16 @@
 
 import {useEffect, useId, useRef, useState} from 'react';
 import {v7 as uuidv7} from 'uuid';
-import type {DraftCreate, DraftDTO, DraftListInput, DraftPage, DraftUpdate, DraftLifecycle} from '../../runtime/src/contracts/story-draft';
+import type {DraftCreate, DraftDTO, DraftListInput, DraftPage, DraftUpdate, DraftLifecycle, StorySettings} from '../../runtime/src/contracts/story-draft';
 import type {DatabaseDraftsClient} from '../lib/authoring/ports';
 import {Button} from './ui/button';
 import styles from './database-drafts.module.css';
 
-type Fields = {title: string; premise: string; playerRole: string; worldRules: string; tone: string};
+type Fields = {title: string; worldRules: string} & Omit<StorySettings, 'worldRules'>;
 type Filter = NonNullable<DraftListInput['deleted']>;
 type Mutation = {kind: 'create'; input: DraftCreate} | {kind: 'update'; input: DraftUpdate}
   | {kind: 'delete' | 'restore'; input: DraftLifecycle};
-const emptyFields: Fields = {title: '', premise: '', playerRole: '', worldRules: '', tone: ''};
+const emptyFields: Fields = {title: '', world: '', opening: '', genre: '', playerRole: '', worldRules: '', tone: ''};
 const fieldsOf = (data: DraftDTO): Fields => ({title: data.title, ...data.settings, worldRules: data.settings.worldRules.join('\n')});
 const snapshot = (fields: Fields, worldRules: string[]) => JSON.stringify([fields, worldRules]);
 const unique = (items: DraftDTO[]) => [...new Map(items.map(item => [item.id, item])).values()];
@@ -203,7 +203,7 @@ export function DatabaseDrafts({client, onPendingChange}: {client: DatabaseDraft
     void run(async current => {
       if (!fields.title.trim()) throw new Error('请填写标题。');
       const content = {title: fields.title, settings: {
-        premise: fields.premise, playerRole: fields.playerRole,
+        world: fields.world, opening: fields.opening, genre: fields.genre, playerRole: fields.playerRole,
         worldRules: [...worldRules], tone: fields.tone,
       }};
       const scope = selected ? `update:${selected.id}` : 'create';
@@ -289,7 +289,9 @@ export function DatabaseDrafts({client, onPendingChange}: {client: DatabaseDraft
           </div>
           <fieldset disabled={busy || Boolean(selected?.deletedAt)} className={styles.fields}>
             <label><span id={`${fieldId}-title`}>{'标题'}</span><input aria-labelledby={`${fieldId}-title`} value={fields.title} onChange={event => field('title', event.target.value)} maxLength={120}/></label>
-            <label><span id={`${fieldId}-premise`}>{'故事前提'}</span><textarea aria-labelledby={`${fieldId}-premise`} value={fields.premise} onChange={event => field('premise', event.target.value)} rows={4} maxLength={12000}/></label>
+            <label><span id={`${fieldId}-world`}>{'世界背景'}</span><textarea aria-labelledby={`${fieldId}-world`} value={fields.world} onChange={event => field('world', event.target.value)} rows={4} maxLength={12000}/></label>
+            <label><span id={`${fieldId}-opening`}>{'开局情境'}</span><textarea aria-labelledby={`${fieldId}-opening`} value={fields.opening} onChange={event => field('opening', event.target.value)} rows={4} maxLength={12000}/></label>
+            <label><span id={`${fieldId}-genre`}>{'故事题材'}</span><input aria-labelledby={`${fieldId}-genre`} value={fields.genre} onChange={event => field('genre', event.target.value)} maxLength={80}/></label>
             <label><span id={`${fieldId}-playerRole`}>{'玩家身份'}</span><textarea aria-labelledby={`${fieldId}-playerRole`} value={fields.playerRole} onChange={event => field('playerRole', event.target.value)} rows={2} maxLength={4000}/></label>
             <label><span id={`${fieldId}-worldRules`}>{'世界规则（每行一条）'}</span><textarea aria-labelledby={`${fieldId}-worldRules`} value={fields.worldRules} onChange={event => field('worldRules', event.target.value)} rows={4}/></label>
             <label><span id={`${fieldId}-tone`}>{'语气'}</span><input aria-labelledby={`${fieldId}-tone`} value={fields.tone} onChange={event => field('tone', event.target.value)} maxLength={500}/></label>

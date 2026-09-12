@@ -58,6 +58,9 @@ CREATE TABLE "assets" (
     "sha256" TEXT NOT NULL,
     "mime_type" TEXT NOT NULL,
     "byte_size" BIGINT NOT NULL,
+    "original_name" TEXT NOT NULL,
+    "width" INTEGER NOT NULL,
+    "height" INTEGER NOT NULL,
     "rights_declaration" TEXT NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'ready',
     "deleted_at" DATETIME,
@@ -68,6 +71,8 @@ CREATE TABLE "assets" (
 
 -- CreateTable
 CREATE TABLE "character_templates" (
+    "scope" TEXT NOT NULL DEFAULT 'library',
+    "source_story_draft_id" TEXT,
     "deleted_at" DATETIME,
     "id" TEXT NOT NULL PRIMARY KEY,
     "owner_id" TEXT NOT NULL,
@@ -202,6 +207,28 @@ CREATE TABLE "response_drafts" (
     "revision" INTEGER NOT NULL DEFAULT 1
 );
 
+-- CreateTable
+CREATE TABLE "asset_uploads" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "owner_id" TEXT NOT NULL,
+    "asset_id" TEXT NOT NULL,
+    "input_sha256" TEXT NOT NULL,
+    "input_byte_size" BIGINT NOT NULL,
+    "original_name" TEXT NOT NULL,
+    "rights_declaration" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "output_sha256" TEXT,
+    "output_byte_size" BIGINT,
+    "output_width" INTEGER,
+    "output_height" INTEGER,
+    "processing_token" TEXT,
+    "lease_expires_at" DATETIME,
+    "created_at" DATETIME NOT NULL,
+    "updated_at" DATETIME NOT NULL,
+    "expires_at" DATETIME NOT NULL,
+    "revision" INTEGER NOT NULL DEFAULT 1
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "uq_command_receipts_owner_command" ON "command_receipts"("owner_id", "command_id");
 
@@ -221,7 +248,10 @@ CREATE INDEX "ix_assets_owner_hash" ON "assets"("owner_id", "sha256");
 CREATE UNIQUE INDEX "uq_assets_storage_key" ON "assets"("storage_key");
 
 -- CreateIndex
-CREATE INDEX "ix_character_templates_owner_list" ON "character_templates"("owner_id", "deleted_at", "archived_at", "updated_at", "id");
+CREATE INDEX "ix_character_templates_scope_list" ON "character_templates"("owner_id", "scope", "deleted_at", "updated_at", "id");
+
+-- CreateIndex
+CREATE INDEX "ix_character_templates_story" ON "character_templates"("owner_id", "source_story_draft_id");
 
 -- CreateIndex
 CREATE INDEX "ix_character_templates_portrait" ON "character_templates"("owner_id", "portrait_asset_id");
@@ -276,3 +306,9 @@ CREATE UNIQUE INDEX "uq_interaction_events_revision" ON "interaction_events"("ex
 
 -- CreateIndex
 CREATE UNIQUE INDEX "uq_response_drafts_node" ON "response_drafts"("owner_id", "interaction_event_id");
+
+-- CreateIndex
+CREATE INDEX "ix_asset_uploads_recovery" ON "asset_uploads"("status", "lease_expires_at", "id");
+
+-- CreateIndex
+CREATE INDEX "ix_asset_uploads_owner" ON "asset_uploads"("owner_id", "created_at", "id");

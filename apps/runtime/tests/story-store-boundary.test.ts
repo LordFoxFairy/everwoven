@@ -40,7 +40,7 @@ describe('story store dependency direction', () => {
 describe('application accepts the port without database types', () => {
   const owner = {ownerId: '01993ce0-0000-7000-8000-000000000001'};
   const id = '01993ce0-0000-7000-8000-000000000002';
-  const settings = {premise: '', playerRole: '', worldRules: [], tone: ''};
+  const settings = {world: '', opening: '', genre: '', playerRole: '', worldRules: [], tone: ''};
 
   it('maps a port record to the DTO and keeps stored JSON unknown at the type boundary', async () => {
     expectTypeOf<StoryDraftRecord['settings']>().toEqualTypeOf<unknown>();

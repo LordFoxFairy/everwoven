@@ -162,7 +162,7 @@ describe('local host: real SQLite and restricted filesystem', () => {
   it('reopens SQLite for CRUD, handles callback failure, and persists across another process', async () => {
     const {h, token} = await connected();
     const work = <T>(fn: Parameters<typeof h.withLocalStories<T>>[3]) => h.withLocalStories(directory, 'dev', token, fn);
-    const input = {commandId: v7(), title: 'Host draft', settings: {premise: '', playerRole: '', worldRules: [], tone: ''}};
+    const input = {commandId: v7(), title: 'Host draft', settings: {world: '', opening: '', genre: '', playerRole: '', worldRules: [], tone: ''}};
     const created = await work((s, o) => s.create(o, input));
     expect((await work((s, o) => s.create(o, input))).replayed).toBe(true);
     const id = created.data.id;
@@ -260,7 +260,7 @@ describe('local host: real SQLite and restricted filesystem', () => {
   it('preserves public input validation errors while always closing database sidecars', async () => {
     const {h, token} = await connected();
     await expect(h.withLocalStories(directory, 'dev', token, (s, o) => s.create(o, {
-      commandId: 'bad', title: 'Bad', settings: {premise: '', playerRole: '', worldRules: [], tone: ''},
+      commandId: 'bad', title: 'Bad', settings: {world: '', opening: '', genre: '', playerRole: '', worldRules: [], tone: ''},
     }))).rejects.toThrow('INVALID_STORY_COMMAND');
     const names = await readdir(directory);
     expect(names.includes('runtime.db-wal')).toBe(false); expect(names.includes('runtime.db-shm')).toBe(false);

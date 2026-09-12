@@ -34,7 +34,7 @@ async function requiredDraft(scope: StoryDraftReadScope, id: string, includeDele
 async function writeCommand(store: StoryDraftStore, ownerId: string, commandId: string, action: string,
   payload: DraftCreate | DraftUpdate | DraftLifecycle, services: RuntimeServices,
   work: (scope: StoryDraftWriteScope) => Promise<DraftDTO>): Promise<DraftCommandResult> {
-  const commandType = `m0.story-root.${action}.v1`;
+  const commandType = `authoring.story.${action}.v1`;
   const payloadHash = createHash('sha256').update(JSON.stringify([commandType, ownerId, payload])).digest('hex');
   return store.write(ownerId, async scope => {
     const receipt = await scope.findReceipt(commandId);

@@ -106,7 +106,7 @@ describe('session HTTP boundary', () => {
 
 const draft: DraftDTO = {
   id: '01994b80-0000-7000-8000-000000000001', title: '世界设定',
-  settings: {premise: '海岛', playerRole: '旅人', worldRules: ['第一行\n第二行'], tone: '平静'},
+  settings: {world: '海岛', opening: '一封来信', genre: '日常', playerRole: '旅人', worldRules: ['第一行\n第二行'], tone: '平静'},
   schemaVersion: 1, revision: 2, createdAt: '2026-09-12T00:00:00.000Z',
   updatedAt: '2026-09-12T01:00:00.000Z', deletedAt: null, archivedAt: null,
 };

@@ -7,7 +7,7 @@ import type {DatabaseDraftsClient} from '../lib/authoring/ports';
 
 const draft = (overrides: Partial<DraftDTO> = {}): DraftDTO => ({
   id: '01994b80-0000-7000-8000-000000000001', title: '海岛来信',
-  settings: {premise: '潮汐中的小岛', playerRole: '旅人', worldRules: ['每晚涨潮'], tone: '温柔'},
+  settings: {world: '潮汐中的小岛', opening: '一封来信', genre: '日常', playerRole: '旅人', worldRules: ['每晚涨潮'], tone: '温柔'},
   schemaVersion: 1, revision: 1, createdAt: '2026-09-12T00:00:00Z', updatedAt: '2026-09-12T00:00:00Z',
   deletedAt: null, archivedAt: null, ...overrides,
 });
@@ -43,6 +43,36 @@ async function edit(client = port(), onPendingChange = vi.fn()) {
 afterEach(() => {cleanup(); vi.restoreAllMocks();});
 
 describe('DatabaseDrafts injected port', () => {
+  it('loads, edits, saves and reloads all six StorySettings fields without splitting untouched rules', async () => {
+    const settings = {world: '海岛', opening: '来信', genre: '日常', playerRole: '旅人', worldRules: ['一条规则\n第二行'], tone: '平静'};
+    const client = port(); client.get.mockResolvedValue(draft({settings}));
+    await edit(client);
+    const fields = [
+      ['世界背景', 'world', '新的世界', 12000],
+      ['开局情境', 'opening', '新的开局', 12000],
+      ['故事题材', 'genre', '奇幻', 80],
+      ['玩家身份', 'playerRole', '邮差', 4000],
+      ['语气', 'tone', '轻快', 500],
+    ] as const;
+    for (const [label, key, next, limit] of fields) {
+      expect(value(label)).toBe(settings[key]);
+      expect(screen.getByLabelText(label).getAttribute('maxlength')).toBe(String(limit));
+      change(label, next);
+    }
+    const expected = {...settings, world: '新的世界', opening: '新的开局', genre: '奇幻', playerRole: '邮差', tone: '轻快'};
+    fireEvent.click(button('保存')); await screen.findByText('已保存 · 修订 2');
+    expect(client.update.mock.calls[0][0].patch.settings).toEqual(expected);
+    const reloaded = {...expected, opening: '服务端新开局'};
+    client.get.mockResolvedValue(draft({settings: reloaded, revision: 3}));
+    await waitFor(() => expect((button('重新载入草稿') as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(button('重新载入草稿'));
+    await waitFor(() => expect(client.get).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(value('开局情境')).toBe(reloaded.opening));
+    for (const [label, key] of fields) expect(value(label)).toBe(reloaded[key]);
+    expect(value('世界规则（每行一条）')).toBe('一条规则\n第二行');
+    expect(screen.queryByLabelText('故事前提')).toBeNull();
+  });
+
   it('connects with a one-time code without persisting credentials or offering play/import', async () => {
     const client = port();
     client.session.mockResolvedValueOnce({authenticated: false});
@@ -104,12 +134,12 @@ describe('DatabaseDrafts injected port', () => {
     const client = port(); client.create.mockRejectedValueOnce(new Error('响应丢失'));
     render(<DatabaseDrafts client={client}/>);
     fireEvent.click(await screen.findByRole('button', {name: '新建数据库草稿'}));
-    change('标题', '新世界'); change('故事前提', '雨后'); change('玩家身份', '邮差'); change('语气', '轻快');
+    change('标题', '新世界'); change('世界背景', '雨后'); change('开局情境', '清晨来信'); change('故事题材', '日常'); change('玩家身份', '邮差'); change('语气', '轻快');
     fireEvent.click(button('创建草稿')); await screen.findByRole('alert');
     expect(value()).toBe('新世界');
     fireEvent.click(button('确认上次保存')); await screen.findByText('已保存 · 修订 1');
     expect(client.create.mock.calls[1][0]).toEqual(client.create.mock.calls[0][0]);
-    expect(client.create.mock.calls[0][0].settings).toEqual({premise: '雨后', playerRole: '邮差', worldRules: [], tone: '轻快'});
+    expect(client.create.mock.calls[0][0].settings).toEqual({world: '雨后', opening: '清晨来信', genre: '日常', playerRole: '邮差', worldRules: [], tone: '轻快'});
     expect(client.update).not.toHaveBeenCalled();
   });
 
@@ -215,7 +245,7 @@ describe('DatabaseDrafts injected port', () => {
     confirm.mockReturnValue(true); client.logout.mockRejectedValueOnce(new Error('退出失败'));
     fireEvent.click(button('退出连接')); await screen.findByRole('alert'); expect(value()).toBe('留在这里');
     fireEvent.click(button('退出连接')); await screen.findByLabelText('一次性连接码');
-    expect(onPendingChange).toHaveBeenLastCalledWith({dirty: false, busy: false});
+    await waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith({dirty: false, busy: false}));
     unmount(); expect(onPendingChange).toHaveBeenLastCalledWith({dirty: false, busy: false});
     const after = new Event('beforeunload', {cancelable: true}); window.dispatchEvent(after);
     expect(after.defaultPrevented).toBe(false);
@@ -271,7 +301,7 @@ describe('DatabaseDrafts injected port', () => {
     change('标题', '提交 B'); fireEvent.click(button('保存')); await screen.findByRole('alert');
     const original = client.update.mock.calls[0][0];
     change('标题', '海岛来信');
-    expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false, unknown: true});
+    await waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false, unknown: true}));
     const event = new Event('beforeunload', {cancelable: true}); window.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
     vi.spyOn(window, 'confirm').mockReturnValue(true);
@@ -285,7 +315,7 @@ describe('DatabaseDrafts injected port', () => {
     fireEvent.click(button('保存')); await screen.findByText('已保存 · 修订 3');
     expect(client.update.mock.calls[2][0]).toMatchObject({expectedRevision: 2, patch: {title: '海岛来信'}});
     expect(client.update.mock.calls[2][0].commandId).not.toBe(original.commandId);
-    expect(onPendingChange).toHaveBeenLastCalledWith({dirty: false, busy: false});
+    await waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith({dirty: false, busy: false}));
   });
 
   it.each([['第一段\n第二段'], ['']])('retains the exact unedited worldRules array: %j', async rule => {
@@ -309,7 +339,7 @@ describe('DatabaseDrafts injected port', () => {
     const replay = deferred<DraftCommandResult>();
     client[action].mockRejectedValueOnce(new Error('生命周期操作已提交，响应丢失')).mockReturnValueOnce(replay.promise);
     fireEvent.click(button(isDelete ? '删除草稿' : '恢复草稿')); await screen.findByRole('alert');
-    expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false, unknown: true});
+    await waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false, unknown: true}));
     if (isDelete) change('标题', '删除结果确认前的新输入');
     const retry = button(isDelete ? '确认上次删除' : '确认上次恢复');
     act(() => {fireEvent.click(retry); fireEvent.click(retry);});
@@ -339,7 +369,7 @@ describe('DatabaseDrafts injected port', () => {
     const original = client.update.mock.calls[0][0];
     change('标题', '海岛来信'); fireEvent.click(button('确认上次保存'));
     await screen.findByLabelText('一次性连接码');
-    expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false, unknown: true});
+    await waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false, unknown: true}));
     change('一次性连接码', 'new-session'); fireEvent.click(button('连接'));
     const confirm = await screen.findByRole('button', {name: '确认上次保存'});
     await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false));
@@ -347,7 +377,7 @@ describe('DatabaseDrafts injected port', () => {
     await waitFor(() => expect((button('保存') as HTMLButtonElement).disabled).toBe(false));
     expect(value()).toBe('海岛来信'); expect(client.get).toHaveBeenCalledTimes(1);
     expect(client.update.mock.calls.map(([input]) => input)).toEqual([original, original, original]);
-    expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false});
+    await waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false}));
   });
 
   it.each(['REVISION_CONFLICT', 'INVALID_STORY_COMMAND'])('ends unknown reconciliation on a definitive %s without overwriting input', async rejection => {

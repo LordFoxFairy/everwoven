@@ -1,4 +1,4 @@
-import type {DraftDTO, DraftSettings} from '../contracts/story-draft.js';
+import type {DraftDTO, StorySettings} from '../contracts/story-draft.js';
 
 /** Storage records are not DTOs: JSON must pass application schema validation. */
 export type StoryDraftRecord = {
@@ -19,7 +19,7 @@ export type StoryReceiptRecord = {
   response: unknown;
 };
 export type StoryDraftInsert = Omit<StoryDraftRecord, 'settings' | 'schemaVersion' | 'revision'> & {
-  settings: DraftSettings;
+  settings: StorySettings;
   schemaVersion: 1;
   revision: 1;
 };
@@ -41,7 +41,7 @@ export type StoryDraftCAS = {
   id: string;
   expectedRevision: number;
   deleted: 'exclude' | 'only';
-  patch: {title?: string; settings?: DraftSettings; deletedAt?: Date | null};
+  patch: {title?: string; settings?: StorySettings; deletedAt?: Date | null};
   updatedAt: Date;
 };
 

@@ -1,6 +1,6 @@
-# 本机创作契约 · M0-C2/C3
+# 本机创作契约 · 当前开发基线
 
-实施版，2026-09-12。此文描述当前可调用边界；历史 `/api/v1` OpenAPI 仍是未实施候选，不为同一业务维护第二套 REST 客户端。
+实施版，2026-09-12。M1-A1直接替换旧settings与命令namespace，无旧字段兼容；当前仍为剧本根用例，角色/素材聚合及datasetId门禁待后续实施。此文描述当前可调用边界；历史 `/api/v1` OpenAPI 仍是未实施候选，不为同一业务维护第二套 REST 客户端。
 
 ## 分层与身份
 
@@ -44,7 +44,7 @@ code、会话 token 为 32 字节 CSPRNG base64url。code 5 分钟且原子单�
 | restore | mutation | commandId, id, expectedRevision | 同上，恢复 |
 
 - commandId/id 是小写 UUIDv7；业务 ID 不是访问凭证。
-- settings：`premise`、`playerRole`、`worldRules:string[]`、`tone`；禁止未知顶层字段与 owner 注入。标题 1–120；premise≤12000、playerRole≤4000、worldRules≤30×1000、tone≤500。不静默截断。
+- settings：`world`、`opening`、`genre`、`playerRole`、`worldRules:string[]`、`tone`，六项必填，文本可空用于草稿；禁止旧premise、未知字段与owner注入。标题1–120；world/opening≤12000、genre≤80、playerRole≤4000、worldRules≤30×1000、tone≤500。不静默截断或补齐；命令namespace固定authoring.story.*.v1。
 - DraftDTO：id、title、settings、schemaVersion=1、revision、createdAt、updatedAt、deletedAt、archivedAt。UTC ISO 日期或生命周期 null；无 Prisma 对象、ownerId、路径或密钥。
 - 列表默认排除已删除；`deleted:'only'` 查询回收项。limit 1–100；游标绑定当前查询/owner，前端用 nextCursor，不自行构造。查看回收项需显式 includeDeleted=true；不等于恢复。
 - 服务端规范化输入后计算命令指纹。同 owner、同 commandId、同请求重放原结果；异载荷 409。写入和回执同事务，先重放后 CAS。

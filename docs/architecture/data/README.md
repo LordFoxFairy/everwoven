@@ -1,3 +1,15 @@
+# 当前Authoring基线与历史数据样本
+
+当前部署定义为 `apps/runtime/prisma/migrations/202609120001_authoring_baseline/migration.sql`，本目录 `authoring.generated.sql` 是其精确审核副本。16表、13业务唯一、零FK/触发器；旧M0目录内容仅为历史研究样本，不参与应用迁移。
+
+检查指纹/SQL副本：`node apps/runtime/scripts/sync-schema-baseline.mjs --check`。该开发工具仅执行内存SQLite，不打开用户库。审查过新SQL后用 `--write` 同步指纹，不能从未知用户库反向生成白名单。
+
+新SQL生成使用Prisma现有CLI从空结构输出；必须显式设置只用于配置加载的绝对 `RUNTIME_DATABASE_URL`，并检查输出文件非空。本轮发现省略该配置时CLI可能退出0却没有DDL输出，已据此校验，未用空迁移启动。
+
+---
+
+## 以下为历史M0研究记录
+
 # M0数据样本 · V1.2 无外键 / 真实唯一
 
 2026-09-10。[数据规范](../DATA-DESIGN.md) · [13项唯一约束登记](../UNIQUE-KEY-REGISTER.md) · [图册](../DIAGRAMS.md)
