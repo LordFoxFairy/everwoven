@@ -12,9 +12,9 @@
 ## 唯一网络契约（待注册）
 
 - tRPC三操作使用现有`contracts/asset`公开结构，不新增REST CRUD。
-- `PUT /api/local-assets/uploads/:uploadId`：dataset使用专属header；内容是原始二进制，严格Origin/请求标记/真实session准入。
+- `PUT /api/local-assets/uploads/:uploadId`：dataset使用`x-everwoven-dataset-id`header；内容是原始二进制，严格Origin/请求标记/真实session准入。
 - `GET /api/local-assets/:assetId?datasetId=…`：普通同源img请求可无Origin，仍核实存在时的Origin、Host、Sec-Fetch-Site、cookie与dataset/owner。
-- 具体header名称在实现时统一一处常量并写接口文档，不边做边产生两个名字。
+- header统一`x-everwoven-dataset-id`，实现时放一处常量，测试与接口文档使用同名。
 - nodejs动态route只委托handler；不经过现有JSON body接收器处理图片。
 
 ## PUT不可颠倒的时序
@@ -82,3 +82,28 @@ C1c协调器需真实多进程与SIGKILL/超时验证，特别unlink后fsync前�
 C1c-1独立规格Hegel PASS（实际28/28），主仓全量956/956及双端typecheck通过。Cicero质量审核及隔离生产回归仍在执行；T1/生命周期/HTTP依然未实现。
 
 C1c-1最终：主仓956/956+双端typecheck；隔离生产构建和HTTP演练/原角色/原root三Chrome全部退出0。Hegel独立规格28/28，Cicero最终只读质量PASS（没有另跑全量）；无schema/Host/HTTP改动。
+
+
+## C1c-2 / 有界接收器：落地决策补充
+
+Dewey只负责新增图片接收端口/媒体实现/专属测试；Feynman只负责Asset应用/事务Store/composition/专属测试，写集不重叠，主会话维护文档并在主仓统一验证。不并发修改既有Host/HTTP或私有文件实现。
+
+- 接收端口采用`withBody(source, expected, work)`而非裸返回大Buffer：两个无队列共享槽覆盖接收和后续work，避免接收完成就放槽、下游无限积压。默认接收30秒，接收结束清timer，实际work结束才释放槽；不把原生decoder的调用方超时当硬杀。
+- 应用绑定可信owner/dataset及必选`revalidate`、惰性`openFiles`。HTTP真实组合仍在下一片，测试注入不冒充已认证HTTP。
+- 默认意图24小时，processing/finalizing租约120秒；状态判定的Clock在取得WriteGate后读取。token/revision/output匹配不可省略。
+- 完整候选写出但published未落库：过期processing且output完整允许complete领取finalizing，ensureDurable后原子提交ready/completed/回执。
+- 缺文件重传直接让process领取无有效lease的processing/published/finalizing，保存原输入hash/大小；已有output必须与重新规范化结果一致。缺候选可无覆盖写入，partial/错误候选不覆盖修补。不得把带output记录伪装回reserved。
+- 接收容量/abort/hash/解码失败且未持久output时，只有当前token可补偿reserved并清token/lease；旧token错误不能改变接管者。已有output的故障保留恢复证据，不能无条件清空。
+- cleanup只接收failed/deleting或已过期意图，且没有有效租约、无任何Asset身份/路径别名；T1提交后调用既有T2。活跃可恢复意图不会因任意cleanup调用被删除。
+- getBytes仅确证缺失/损坏才按CAS标unavailable；繁忙、超时、暂时I/O不永久降级。读回后再次核对Host与资产状态/版本，返回已核验同Buffer。
+
+以上为本片执行决定；逐项实际验收后才在状态清单打勾，未有路由即不写可调用。
+
+
+## Host / HTTP接线审核（Hegel只读结论，实施仍待C1c-2）
+
+复用现有withLocalDatabase并内部扩展pinnedHost/revalidate，不复制整套assets宿主；stories/characters外部签名不变、统一disconnect。固定host/parent/runtime.db身份及manifest/owner/dataset，重验不采纳替换后的新对象；openFiles本身再次重验但仍保持惰性。验证点之后才发生的会话撤销不追溯撤回已提交操作/已发送字节，不能声称文件session检查与SQLite事务原子化。
+
+Web新增local-assets访问器、assets tRPC router和二进制handler，两个App Router薄route标nodejs/force-dynamic。PUT用专属dataset header和既有x-everwoven-request标记；GET允许正常无Origin但检查存在的Origin/Host/cross-site。tRPC assets写命令补标记检查；现有来源/config提前返回缺nosniff分支同步补齐。
+
+错误码需对照服务/接收器最终枚举冻结：会话401，来源403，参数/hash/意图大小不匹配400，不存在/跨owner404，状态/租约/幂等409，dataset412，实际超限413，格式415，容量/暂不可用503，未知500；不透传任意message/prefix。真实Host测试暂停在重验前撤销或换dataset/inode，验证旧绑定拒绝且零图片body/文件副作用；返回同Buffer且成功/失败都有no-store/nosniff。

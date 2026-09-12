@@ -2,7 +2,7 @@
 
 更新：2026-09-12。**这是实施真值台账，不用设计完成代替功能完成，不用commit代替验收。**
 
-**当前执行入口：C1b私有文件端口08de822已推送，CI34718307948成功；本地主仓928/928、双端typecheck、生产构建/三Chrome、真实Host跨进程文件读回及独立复核通过。C1c-1主仓63文件956/956、双端typecheck、生产构建/三Chrome与独立规格/质量审核通过，准备提交。上传生命周期/HTTP、原图片与剧本聚合仍待打通，普通阶段不通知用户。**
+**当前执行入口：C1b私有文件端口08de822已推送，CI34718307948成功；本地主仓928/928、双端typecheck、生产构建/三Chrome、真实Host跨进程文件读回及独立复核通过。C1c-1已提交推送bd580f7，主仓956/956、双端typecheck、生产构建/三Chrome与独立审核通过，远程CI待核实。Feynman实施C1c-2生命周期，Dewey独立有界接收器。上传生命周期/HTTP、原图片与剧本聚合仍待打通，普通阶段不通知用户。**
 
 ## 当前决策（按最新用户指令）
 
@@ -186,3 +186,15 @@ C1b 08de822已推送（20文件），下一C1c-1真实SQLite CleanupCoordinator�
 C1c-1主仓新跑 `pnpm --filter runtime build && pnpm exec vitest run --maxWorkers=1 && pnpm typecheck` 退出0，63文件956/956。新增四路径已实读，包含真实两Node进程、两处SIGKILL与同步3400ms/3000ms事务timeout排他；Hegel独立复核中，尚未提交，不以此替代上传T1/HTTP闭环。Dewey只读准备下一生命周期边界。
 
 C1c-1最终本地门槛通过：956/956、类型、隔离生产构建/三Chrome全部退出0；Hegel独立28/28规格PASS、Cicero只读质量PASS。另Dewey开始独立有界图片接收器写集（新port/media/tests），和后续生命周期不重叠；不把未完成HTTP写为可用。
+
+C1c-1 bd580f7已实际推送成功，无发布tag。Feynman接C1c-2应用/Store/composition；Dewey接有界接收器（两个共享槽覆盖接收+work），均只写各自新增文件，主会话不改其写集。恢复入口/lease/失败补偿和正文容量决定已补执行计划；Host/HTTP/UI依然后续。
+
+远程bd580f7 CI只读查询连续两次TLS handshake timeout；push已成功但当前尚未核实CI，不动网络/凭证配置，不把该问题扩大为用户阻碍。Hegel完成Host/HTTP下一片只读接线审查，记录pinned DB身份/真实session重验及错误映射，未提前修改接线文件。原图片控件C2计划已依据当前源码记录端口替换、未知命令和跨世代图片隔离验收。
+
+有界接收器独立规格发现真实P2：每chunk race同一pending interruption累积reaction，Hegel单字节100k/200k挂读GC复现约35.2/70.5MB堆增长，原39测试仍过。Dewey已接RED修订当前pending read单订阅与真实微chunk堆回归；不因39/39称接收器验收。Feynman生命周期继续独立写集，签名不变。
+
+隔离快照仅接收器初版（不含在途生命周期）新跑61文件952/952+双端typecheck退出0。与主仓956基数的差异已核对：主仓额外扫描Git忽略的assets/prototypes三文件43项，而隔离只包含版本管理源码；952 = 956 - 43 + 39。没有复制或发布用户私有prototype文件。该GREEN仍不覆盖Hegel发现的reaction累积P2，修复后重跑。
+
+Receiver P2已修复：Dewey先RED2失败/原39通过→41/41；主会话独立41/41，Hegel再审41/41及50万微chunk GC常量保留堆通过，abort/严格未处理拒绝模式无回归。Cicero只读质量审核中；最终接收器切片在隔离稳定源码做全量/类型验证，生命周期仍由Feynman实施。
+
+Receiver稳定切片主仓41/41+独立规格/质量PASS；隔离版本管理源码61文件954/954+双端typecheck退出0。计划单独提交这四个新增文件与实际证据，不混入在途生命周期，不将隔离全量误写为主仓全量。
