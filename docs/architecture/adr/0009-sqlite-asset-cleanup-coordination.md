@@ -1,7 +1,7 @@
 # ADR-0009 · 素材终态清理采用可崩溃释放的协调
 
 - 日期：2026-09-12
-- 状态：Accepted（设计取舍经主会话/Hegel复核；C1b接口修订与C1c跨进程实现仍待验收）
+- 状态：Accepted（设计取舍经主会话/Hegel复核；C1b已验收；C1c-1跨进程T2已通过本地主仓与独立审核，T1/HTTP仍待接入）
 - 范围：未完成上传的终态清理，不包含ready素材GC或任意文件操作。
 
 ## 背景
@@ -38,3 +38,7 @@ C1b初版使用O_EXCL空`.cleanup-lock`保证合作进程互斥。但持锁进�
 - before-file-sync失败遗留完整内容，exists后ensureDurable补文件/目录同步；任一同步故障零durable，partial拒绝。
 
 上述实现验证未齐全时，保持“待验收”，不以ADR Accepted替代功能完成。
+
+## C1c-1实施证据
+
+真实SQLite adapter已落地，主仓956/956及独立协调器28/28通过；覆盖同/不同owner库级排他、3400ms同步段跨3000ms事务timeout、两处SIGKILL恢复。隔离生产构建/三Chrome通过。完整T1状态机与HTTP尚未接入，此证据不扩大为上传闭环或操作系统硬实时承诺。

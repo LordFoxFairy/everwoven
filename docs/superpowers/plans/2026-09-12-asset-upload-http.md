@@ -1,6 +1,6 @@
 # M1-C1c · 上传事务与HTTP接入计划
 
-**依赖：C1a已验收；C1b私有文件端口仍在实施。此文件是下一切片计划，不表示路由可用。** 依据已批准的INTEGRATED-AUTHORING-M1第7节与Dewey对现有Host/HTTP代码的只读核查。不增加第二后端，不替代原页面。
+**依赖：C1a/C1b本地验收通过，08de822已推送，C1b Linux CI34718307948成功。此文件仍是HTTP接入计划，不表示路由可用。** 依据已批准的INTEGRATED-AUTHORING-M1第7节与Dewey对现有Host/HTTP代码的只读核查。不增加第二后端，不替代原页面。
 
 ## 最小切片
 
@@ -67,3 +67,18 @@
 C1c协调器需真实多进程与SIGKILL/超时验证，特别unlink后fsync前崩溃、旧FS未结束前第二个协调者不得进入；测试fake协调器不是生产互斥证明。
 
 实际C1b接入签名为createPrivateAssetStore(host,binding,coordinator,faults?)；协调器必填，生产禁止work=>work()。其runExclusive必须原样返回同步callback产生的同一个结果对象，文件端口检查身份以拒绝未执行callback的伪结果。
+
+
+## C1c-1 当前先行切片：真实清理协调器
+
+- [x] 可信owner/dataset上下文与scope严格一致，错误在进入DB前拒绝。
+- [x] T2获取真实SQLite writer lock后，查询本owner对应asset的唯一deleting意图；不存在/nondeleting/completed/混乱引用一律零callback；已有任何Asset记录（含unavailable/softdeleted）禁止清理，保护历史引用。
+- [x] 原样返回同步FileStore callback结果，固定错误净化。不创建第二锁DB或永久文件锁。
+- [x] 实测两个进程排斥、删除前/删除后fsync前SIGKILL、同步临界段超过事务timeout不提前放锁；状态保持deleting可重试，不仅用fake coordinator。
+- [x] 此批允许直接seed完整AssetUpload记录模拟已提交T1，但不宣称begin/complete或T1服务已实现。Host认证由后续组合接入，不把可信context注入当真实HTTP认证验收。
+
+写集由Feynman独占DB cleanup adapter与专属tests/fixtures；完成后主仓验证及独立规格/质量复核，再继续上传生命周期服务。
+
+C1c-1独立规格Hegel PASS（实际28/28），主仓全量956/956及双端typecheck通过。Cicero质量审核及隔离生产回归仍在执行；T1/生命周期/HTTP依然未实现。
+
+C1c-1最终：主仓956/956+双端typecheck；隔离生产构建和HTTP演练/原角色/原root三Chrome全部退出0。Hegel独立规格28/28，Cicero最终只读质量PASS（没有另跑全量）；无schema/Host/HTTP改动。

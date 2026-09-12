@@ -338,20 +338,20 @@ sequenceDiagram
   A-->>C: uploadId / assetId
   C->>A: PUT原始字节
   A->>D: CAS获取processing token与租约
-  A->>F: 有界写入token专属临时文件/解码
+  A->>A: 有界接收原字节 / 实际解码规范化（事务外）
   A->>D: token CAS写output元数据，发布前核对
   A->>F: 无覆盖发布固定asset路径 + fsync
   A->>D: 标published（失联可通过文件核对恢复）
   C->>A: completeUpload(commandId, uploadId)
   A->>D: 查回执 / CAS领取finalizing token及租约
-  A->>F: 校验发布文件hash/大小/类型
+  A->>F: ensureDurable核验同句柄并补file / dir同步
   A->>D: 同事务校验token/租约/状态 + Asset ready + completed + 回执
   A-->>C: AssetDTO
   Note over C,D: 后续剧本保存才绑定引用
 ```
 
 - 上传意图持久化在读文件之前；源hash由服务端独立校验。客户端不能在相同uploadId下换文件。
-- 临时文件路径由服务端生成，token区分过期worker；发布不得覆盖已有目标。重复内容只在核对输出完全相同后复用，不按hash跨owner自动共享。
+- 已实现C1a/C1b使用有界内存接收/解码和固定候选文件无覆盖创建，不另写原图或token临时图。token区分处理权，文件路径由服务端dataset/asset ID生成；已有候选只有完整核验并完成必要同步才可用于后续确认，不按hash跨owner自动共享。
 - 文件先发布再写ready，所以失败最多留下可核对孤儿，不产生“DB ready但从未写文件”的正常路径。ready文件之后被外部删除/损坏仍可能发生，读取检测后标记unavailable并停止绑定，禁止返回假成功。
 - worker租约超时后新处理者须CAS领取新token。旧持有者即使继续执行也不得提交新状态；发布路径固定且不可覆盖，完整核对后由当前token确认，不能用过期删除动作破坏新结果。
 - 重启扫描reserved/processing/published：有正确文件可继续complete；无文件且租约过期允许原内容重传；不一致则failed并保留诊断，不静默发布。

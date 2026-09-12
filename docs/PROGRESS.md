@@ -2,7 +2,7 @@
 
 更新：2026-09-12。**这是实施真值台账，不用设计完成代替功能完成，不用commit代替验收。**
 
-**当前执行入口：M1-B与C1a已推送且CI成功；C1b私有文件端口完成本地验收：62文件928/928、双端typecheck、生产构建、三Chrome、真实宿主跨进程文件读回；Hegel/Dewey规格与Cicero质量复核通过。准备提交后进入C1c真实上传事务/HTTP与SQLite清理协调。图片/原剧本聚合仍未整体完成，普通阶段不通知用户。**
+**当前执行入口：C1b私有文件端口08de822已推送，CI34718307948成功；本地主仓928/928、双端typecheck、生产构建/三Chrome、真实Host跨进程文件读回及独立复核通过。C1c-1主仓63文件956/956、双端typecheck、生产构建/三Chrome与独立规格/质量审核通过，准备提交。上传生命周期/HTTP、原图片与剧本聚合仍待打通，普通阶段不通知用户。**
 
 ## 当前决策（按最新用户指令）
 
@@ -176,3 +176,13 @@ C1b第二轮主仓923/923+typecheck+生产三Chrome通过，但Hegel独立复现
 独立fixture修复：Dewey只改角色校验/dataset命令两测试，固定含第二组7的v7重现旧replace仍合法，报告RED4失败/42通过→GREEN46/46；改固定版本4非法样本并断言isBusinessId=false，未改生产校验器。主仓将在private资产修复停写后统一复跑。
 
 C1b最终证据：主仓62文件928/928+runtime/Web类型检查退出0；最终隔离生产构建及三Chrome退出0。额外两次独立Node进程使用真实initializeLocalHost/validatedHost和compiled文件端口，写入→进程结束→同dataset读回hash/metadata→ensureDurable通过；测试协调器明确拒绝cleanup，未宣称生产SQLite清理协调已实现。Hegel最后P2复核通过，Cicero最终只读质量PASS。
+
+C1b 08de822已推送（20文件），下一C1c-1真实SQLite CleanupCoordinator已交Feynman独立实现，写集仅DB适配器/必要内部端口错误/专属测试与fixtures，不触碰已验收private文件端口或HTTP/UI。必须真实两个Node进程、SIGKILL、超过事务timeout的同步临界段证明；若实验失败先报告，不增大timeout假装解决。当前C1b CI结果待核实。
+
+08de822的push已确认成功，但GitHub CI列表读取先TLS握手超时、后unexpected EOF；当前不能记录该commit Linux CI成功。已改为只读查询精确commit check-runs核实，未改网络/凭证配置。C1c-1实际coordinator与tests已出现，继续代码工作，不把暂时网络故障当用户授权阻碍。
+
+08de822远程结果已通过精确commit check-runs核实：[CI34718307948](https://github.com/LordFoxFairy/everwoven/actions/runs/34718307948) verify=completed/success，publish和anonymous-pull=skipped。前两次TLS/EOF未变更配置，后续只读查询成功；当前C1b Linux CI已确认，而不是由push推断。
+
+C1c-1主仓新跑 `pnpm --filter runtime build && pnpm exec vitest run --maxWorkers=1 && pnpm typecheck` 退出0，63文件956/956。新增四路径已实读，包含真实两Node进程、两处SIGKILL与同步3400ms/3000ms事务timeout排他；Hegel独立复核中，尚未提交，不以此替代上传T1/HTTP闭环。Dewey只读准备下一生命周期边界。
+
+C1c-1最终本地门槛通过：956/956、类型、隔离生产构建/三Chrome全部退出0；Hegel独立28/28规格PASS、Cicero只读质量PASS。另Dewey开始独立有界图片接收器写集（新port/media/tests），和后续生命周期不重叠；不把未完成HTTP写为可用。
