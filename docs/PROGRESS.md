@@ -2,7 +2,7 @@
 
 更新：2026-09-12。**这是实施真值台账，不用设计完成代替功能完成，不用commit代替验收。**
 
-**当前执行入口：M1-A2源码已提交并推送3c0c9dd，主仓604测试/typecheck通过，CI 34711146356已成功；M1-B正式角色服务与原角色库正在按已审核计划实施。普通阶段进度不通知用户。**
+**当前执行入口：M1-B原角色库已通过主仓55文件746/746、双端typecheck、隔离生产构建和两项Chrome重启smoke；Hegel/Dewey规格与Cicero质量复核通过。准备提交并验证远程CI，直接进入M1-C私有图片上传，再接原剧本聚合和删除旧路径。普通阶段进度不通知用户。**
 
 ## 当前决策（按最新用户指令）
 
@@ -16,8 +16,8 @@
 
 | 主线 | 当前状态 | 下一可验收结果 |
 |---|---|---|
-| 1 前端逻辑 | 原页面仍是浏览器创作；临时面板有真实CRUD。端口提取/会话校验已完成 | 原角色库异步CRUD；原编辑器完整聚合保存；上传读取均经端口 |
-| 2 后端逻辑 | 根CRUD单一StorySettings、owner/WriteGate/CAS/回执/本机会话；新16表baseline及DDL门禁已实现 | 角色/图片/聚合用例、受限reset（datasetId本批已接入） |
+| 1 前端逻辑 | 原角色库正式异步CRUD与共享连接已接通；原剧本聚合/图片待接 | 原编辑器完整聚合保存；上传读取均经端口 |
+| 2 后端逻辑 | 根CRUD单一StorySettings、owner/WriteGate/CAS/回执/本机会话；新16表baseline及DDL门禁已实现 | 图片/聚合用例、受限reset（datasetId和角色六操作已接入） |
 | 3 整体闭环 | M0临时面板闭环通过；原角色+图片+剧本尚未闭环 | 原页面创建→保存→清缓存→进程重启→相同内容读回，异常路径通过 |
 | 4 技术方案 | M1详细稿已写，按新指令删除兼容设计；独立复核通过 | 接口/字段/事务/SQL/架构图/时序图/验收矩阵一致 |
 | 5 推进记录 | 本文件建立 | 每批记录改动、测试、失败、未验证项、下一步、commit及发布状态 |
@@ -118,3 +118,17 @@ M1-A2远程复验：2026-09-12读取GitHub实际结果，CI 34711146356 status=c
 M1-B接口/连接切片主仓最终证据：51文件700/700 + runtime/Web typecheck通过（exit0）；角色DB/Store/HTTP补验37/37。Feynman确认runtime写入已停止，Hegel规格通过。Cicero代码质量复核进行中；原角色页面、正式图片与原剧本聚合仍未完成，继续推进而非给用户发送阶段完成通知。
 
 独立复核收口：Hegel角色接口规格、Dewey共享连接规格、Cicero角色/连接代码质量通过；Cicero明确确认同client epoch P2关闭。当前接口/连接切片可提交，下一步直接改原角色库，不请求用户重复批准。
+
+远程5759e32：[CI 34712457449](https://github.com/LordFoxFairy/everwoven/actions/runs/34712457449)正在执行，尚未标成功。原角色Web写集已交给Feynman，主会话不并发修改其components/controller文件。新增[角色架构与时序](architecture/CHARACTER-AUTHORING-M1-B.md)记录已实现后端及原UI待验收边界。
+
+5759e32远程CI已成功（34712457449，verify 3m50s）：生产构建、Docker六环境/端口、HTTP browser、既有创作/重启smoke全部通过；非tag，发布跳过。新增M1-C1私有图片上传执行计划记录Hegel的只读安全核查，待原角色页验收后直接实施。
+
+原角色Web切片首次主仓：55文件731/731及双端typecheck通过；隔离production build抓到运行时误导入runtime/src验证器的P1（.js依赖未解析），Feynman正在改公开package export路径。浏览器尚未到GREEN，未提交此Web切片。规格review同步进行。
+
+
+原角色页最终规格：Hegel控制器通过；Dewey最后复核5文件47/47，关闭直接角色卡→Editor从未另存→跨dataset旧头像来源P2，恢复前零写入，恢复后清来源和头像保留文本。此前主仓745/745与两项Chrome smoke已通过；最后修复后全量/生产浏览器再次执行，Cicero代码质量审查中。尚未提交此Web切片；M1-C/D继续待实施，不发总体完成通知。
+
+
+最后来源修复后的主仓验收：`pnpm --filter runtime build && pnpm exec vitest run --maxWorkers=1 && pnpm typecheck`退出0，**55文件746/746、runtime/Web类型检查通过**。隔离Node22生产`pnpm build`退出0；Chrome `local-characters.mjs`和`local-authoring.mjs`均通过，零模型调用。主会话复看1440×1000角色页截图，原sidebar/连接状态/卡片与编辑栏正常，姓名必填星号和筛选active/命中区修复可见。代码质量审查尚待结果，未提前写总体完成。
+
+M1-B最终代码质量：Cicero只读审查PASS，无确认P1/P2（其未重跑测试，不以审查报告替代主仓746/746与Chrome证据）。本切片提交主题`feat(authoring): connect original character library to local services`。无用户数据重置、tag或付费模型调用。

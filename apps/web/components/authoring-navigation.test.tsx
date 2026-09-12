@@ -3,11 +3,12 @@ import {afterEach, expect, it, vi} from 'vitest';
 import {cleanup, render, screen, waitFor} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {Platform} from './platform';
+vi.mock('../lib/authoring/session-client',()=>({createAuthoringSessionClient:()=>({session:async()=>({authenticated:true,datasetId:'01994b80-0000-7000-8000-000000000099'}),connect:async()=>{},logout:async()=>{}})}));
 import {createDatabaseDraftsClient} from '../lib/authoring/database-client';
 import type {DatabaseDraftsClient} from '../lib/authoring/ports';
 vi.mock('../lib/authoring/database-client',()=>({createDatabaseDraftsClient:vi.fn()}));
 afterEach(()=>{cleanup(); localStorage.clear(); vi.restoreAllMocks();});
-it('keeps an unknown command mounted across sidebar, storage-tab and create navigation',async()=>{
+it('keeps an unknown command mounted across sidebar, home and create navigation',async()=>{
  const client={
   session:vi.fn().mockResolvedValue({authenticated:true,datasetId:'01994b80-0000-7000-8000-000000000099'}),connect:vi.fn(),logout:vi.fn(),
   list:vi.fn().mockResolvedValue({items:[],nextCursor:null}),get:vi.fn(),
@@ -18,12 +19,13 @@ it('keeps an unknown command mounted across sidebar, storage-tab and create navi
  render(<Platform environment="dev" databaseEnabled/>);
  const user=userEvent.setup();
  await user.click(await screen.findByRole('button',{name:'我的剧本'}));
- await user.click(screen.getByRole('button',{name:'本机数据库'}));
+ expect(screen.queryByRole('button',{name:'浏览器草稿'})).toBeNull();
+ expect(screen.queryByRole('button',{name:'本机数据库'})).toBeNull();
  await user.click(await screen.findByRole('button',{name:'新建数据库草稿'}));
  await user.type(screen.getByLabelText('标题',{exact:true}),'等待确认');
  await user.click(screen.getByRole('button',{name:'创建草稿'}));
  await screen.findByRole('button',{name:'确认上次保存'});
- for(const name of ['角色库','浏览器草稿','创作一个剧本']){
+ for(const name of ['角色库','我的世界','创作一个剧本']){
   await user.click(screen.getByRole('button',{name}));
   expect(screen.queryByRole('button',{name:'确认上次保存'})).not.toBeNull();
  }

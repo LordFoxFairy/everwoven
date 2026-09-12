@@ -85,7 +85,6 @@ try {
   await page.goto(origin, {waitUntil: 'networkidle'});
   async function openLibrary() {
     await page.getByRole('button', {name: '我的剧本', exact: true}).click();
-    await page.getByRole('button', {name: '本机数据库', exact: true}).click();
   }
   await openLibrary();
   await page.getByLabel('一次性连接码', {exact: true}).fill(code);

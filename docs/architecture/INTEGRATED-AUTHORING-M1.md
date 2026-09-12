@@ -2,7 +2,7 @@
 
 **版本：0.2 / 2026-09-12 / 可分批实施的设计基线，非整体验收。**
 
-实施增量：[M1-A1](../implementation/M1-A1-CLEAN-BASELINE-2026-09-12.md)已替换根StorySettings与单一Prisma baseline；本文其余聚合/API/datasetId/reset/上传协议仍为待实施，不因基础建表而标完成。
+实施增量：[M1-A1](../implementation/M1-A1-CLEAN-BASELINE-2026-09-12.md)已替换根StorySettings与单一Prisma baseline；M1-A2已贯通dataset命令；[M1-B](CHARACTER-AUTHORING-M1-B.md)角色六操作与共享会话已落地，原角色页处于最终验收。本文的剧本聚合、私有图片协议及定向reset仍待实施，不因角色切片通过而标总体完成。
 
 用户已确认继续推进前端、后端、端到端及文档，随后明确：**不要旧协议/旧数据兼容，允许清空本项目业务数据重建。** 本文据此采用全新基线，不建设迁移兼容层。本方案承接[范围设计](../superpowers/specs/2026-09-12-integrated-authoring-design.md)，不是再创建一套原型。当前实现与测试证据只在 [PROGRESS](../PROGRESS.md) 登记。本文标为“拟增”的契约/SQL尚未上线，不应据此直接调用接口或迁移用户库。
 
@@ -254,12 +254,12 @@ sequenceDiagram
 
 日期沿用当前Prisma DateTime的SQLite存储方式，不新增字符串时间风格。Asset字节数字段BigInt在DTO使用十进制字符串，不能直接JSON序列化BigInt。客户端不会传createdAt/updatedAt/revision增量或storageKey。
 
-### 6.2 新基线表结构（拟定，未执行重建）
+### 6.2 新基线表结构（已生成并验收，未重置用户业务库）
 
-重新生成单个Prisma baseline，包含原有仍必要的表和下列结构；不用ALTER链条修补旧库。下例只展示本批变化的三表，新baseline还必须包含root/cast/version/receipt等完整表，不能单独拿这段启动服务。
+M1-A1已生成并验收单个Prisma baseline，包含仍必要的表和下列结构；不用ALTER链条修补旧库。下例只展示本批变化的三表；实际完整基线还包括root/cast/version/receipt等表，不能单独拿这段启动服务。完整SQL见data/authoring.generated.sql。
 
 ```sql
--- 设计DDL摘录，正式DDL由新的Prisma baseline生成、审查并测试。
+-- 结构摘录；完整正式DDL已由Prisma baseline生成、审查并测试。
 CREATE TABLE character_templates (
   id TEXT NOT NULL PRIMARY KEY, owner_id TEXT NOT NULL,
   scope TEXT NOT NULL DEFAULT 'library', source_story_draft_id TEXT,
