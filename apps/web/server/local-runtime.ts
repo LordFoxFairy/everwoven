@@ -25,10 +25,10 @@ export function localError(error: unknown): TRPCError {
   if (error instanceof TRPCError) return error;
   const code = error instanceof Error ? error.message : '';
   if (code === 'DATASET_CHANGED') return new TRPCError({ code: 'PRECONDITION_FAILED', message: code });
-  if (['REVISION_CONFLICT', 'IDEMPOTENCY_CONFLICT', 'STORY_NOT_DELETED'].includes(code))
+  if (['REVISION_CONFLICT', 'IDEMPOTENCY_CONFLICT', 'STORY_NOT_DELETED', 'CHARACTER_NOT_DELETED'].includes(code))
     return new TRPCError({ code: 'CONFLICT', message: code });
-  if (code === 'STORY_NOT_FOUND') return new TRPCError({ code: 'NOT_FOUND', message: 'STORY_NOT_FOUND' });
-  if (code.startsWith('INVALID_STORY') || code === 'INVALID_CURSOR')
+  if (['STORY_NOT_FOUND','CHARACTER_NOT_FOUND'].includes(code)) return new TRPCError({ code: 'NOT_FOUND', message: code });
+  if ((code.startsWith('INVALID_STORY') || code.startsWith('INVALID_CHARACTER')) || code === 'INVALID_CURSOR')
     return new TRPCError({ code: 'BAD_REQUEST', message: code });
   if (code === 'LOCAL_SESSION_INVALID')
     return new TRPCError({ code: 'UNAUTHORIZED', message: '本机会话已失效，请重新连接' });

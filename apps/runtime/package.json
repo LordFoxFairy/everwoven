@@ -36,6 +36,14 @@
     "./contracts/story-draft-validation": {
       "types": "./src/contracts/story-draft-validation.ts",
       "default": "./dist/contracts/story-draft-validation.js"
+    },
+    "./contracts/character-template": {
+      "types": "./src/contracts/character-template.ts",
+      "default": "./dist/contracts/character-template.js"
+    },
+    "./contracts/character-template-validation": {
+      "types": "./src/contracts/character-template-validation.ts",
+      "default": "./dist/contracts/character-template-validation.js"
     }
   }
 }

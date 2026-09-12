@@ -1,7 +1,8 @@
+import type {WithCharacters} from '../local-characters';
 import type {WithStories} from '../local-runtime';
 import {initTRPC} from '@trpc/server';
 
-export type APIContext = {env: Record<string, string | undefined>; withStories?: WithStories};
+export type APIContext = {env: Record<string, string | undefined>; withStories?: WithStories; withCharacters?: WithCharacters};
 const t = initTRPC.context<APIContext>().create({
   errorFormatter({shape}) {
     const {stack: _stack, ...data} = shape.data;

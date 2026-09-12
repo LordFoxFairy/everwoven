@@ -2,6 +2,8 @@
 
 更新：2026-09-12。**这是实施真值台账，不用设计完成代替功能完成，不用commit代替验收。**
 
+**当前执行入口：M1-A2源码已提交并推送3c0c9dd，主仓604测试/typecheck通过，CI 34711146356已成功；M1-B正式角色服务与原角色库正在按已审核计划实施。普通阶段进度不通知用户。**
+
 ## 当前决策（按最新用户指令）
 
 - 一套T3应用、原页面接前后端；Prisma + SQLite、零外键、只保留真实唯一约束。
@@ -104,3 +106,15 @@ M1-A1 CI证据补齐：34710192907成功，verify耗时4m28s。Node20版GitHub A
 - 新manifest/credential/会话/command/cursor绑定dataset，异库零自动重放，原文本显式另建。没有旧manifest/字段兼容，没有reset或数据删除。
 - 当前新代码提交主题：`feat(authoring): bind local commands to dataset identity`。原角色/图片/原Editor尚未闭环，继续按角色库计划，禁止发送总体完成通知。
 - M1-B计划已独立复核并补共享sessiongate、Editor另存角色async调用、角色草稿必填/上限一致与正式头像不走IndexedDB等边界。
+
+远程追加：3c0c9dd已推送，[CI 34711146356](https://github.com/LordFoxFairy/everwoven/actions/runs/34711146356)在执行；此CI仅验证M1-A2切片，不等于角色/图片/视频闭环或镜像发布。
+
+M1-A2远程复验：2026-09-12读取GitHub实际结果，CI 34711146356 status=completed/conclusion=success；未打tag。M1-B已启动，角色HTTP边界先RED（7项中6失败，现有未注册route返回404），源码尚在实施，未宣称原角色库接通。
+
+## M1-B 当前实施证据（原页面尚未接通）
+
+角色Runtime六操作、Host与tRPC实际HTTP、CharacterClient，以及共享连接Provider/组件已实现；[接口契约](api/LOCAL-CHARACTERS-M1-B.md)、[实施记录](implementation/M1-B-CHARACTERS-2026-09-12.md)已同步。首次主仓全量51文件699/699及类型检查通过；独立角色规格78/78通过。连接模块三处世代/迟到回调P2均有RED→GREEN回归，最后完整复验待补。下一直接落地原CharacterLibrary异步CRUD与共享gate，随后图片/聚合；用户不接受仅接口可用即称闭环，继续保持静默。
+
+M1-B接口/连接切片主仓最终证据：51文件700/700 + runtime/Web typecheck通过（exit0）；角色DB/Store/HTTP补验37/37。Feynman确认runtime写入已停止，Hegel规格通过。Cicero代码质量复核进行中；原角色页面、正式图片与原剧本聚合仍未完成，继续推进而非给用户发送阶段完成通知。
+
+独立复核收口：Hegel角色接口规格、Dewey共享连接规格、Cicero角色/连接代码质量通过；Cicero明确确认同client epoch P2关闭。当前接口/连接切片可提交，下一步直接改原角色库，不请求用户重复批准。

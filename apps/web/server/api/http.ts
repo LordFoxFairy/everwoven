@@ -1,3 +1,4 @@
+import {localCharacterAccess} from '../local-characters';
 import { localStoryAccess } from '../local-runtime';
 import { boundedJSONRequest } from '../local-boundary';
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch';
@@ -46,7 +47,7 @@ export async function handleTRPCRequest(
         { error: '来源不受信任' },
         { status: 403, headers: { 'Cache-Control': 'no-store' } },
       );
-    if (url.pathname.includes('storyDrafts.') && request.headers.get('x-everwoven-request') !== '1')
+    if ((url.pathname.includes('storyDrafts.') || url.pathname.includes('characters.')) && request.headers.get('x-everwoven-request') !== '1')
       return Response.json(
         { error: '请求标记缺失' },
         { status: 403, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } },
@@ -64,7 +65,7 @@ export async function handleTRPCRequest(
     endpoint: '/api/trpc',
     req: request,
     router: appRouter,
-    createContext: () => ({ env, withStories: localStoryAccess(request, env) }),
+    createContext: () => ({ env, withStories: localStoryAccess(request, env), withCharacters: localCharacterAccess(request, env) }),
   });
   response.headers.set('Cache-Control', 'no-store');
   response.headers.set('X-Content-Type-Options', 'nosniff');

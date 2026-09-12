@@ -53,3 +53,5 @@ M1-A2 datasetId贯通及复核通过后开始。角色图片上传服务尚未�
 ## 计划复核补充
 
 Dewey只读复核后的实施约束：onSave返回已确认DTO/回执、结构化失败，不用Promise<boolean>；共享saveCharacter同时被Editor另存模板调用，必须一并改async调用/草稿保护，避免Promise被旧if当成功。共享session gate位于页面切换上方，明确demo/正式未配置/未连接/已连接，不回退浏览器。提交A等待时输入B，确认只重放A并保留B dirty；异库显式新建清旧id/revision/command。角色姓名上限统一120，性格不再强制必填；用TA创作只带入编辑资料与来源，不宣称固定版本或正式剧本已保存。正式头像渲染也经正式AssetPort，不偷走IndexedDB；已有正式引用保留，M1-C上传/读取接通后撤掉临时提示。
+
+实现时还需区分本地未保存draft与持久DTO：不能靠临时浏览器id判断正式update，必须持有已确认id/revision。保存busy与图片busy分开来源后组合，图片结束不得把仍在提交的保存标为空闲。

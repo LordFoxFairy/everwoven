@@ -19,3 +19,5 @@
 本批没有实现reset、更改SQLite schema、删除用户数据，也不是角色/图片/原Editor贯通验收。业务库世代是认证上下文边界，datasetId不是鉴权secret，不允许通过它选择任意宿主路径。
 
 最终主仓：`pnpm --filter runtime build && pnpm exec vitest run --maxWorkers=1 && pnpm typecheck`，40文件604/604通过及类型检查通过（退出0）。首次603/604失败的压力用例已精确补ownerId+datasetId断言，未减检查次数。Hegel后端规格、Dewey前端规格、Cicero最终代码质量复核通过。真实浏览器/生产构建交后续CI，当前仅主仓测试验收，不冒称原角色/图片/视频已完成。
+
+远程补验：提交3c0c9dd的[CI 34711146356](https://github.com/LordFoxFairy/everwoven/actions/runs/34711146356)已实际读取为completed/success，包含生产构建与既有本机创作/重启浏览器smoke；未tag/未发布新镜像。
