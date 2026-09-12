@@ -76,6 +76,9 @@ jobs:
       - name: Verify private asset HTTP upload and process restart
         run: node scripts/smoke/local-assets.mjs
 
+      - name: Verify original image controls and uncertain command recovery
+        run: node scripts/smoke/local-asset-ui.mjs
+
       - name: Save the tested image
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         run: docker save everwoven-web:ci | gzip > "$RUNNER_TEMP/everwoven-image.tar.gz"

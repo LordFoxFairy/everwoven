@@ -1,4 +1,5 @@
-import {v7} from 'uuid';
+import {v7,validate,version} from 'uuid';
+import type {AssetRef} from './asset-ports';
 import type {CharacterDTO,CharacterCreate,CharacterUpdate,CharacterLifecycle} from '../../../runtime/src/contracts/character-template';
 import {parseCreate,parseUpdate} from 'runtime/contracts/character-template-validation';
 import type {CharacterClient} from './character-client';
@@ -6,13 +7,14 @@ import {characterFailure,characterFields,emptyCharacterFields,type CharacterFiel
 
 type Command={kind:'create';input:CharacterCreate}|{kind:'update';input:CharacterUpdate}|{kind:'delete'|'restore';input:CharacterLifecycle};
 type Binding={client:CharacterClient;connected:boolean;datasetId:string|null;invalidate:()=>void};
-type State={fields:CharacterFields;confirmed:CharacterDTO|null;editing:boolean;dirty:boolean;busy:boolean;unknown:boolean;datasetChanged:boolean;connected:boolean;
+type State={portraitDatasetId:string|null;editInstance:string;fields:CharacterFields;confirmed:CharacterDTO|null;editing:boolean;dirty:boolean;busy:boolean;unknown:boolean;datasetChanged:boolean;connected:boolean;
  saving:boolean;reading:boolean;listBusy:boolean;items:CharacterDTO[];cursor:string|null;total:number;q:string;deleted:'exclude'|'only';listStatus:'idle'|'ready'|'error';error:string;listError:string;message:string};
 const fingerprint=(fields:CharacterFields)=>JSON.stringify(fields);
 const stopped=()=>Object.assign(Error('RESPONSE_SUPERSEDED'),{code:'RESPONSE_SUPERSEDED'});
 /** In-memory commands only. Binding identity includes the exact session invalidator (its epoch). */
 export class CharacterController{
- private state:State={fields:{...emptyCharacterFields},confirmed:null,editing:false,dirty:false,busy:false,unknown:false,datasetChanged:false,connected:false,saving:false,reading:false,listBusy:false,items:[],cursor:null,total:0,q:'',deleted:'exclude',listStatus:'idle',error:'',listError:'',message:''};
+ private editSequence=0;
+ private state:State={portraitDatasetId:null,editInstance:'character:0',fields:{...emptyCharacterFields},confirmed:null,editing:false,dirty:false,busy:false,unknown:false,datasetChanged:false,connected:false,saving:false,reading:false,listBusy:false,items:[],cursor:null,total:0,q:'',deleted:'exclude',listStatus:'idle',error:'',listError:'',message:''};
  private baseline=fingerprint(emptyCharacterFields);private listeners=new Set<()=>void>();private binding:Binding|null=null;private epoch=0;private listRequest=0;private getRequest=0;
  private pending:Command|null=null;private attempt:{key:string;command:Command}|null=null;private flight:Promise<CharacterDTO>|null=null;
  subscribe=(listener:()=>void)=>{this.listeners.add(listener);return()=>{this.listeners.delete(listener);};};
@@ -29,10 +31,16 @@ export class CharacterController{
    ...(changed?{datasetChanged:this.needsRecovery(),confirmed:null,items:[],cursor:null,total:0,listStatus:'idle' as const,error:'',message:''}:{})});
  }
  suspend(){this.epoch++;this.listRequest++;this.getRequest++;this.flight=null;this.publish({saving:false,reading:false,listBusy:false,...(this.pending?{unknown:true}:{})});}
- newDraft(fields:CharacterFields={...emptyCharacterFields}){if(this.state.busy||this.state.unknown||this.state.datasetChanged)return;this.pending=null;this.attempt=null;this.baseline=fingerprint(emptyCharacterFields);this.publish({fields:{...fields},confirmed:null,editing:true,error:'',message:''});}
- close(){if(this.state.busy||this.state.unknown||this.state.datasetChanged)return;this.baseline=fingerprint(emptyCharacterFields);this.publish({fields:{...emptyCharacterFields},confirmed:null,editing:false,error:'',message:''});}
+ newDraft(fields:CharacterFields={...emptyCharacterFields}){if(this.state.busy||this.state.unknown||this.state.datasetChanged)return;this.pending=null;this.attempt=null;this.baseline=fingerprint(emptyCharacterFields);this.publish({editInstance:`character:${++this.editSequence}`,portraitDatasetId:fields.portraitAssetId?this.datasetId:null,fields:{...fields},confirmed:null,editing:true,error:'',message:''});}
+ close(){if(this.state.busy||this.state.unknown||this.state.datasetChanged)return;this.baseline=fingerprint(emptyCharacterFields);this.publish({editInstance:`character:${++this.editSequence}`,portraitDatasetId:null,fields:{...emptyCharacterFields},confirmed:null,editing:false,error:'',message:''});}
  field(key:keyof CharacterFields,value:string|null){if(key==='portraitAssetId')return;this.attempt=null;this.publish({fields:{...this.state.fields,[key]:value},message:''});}
- fromRetained(){if(!this.state.connected||this.state.busy)return;this.pending=null;this.attempt=null;this.baseline=fingerprint(emptyCharacterFields);this.publish({fields:{...this.state.fields,...(this.state.datasetChanged?{portraitAssetId:null}:{})},unknown:false,datasetChanged:false,confirmed:null,editing:true,error:'',message:''});}
+ selectPortrait(ref:AssetRef|null){
+  const b=this.binding,s=this.state;
+  if(!b?.connected||!s.connected||!s.editing||s.saving||s.reading||s.unknown||s.datasetChanged||s.confirmed?.deletedAt)return false;
+  if(ref&&(ref.kind!=='formal'||ref.datasetId!==b.datasetId||!validate(ref.id)||version(ref.id)!==7))return false;
+  this.attempt=null;this.publish({portraitDatasetId:ref?.kind==='formal'?ref.datasetId:null,fields:{...s.fields,portraitAssetId:ref?.id??null},message:''});return true;
+ }
+ fromRetained(){if(!this.state.connected||this.state.busy)return;this.pending=null;this.attempt=null;this.baseline=fingerprint(emptyCharacterFields);this.publish({editInstance:`character:${++this.editSequence}`,portraitDatasetId:this.state.datasetChanged?null:this.state.portraitDatasetId,fields:{...this.state.fields,...(this.state.datasetChanged?{portraitAssetId:null}:{})},unknown:false,datasetChanged:false,confirmed:null,editing:true,error:'',message:''});}
  private reset(){
   // Fence the old dataset synchronously; React's next binding is not the boundary.
   this.epoch++;this.getRequest++;this.listRequest++;this.flight=null;this.attempt=null;
@@ -50,7 +58,7 @@ export class CharacterController{
  async open(id:string){
   const binding=this.binding;if(!binding?.connected||this.state.saving||this.state.unknown||this.state.datasetChanged)return;
   const epoch=this.epoch,request=++this.getRequest,current=()=>epoch===this.epoch&&request===this.getRequest;this.publish({reading:true,error:'',message:''});
-  try{const dto=await binding.client.get(id);if(!current())return;this.attempt=null;this.baseline=fingerprint(characterFields(dto));this.publish({confirmed:dto,fields:characterFields(dto),editing:true});}
+  try{const dto=await binding.client.get(id);if(!current())return;this.attempt=null;this.baseline=fingerprint(characterFields(dto));this.publish({editInstance:`character:${++this.editSequence}`,portraitDatasetId:dto.portraitAssetId?binding.datasetId:null,confirmed:dto,fields:characterFields(dto),editing:true});}
   catch(error){if(current()){const info=characterFailure(error);this.publish({error:info.denied||info.reset?info.message:'角色读取失败，原输入仍保留；请重试读取。'});if(info.reset)this.reset();if(info.denied||info.reset)binding.invalidate();}}
   finally{if(current())this.publish({reading:false});}
  }

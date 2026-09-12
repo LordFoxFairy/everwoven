@@ -12,7 +12,7 @@ import {initializeLocalHost, issueConnectionCode} from 'runtime/host';
 import {handleLocalSession} from './local-session';
 import {handleTRPCRequest} from './api/http';
 import {handleAssetUpload, handleAssetBytes} from './local-assets-http';
-import {ASSET_DATASET_HEADER} from './local-assets';
+import {ASSET_DATASET_HEADER} from '../contracts/asset-http';
 import {generatedPNG} from './fixtures/asset-png';
 let parent: string;
 const origin = 'http://127.0.0.1:3195', bytes = generatedPNG();

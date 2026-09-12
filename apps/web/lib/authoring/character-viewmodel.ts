@@ -1,13 +1,15 @@
+import type {AssetRef} from './asset-ports';
 import type {CharacterDTO,CharacterSettings} from '../../../runtime/src/contracts/character-template';
 import type {Character} from '../../components/storage';
 export type CharacterFields={name:string;portraitAssetId:string|null}&CharacterSettings;
 export type CharacterSource={kind:'formal-template';templateId:string;revision:number;datasetId:string;portraitAssetId:string|null};
-export type CharacterSelection=Character&{source?:CharacterSource};
+export type CharacterSelection=Character&{source?:CharacterSource;portraitRef:AssetRef|null};
 export type PendingState={dirty:boolean;busy:boolean;unknown?:boolean};
 export const emptyCharacterFields:CharacterFields={name:'',personality:'',appearance:'',speakingStyle:'',boundaries:'',portraitAssetId:null};
 export const characterFields=(dto:CharacterDTO):CharacterFields=>({name:dto.name,...dto.settings,portraitAssetId:dto.portraitAssetId});
-export const characterSelection=(dto:CharacterDTO,datasetId:string):CharacterSelection=>({id:dto.id,name:dto.name,...dto.settings,source:{kind:'formal-template',templateId:dto.id,revision:dto.revision,datasetId,portraitAssetId:dto.portraitAssetId}});
-export const fieldsFromSelection=(c:CharacterSelection):CharacterFields=>({name:c.name,personality:c.personality,appearance:c.appearance??'',speakingStyle:c.speakingStyle??'',boundaries:c.boundaries??'',portraitAssetId:c.source?.portraitAssetId??null});
+export const characterSelection=(dto:CharacterDTO,datasetId:string):CharacterSelection=>({id:dto.id,name:dto.name,...dto.settings,portraitRef:dto.portraitAssetId?{kind:'formal',datasetId,id:dto.portraitAssetId}:null,source:{kind:'formal-template',templateId:dto.id,revision:dto.revision,datasetId,portraitAssetId:dto.portraitAssetId}});
+export const demoCharacterSelection=(c:Character):CharacterSelection=>({...c,portraitRef:c.imageAssetId?{kind:'demo',id:c.imageAssetId}:null});
+export const fieldsFromSelection=(c:CharacterSelection):CharacterFields=>({name:c.name,personality:c.personality,appearance:c.appearance??'',speakingStyle:c.speakingStyle??'',boundaries:c.boundaries??'',portraitAssetId:c.portraitRef?.kind==='formal'?c.portraitRef.id:null});
 export function characterFailure(cause:unknown){
  const e=cause&&typeof cause==='object'?cause as Record<string,unknown>:{},data=e.data&&typeof e.data==='object'?e.data as Record<string,unknown>:{};
  const message=typeof e.message==='string'?e.message:'',code=data.code??e.code,status=data.httpStatus??e.status;

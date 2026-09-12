@@ -5,7 +5,7 @@ import {CharacterLibrary} from './character-library';
 import {CharacterController} from '../lib/authoring/character-controller';
 import type {CharacterClient} from '../lib/authoring/character-client';
 import type {CharacterDTO} from '../../runtime/src/contracts/character-template';
-vi.mock('./story-assets',()=>({CharacterPortrait:()=> <div data-testid="browser-portrait"/>,ImageAssetPicker:({onBusyChange}:any)=><button type="button" onClick={()=>onBusyChange(false)}>图片完成</button>}));
+vi.mock('./story-assets',()=>({CharacterPortrait:({assetRef}:any)=> <div data-testid={assetRef?.kind==='formal'?'formal-portrait':'browser-portrait'}/>,useImageUpload:()=>({state:{busy:false,unknown:false,datasetChanged:false},controller:{getSnapshot:()=>({busy:false,unknown:false,datasetChanged:false}),subscribe:()=>()=>{},discardForDatasetChange:()=>true}}),ImageAssetPicker:({onBusyChange}:any)=><button type="button" onClick={()=>onBusyChange(false)}>图片完成</button>}));
 afterEach(()=>{cleanup();vi.restoreAllMocks();});
 const datasetId='01994b80-0000-7000-8000-000000000099';
 const dto=(name='A'):CharacterDTO=>({id:'01994b80-0000-7000-8000-000000000001',name,settings:{personality:'',appearance:'',speakingStyle:'',boundaries:''},portraitAssetId:'01994b80-0000-7000-8000-000000000002',revision:1,schemaVersion:1,createdAt:'2026-09-12T00:00:00.000Z',updatedAt:'2026-09-12T00:00:00.000Z',deletedAt:null,archivedAt:null});
@@ -56,4 +56,10 @@ it('keeps the required name marker in the same title row and preserves accessibl
  const input=screen.getByRole('textbox',{name:'角色姓名'}) as HTMLInputElement;expect(input.required).toBe(true);
  const label=input.closest('label')!;expect(label.firstElementChild?.tagName).toBe('SPAN');expect(label.firstElementChild?.textContent).toBe('角色姓名 *');
  expect(screen.getByRole('button',{name:'有效角色'}).getAttribute('aria-pressed')).toBe('true');expect(screen.getByRole('button',{name:'回收站'}).getAttribute('aria-pressed')).toBe('false');
+});
+it('demo opening and saving an existing card becomes clean without serializing presentation references into the draft baseline',async()=>{
+ const pending=vi.fn(),save=vi.fn(async c=>c);vi.spyOn(window,'confirm').mockReturnValue(true);
+ render(<CharacterLibrary characters={[{id:'demo-character',name:'已有角色',personality:'',imageAssetId:'demo-image'}]} onSave={save} onUse={vi.fn()} onPendingChange={pending}/>);
+ click('编辑 已有角色');click('保存角色模板');await screen.findByText(/角色模板已保存到当前浏览器/);
+ await waitFor(()=>expect(pending).toHaveBeenLastCalledWith({dirty:false,busy:false}));
 });

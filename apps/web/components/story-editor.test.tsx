@@ -3,7 +3,7 @@ import {afterEach,expect,it,vi} from 'vitest';
 import {act,cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import {Editor} from './story-editor';
 import {blankStory} from '../lib/presentation/new-story';
-vi.mock('./story-assets',()=>({useStoryArtwork:()=>({url:'',missing:false}),ImageAssetPicker:({onBusyChange}:any)=><button type="button" onClick={()=>onBusyChange(false)}>图片完成</button>}));
+vi.mock('./story-assets',()=>({useStoryArtwork:()=>({url:'',missing:false}),useAssetBinding:()=>null,useImageUpload:()=>({state:{busy:false,unknown:false,datasetChanged:false},controller:{getSnapshot:()=>({busy:false,unknown:false,datasetChanged:false}),discardForDatasetChange:()=>true}}),ImageAssetPicker:({onBusyChange}:any)=><button type="button" onClick={()=>onBusyChange(false)}>图片完成</button>}));
 afterEach(cleanup);
 it('awaits confirmed character save, locks same-frame clicks independently of image busy and preserves later input',async()=>{
  let finish!:(x:any)=>void;const save=vi.fn().mockImplementation(()=>new Promise(resolve=>{finish=resolve;})),back=vi.fn();

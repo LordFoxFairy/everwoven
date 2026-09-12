@@ -1,7 +1,8 @@
 import type {ImageBodySource} from 'runtime/host';
 import {IMAGE_LIMITS} from 'runtime/contracts/asset';
 import {parseGetUpload, parseGetAsset, parseUploadIntentDTO, parseAssetDTO} from 'runtime/contracts/asset-validation';
-import {localAssetAccess, ASSET_DATASET_HEADER} from './local-assets';
+import {localAssetAccess} from './local-assets';
+import {ASSET_DATASET_HEADER} from '../contracts/asset-http';
 import {assetJSON, assetErrorResponse, assetSecurityHeaders} from './asset-errors';
 import {assetOutput} from './asset-responses';
 

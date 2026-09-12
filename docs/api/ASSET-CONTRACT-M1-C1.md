@@ -109,7 +109,7 @@ C1b共享输出验证器与normalizer的两槽预算，验证规范WebP不会再
 
 写请求沿用`x-everwoven-request: 1`及合法Origin。普通GET可以不带Origin，但存在时仍校验，另查Host、cross-site、cookie和真实session。二进制路径不经JSON/formData接收器；PUT准入后惰性打开body。Content-Type可缺省，或application/octet-stream / image/jpeg / image/png / image/webp；客户端名称/type不能代替真实解码。Content-Length可缺省，存在时须十进制且≤10MiB，实际接收长度/hash始终以意图为准。GET忽略Range并返回完整200，不伪装206，不重定向到裸磁盘文件。
 
-二进制错误为`{error: 固定消息}`；tRPC保留标准错误封装。成功及错误都带`Cache-Control: no-store`和`X-Content-Type-Options: nosniff`。错误清单以`apps/web/server/asset-errors.ts`为精确白名单，不按字符串前缀透传。
+二进制错误为`{error: 固定消息}`；tRPC保留标准错误封装。成功及错误都带`Cache-Control: no-store`和`X-Content-Type-Options: nosniff`。标识→状态的唯一公开真值位于纯`apps/web/contracts/asset-http.ts`，服务端`asset-errors.ts`与客户端`asset-failure.ts`直接引用；不复制整表、不按字符串前缀透传。
 
 | HTTP | 含义 |
 |---|---|

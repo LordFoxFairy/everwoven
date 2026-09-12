@@ -47,7 +47,7 @@ it('onUse carries a formal editable source, never writes a story or reads browse
  render(<Platform environment="dev" databaseEnabled/>);click('角色库');await screen.findByRole('button',{name:'用 原角色 创作'});click('用 原角色 创作');
  expect((screen.getByRole('button',{name:'保存草稿'}) as HTMLButtonElement).disabled).toBe(true);expect((screen.getByRole('button',{name:'保存并进入准备'}) as HTMLButtonElement).disabled).toBe(true);
  click('03角色配置');change('角色姓名 *','编辑器副本');click('另存为角色模板');await screen.findByText(/角色模板已保存。此剧本仍是编辑副本/);
- expect(client.create.mock.calls[0][0].name).toBe('编辑器副本');expect(client.update).not.toHaveBeenCalled();expect(write).not.toHaveBeenCalled();expect(screen.queryByLabelText('选择角色参考')).toBeNull();
+ expect(client.create.mock.calls[0][0].name).toBe('编辑器副本');expect(client.update).not.toHaveBeenCalled();expect(write).not.toHaveBeenCalled();expect(screen.getByLabelText('选择角色参考')).toBeTruthy();expect(screen.getByRole('checkbox',{name:'我确认有权使用这张图片'})).toBeTruthy();expect((screen.getByRole('button',{name:'上传图片'}) as HTMLButtonElement).disabled).toBe(true);
 });
 
 it('keeps connection controls inside the shell content and the mounted Editor content',async()=>{
@@ -96,7 +96,7 @@ it('direct card-to-Editor source from A requires explicit recovery before first 
  expect(client.get).not.toHaveBeenCalled();expect(client.create).not.toHaveBeenCalled();expect(client.update).not.toHaveBeenCalled();
  session.session.mockResolvedValueOnce({authenticated:false});await act(()=>connection.refresh());await screen.findByLabelText('本机连接码');session.session.mockResolvedValue({authenticated:true,datasetId:'01994b80-0000-7000-8000-000000000098'});change('本机连接码','B');click('连接本机');await screen.findByText('已连接本机');
  // Calling the Platform callback directly must also reject, not merely rely on a disabled button.
- await act(async()=>{await expect(editorProps.onSaveCharacter({id:'working-copy',name:'绕过按钮',personality:''})).rejects.toThrow('DATASET_CHANGED');});
+ await act(async()=>{await expect(editorProps.onSaveCharacter({id:'working-copy',name:'绕过按钮',personality:'',portraitRef:null})).rejects.toThrow('DATASET_CHANGED');});
  expect(client.create).not.toHaveBeenCalled();expect(client.update).not.toHaveBeenCalled();expect(screen.getByRole('button',{name:'从保留文本新建角色'})).toBeTruthy();
  expect((screen.getByRole('button',{name:'确认上次角色命令'}) as HTMLButtonElement).disabled).toBe(true);click('我的剧本');expect((screen.getByLabelText('角色姓名 *') as HTMLInputElement).value).toBe('尚未另存的文本');
  click('从保留文本新建角色');expect(editorProps.characterSource).toBeUndefined();expect(screen.queryByRole('button',{name:'从保留文本新建角色'})).toBeNull();expect((screen.getByLabelText('相处边界') as HTMLTextAreaElement).value).toBe('保留边界');click('另存为角色模板');await screen.findByText(/角色模板已保存。此剧本仍是编辑副本/);

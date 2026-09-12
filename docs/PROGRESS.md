@@ -251,3 +251,56 @@ C1c-3生产撤销证据修复：隔离仅清cookie、不执行revoke的mutation�
 提交前发现.gitignore的通用**/uploads/隐藏真实PUT源码路径。主会话先加真实临时Git source-boundary.test.ts，RED1→精确route例外GREEN1；uploads其他媒体继续忽略，.dockerignore既有apps/web白名单包含路由。没有强制添加用户文件。再次运行最终主仓全量（新增1条打包边界测试）及typecheck，完成后记录最终计数；Cicero最终复核中。
 
 C1c-3最终本地门槛闭合：最后主仓75文件1203/1203、双端typecheck exit0；恢复真实revoke后的production build/四Chromeexit0；Dewey规格PASS、Cicero Web/脚本/精确Git例外最终质量PASS。所有PUT源码将普通add纳入，不包括用户研究/图片。自动维护、C2原图片UI及聚合依然待做；下一计划已写明，不发送创作完成通知。
+
+## 当前继续入口 · C2原图片控件接线
+
+C1c-3已commit `95cd68f`（34文件），最终1203/1203、双端types、生产四Chrome、独立规格/质量通过；push结果待确认。精确PUT route已正常Git收录，用户研究/媒体未收录，无发布tag。
+
+- **Feynman `01a09684-1393-7002-b9d4-e6016dd1e988`** C2A唯一writer：纯asset-http常量、AssetRef/AssetClient端口、formal/demo adapters、上传controller及读取hook/专属tests；只在常量搬移时改server import，不改UI/角色controller。
+- **Hegel `01a09686-30d5-7931-8a5c-d6b9854653a5`** C2B唯一writer：原story-assets/character-library/story-editor/platform、character-controller/viewmodel与对应样式/组件/导航tests；依赖A冻结接口，不发明另一adapter，不改服务端/schema。
+- 主会话持有docs/原角色生产smoke/CI，待两writer停写后统一主仓与真实Chrome；下一生产用例必须原file input选择+权利确认+保存/禁浏览器存储/重启/换图清除/角色软删除恢复，不能用API脚本冒充UI。
+- 原剧本聚合、显式维护、删除临时面板与定向reset仍后续。Dewey已只读核对聚合风险并记录新执行计划，不另开第二接口/编辑器。
+- 继续静默，仅完整原页面创作闭环后通知。同一heartbeat已实际读取仍ACTIVE。
+
+95cd68f push已确认退出0，bd4b1db→95cd68f；精确GitHub check-runs当前verify=in_progress，[CI34722926560](https://github.com/LordFoxFairy/everwoven/actions/runs/34722926560)。未从push推断CI通过。C2两writer已启动分离切片，主会话新增原图片UI验收脚本，不改其组件。
+
+C2主会话原UI验收脚本`scripts/smoke/local-asset-ui.mjs`已加入未提交写集：原角色页setInputFiles、每张图重新权利确认、上传完成后保存角色、禁localStorage与IndexedDB、进程重启读图、替换/软删恢复/clear仍保留资产。旧production已真实RED（缺“选择角色参考”控件导致超时exit1），不是静态断言假RED。使用临时3195/harness自清理，不影响主入口3100。新UI未完成前不记GREEN、不改CI加入尚失败脚本。
+
+A纯AssetRef/AssetClient类型已落在apps/web/lib/authoring/asset-ports.ts：demo/formal判别，正式ref带dataset，上传result带operationId/editingKey；B依赖该唯一接口。两writer仍在实施，勿将源码出现当完成。
+
+95cd68f远程已通过精确commit check-runs实际核实：[CI34722926560](https://github.com/LordFoxFairy/everwoven/actions/runs/34722926560) verify=completed/success；publish/anonymous-pull=skipped，未发布新tag或镜像。C2两writer仍运行，当前新增asset-client/demo-client测试和原控件变更尚未验收，主会话不对活跃写集跑合并结论或提交。
+
+后续继续先native wait Feynman/Hegel完成，再实读A/B diff、聚焦/主仓全量/双端类型与隔离生产。隔离树/tmp/everwoven-verify.zRVKTD当前仍是95cd68f的生产逻辑（加主会话新UI smoke文件），真实session撤销源码已恢复；新UI smoke正确RED，必须复制两writer最终稳定文件并重build后运行GREEN。固定Node22.22.2 PATH，所有主会话本轮验证进程均已结束，无未取回exitcode；未停止3100。旧role smoke末尾0file-input断言待真实正式picker接入后改为真实控件/禁IndexedDB证据，由主会话负责，不能留一边UI成功一边旧CI必失败。
+
+2026-09-12 22:55 UTC heartbeat继续：先实读进度/总架构/Git及两writer原生状态，A/B均已停写。A报告55/55及相关67/67、Web types通过；B报告84项/Web types通过。主会话重新跑全量/类型，Dewey整体规格审查，Hegel补B证据并交叉只读A。隔离树以95cd68f Git归档+明确的最终C2源码列表覆盖，未复制用户资料；生产build和新原UI/原HTTP/旧三Chrome已启动。主会话原角色smoke将旧“0fileinput”换为原正式picker存在，并同时禁IndexedDB；真实上传由新原UI脚本验证。尚未计GREEN/提交。
+
+C2初轮主仓82文件1277/1277及双端types exit0；隔离production build/五Chrome（新增原图片UI、已有图片HTTP、演练/原角色/原root）exit0。主会话实际查看截图，权利checkbox与文字被全局样式拆成竖列；B正在局部样式修正，主会话补实际computedStyle回归。另发现候选丢失后complete404重试是否恢复原process的潜在缺口，A先RED核实。以上初轮GREEN不等于最终门槛，Dewey规格尚在进行，不提交。
+
+A候选恢复已确认RED3/24通过：未completed候选丢失后只重复complete，过期仍泛化提示重复请求；A获授权修精确缺候选→显式原File恢复和终态操作指引，不重传completed资产。主会话原UI脚本另扩充真正丢弃已提交begin/complete响应→“确认上次图片命令”→原ID/原payload重放，并检查unknown禁止换图与保存角色；尚待新production重跑，不用模块mock代替。
+
+Dewey追加规格P2：非协议代理400会被按definitive invalid解除unknown，可能丢失已提交原命令。已要求A补最小RED并系统覆盖无可信协议标识的400/404/413/415，不能仅凭HTTP状态断言写失败；本地未发验证仍可rejected。当前1277与五Chrome初轮GREEN不覆盖此追加风险，不提前提交。
+
+代理400真实production RED已复现：仅将B CSS覆盖隔离树重build，保留旧A；第一张图begin已提交丢响应→原UI确认成功，第二张complete已提交后代理返回非领域BAD_REQUEST400，页面没有“确认上次图片命令”，超时exit1。checkbox实际computedStyle已row通过；待A修复后用完全相同生产UI脚本复跑，不改测试绕过unknown。
+
+C2修订后主仓83文件1307/1307+双端types、production build/五Chrome均exit0；原UI丢begin响应及complete提交后代理400→原命令确认已GREEN，截图权利checkbox横排/disabled按钮外观已复验。但Dewey独立追加P2：已有unknown的原命令确认收到精确INVALID_ASSET_COMMAND400（参数解析早于receipt查询），仍错误解除unknown。A获授权按原命令/阶段保存不确定性，不能将后来的本次请求拒绝当原提交失败；保持首次明确拒绝可结束。此次GREEN不掩盖追加P2，未提交。
+
+另HTTP错误表客户端与服务端完全相同的复制已实核，A获授权移入纯web/contracts/asset-http.ts统一维护，server/asset-errors.ts直引，不引入服务端依赖到浏览器或兼容re-export。两项修完再整体复审/验证。
+
+第二精确400的production回归首次RED时暴露主会话smoke helper问题：waitForResponse promise在click等待期间先超时，未及时观察reject，Node提前退出而残留自有3195测试launcher。已将click与response用Promise.all同时观察（新原UI及原角色helper同修）；初次只读观察到PID92168监听自有3195，尝试进一步核对/终止时进程已自行退出（kill返回no such process、端口已空），没有实际终止任何进程，也未据此声称cwd核实成功；用户3100/其他Next未改动。重新运行相同RED以确保正常finally清理后再计证据，不以测试自身未处理拒绝作产品验证。
+
+修正helper后的精确400 production回归仍因原确认控件消失/无后续complete而失败，作为真实产品RED；Promise.all避免独立等待promise未处理拒绝，harness按正常异常路径清理。最终新A源码尚未覆盖隔离树，等待writer停写后再build验收。
+
+A最后修订已停写：原命令分阶段uncertainty及单一纯HTTP错误表，报告RED21/53通过→9文件182/182、Webtypes通过。主会话正在再次全量/类型与production五Chrome（现在含精确400再确认）；Dewey独立复审中。CI已增原图片控件同一脚本，只有本地最后GREEN及审查通过后才提交，远程结果另核实。
+
+C2最后一轮主仓84文件1334/1334、双端types及production五Chromeexit0，精确400先拒绝确认再重放成功已实证。但Dewey真实SQLite/Controller交错指出新过期例外P2：原finalizer有效lease跨TTL仍能提交，暂无receipt+EXPIRED不证明原请求失败。A已获最小修复授权去掉该例外，已有uncertainty保留，首次明确过期仍终止，并固化真实并发回归。未以1334GREEN提前commit或通知。
+
+TTL最终修订A已停写，真实SQLite+文件+Service+Controller回归RED2/56通过→58/58；Dewey独立58/58并完整C2规格PASS，所有已确认P2关闭。现交Cicero最终C2代码/脚本/CI质量审查，主会话最后全量/生产结果另记，不因规格PASS省略质量门槛。
+
+C2主仓最终1335/1335及双端types、最后production五Chrome均exit0。主会话额外实际原UI“用TA创作→换第三张图→另存模板”也exit0，断言新模板第三图、独立GET原模板仍第二图；不是组件stub。
+
+Cicero质量追加Demo恢复P2：缓存已拒绝的demoImport Promise使后续显式重试无法恢复。A获授权先RED再修真实已失败Promise与仍pending/已fulfilled的区分，维持后两者不重复导入，不伪造demo后端receipt。未提交C2，不把正式上传GREEN遮盖演练退化。
+
+C2最后两小修订均停写：A Demo明确rejected缓存允许显式重试，pending/fulfilled仍保留，RED2/60→64/64；B成功后只禁再次上传、允许新选择/clear，新文件须再声明，RED2→16/16。主会话成功态按钮生产RED false≠true已确认。开始同一最终源码主仓全量/类型及五Chrome（含Studio复制与按钮），Dewey聚焦增量规格复核后交Cicero关闭Demo质量P2。没有提交未验收代码。
+
+
+C2最终本地验收已闭合：主会话取回最后两个完整进程exit0，85文件1340/1340及双端types；隔离production build/五Chrome（含Studio复制与ready防重复按钮）exit0。Dewey最后增量独立80/80规格PASS，Cicero独立78/78最终质量PASS，当前P1/P2均0。精确提交/CI另核对，不称整体M1创作闭环。用户3100未替换、业务数据未重置、无付费模型调用。

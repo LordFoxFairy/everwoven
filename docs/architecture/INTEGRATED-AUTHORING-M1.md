@@ -2,7 +2,7 @@
 
 **版本：0.2 / 2026-09-12 / 可分批实施的设计基线，非整体验收。**
 
-实施增量：[M1-A1](../implementation/M1-A1-CLEAN-BASELINE-2026-09-12.md)已替换根StorySettings与单一Prisma baseline；M1-A2已贯通dataset命令；[M1-B](CHARACTER-AUTHORING-M1-B.md)角色六操作与共享会话已落地并通过原页面及CI验收。C1a图片严格契约/解码、C1b私有文件、C1c-1清理协调及C1c-2显式生命周期/有界接收器已通过本地验收，C1c-3真实Host/HTTP已接线并通过本轮主仓1202项与生产四Chrome，最终质量审查见PROGRESS。本文的剧本聚合、原图片控件及定向reset仍待实施，不因角色切片通过而标总体完成。
+实施增量：M1-A1/A2新基线与dataset协议、M1-B原角色六操作已落地；C1a/b/c图片契约、私有文件、生命周期、真实Host/HTTP已提交并CI通过。C2原图片控件已完成本地主仓1340/1340、类型、生产五Chrome与独立规格/质量审查，见[实施记录](../implementation/M1-C2-ORIGINAL-IMAGES-2026-09-12.md)。剧本聚合、显式维护入口、临时面板移除及当前3100正式启用仍待完成，不标总体M1验收。
 
 用户已确认继续推进前端、后端、端到端及文档，随后明确：**不要旧协议/旧数据兼容，允许清空本项目业务数据重建。** 本文据此采用全新基线，不建设迁移兼容层。本方案承接[范围设计](../superpowers/specs/2026-09-12-integrated-authoring-design.md)，不是再创建一套原型。当前实现与测试证据只在 [PROGRESS](../PROGRESS.md) 登记。本文标为“拟增”的契约/SQL尚未上线，不应据此直接调用接口或迁移用户库。
 
@@ -20,8 +20,8 @@
 
 | 层 | 已有且需复用 | 本批缺口 |
 |---|---|---|
-| 前端 | 原角色库异步六操作、共享会话、Editor另存角色；原图片与剧本控件仍待接 | 原图片端口、原剧本聚合控制器，删除临时DatabaseDrafts |
-| HTTP | 受保护 storyDrafts/characters、assets三操作与二进制路由、一次性本机会话、来源校验 | 剧本聚合契约、原页面图片调用 |
+| 前端 | 原角色库异步六操作、共享会话、Editor另存角色；原图片控件及Editor另存角色已接 | 原剧本聚合控制器，删除临时DatabaseDrafts |
+| HTTP | 受保护 storyDrafts/characters、assets三操作与二进制路由、一次性本机会话、来源校验 | 剧本聚合契约 |
 | 应用 | 根/角色CRUD、资产显式生命周期/文件恢复、owner+dataset、WriteGate、CAS/绑定回执 | 固定角色版本、剧本聚合及有界维护入口 |
 | 数据 | 新baseline16表、零FK、固定DDL指纹/checksum门禁；作用域/图片元数据/上传意图结构 | 引用用例/上传协议与受限重置流程 |
 | 验收 | 原角色与原root真实生产Chrome CRUD/重启、unknown/跨库回归 | 图片/剧本聚合完整原页面链路、异常与隔离 |
@@ -166,7 +166,7 @@ Story.title（1–120）与Character.name（1–120）只在顶层存一份。�
 
 | 操作 | 请求关键字段 | 输出/规则 |
 |---|---|---|
-| storyDrafts.create | commandId、schemaVersion:1、title、settings、mainCharacter?、assetSlots | 返回聚合详情+replayed；缺角色仍可草稿保存 |
+| storyDrafts.create | commandId、protocolVersion:1、title、settings、mainCharacter?、assetSlots | 返回聚合详情+replayed；缺角色仍可草稿保存 |
 | storyDrafts.update | id、expectedRevision、patch | patch中未出现的聚合部分保持原样；出现的settings为完整当前对象 |
 | storyDrafts.get/list | id；分页/过滤 | get聚合读取root/cast/有效人物/槽；list轻量摘要+totalMatching |
 | storyDrafts.delete/restore | commandId、id、expectedRevision | 软删除/恢复根；不篡改历史快照，不物理删除引用文件 |
@@ -409,3 +409,5 @@ M1-A端口/新契约/dataset与M1-B原角色页已完成本地验收；角色切
 2026-09-12独立复审通过，批准作为分批实施基线。修复2个P1（complete与清理竞争、reset跨世代重放）及1个P2（已有角色绑定输入歧义）；增加相应事务规则、datasetId与验收场景。批准不代表M1代码已实现；实际端口小批次与测试结果见PROGRESS。
 
 资产begin回执身份增量：[ADR0010](adr/0010-asset-begin-identity.md)。仅begin共享server uploadId/receipt主键作为独立于响应JSON的创建绑定；complete独立回执ID，首次签发与重放均核对不可变字段。无schema/FK/旧兼容修改，已通过本地主仓与独立复核；HTTP已接线，显式有界维护入口待后续。
+
+聚合协议实施冻结见[原剧本聚合计划](../superpowers/plans/2026-09-12-story-aggregate.md)：新六操作请求统一protocolVersion:1+datasetId；持久DTO schemaVersion保留存储结构含义，不承担握手。此项尚未切换当前root接口；C2图片切片不修改它。

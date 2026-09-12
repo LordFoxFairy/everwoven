@@ -25,13 +25,14 @@ await withLocalBrowser(async({page,origin,datasetId,connectionCode,restart})=>{
  };
  async function clickMutation(button,operation){
   const pending=page.waitForResponse(response=>response.request().method()==='POST'&&response.url().includes(`/api/trpc/characters.${operation}`));
-  await button.click();const response=await pending;assert.equal(response.status(),200);
+  const [,response]=await Promise.all([button.click(),pending]);assert.equal(response.status(),200);
   const payload=await response.json();return (Array.isArray(payload)?payload[0]:payload).result.data;
  }
  // Formal authoring must work even when the browser refuses all persistent storage.
  await page.addInitScript(()=>{
   Storage.prototype.getItem=function(){throw Error('test storage unavailable');};
   Storage.prototype.setItem=function(){throw Error('test storage unavailable');};
+  IDBFactory.prototype.open=function(){throw Error('test IndexedDB unavailable');};
  });
  await page.goto(origin,{waitUntil:'networkidle'});
  await page.getByRole('button',{name:'角色库',exact:true}).click();
@@ -71,7 +72,7 @@ await withLocalBrowser(async({page,origin,datasetId,connectionCode,restart})=>{
  const afterRestart=await read(name);assert.equal(afterRestart.totalMatching,1);assert.deepEqual(afterRestart.items[0].settings,expected);
  await page.getByRole('button',{name:`编辑 ${name}`,exact:true}).click();
  for(const [label,key] of [['性格与背景','personality'],['外貌与穿着','appearance'],['表达习惯','speakingStyle'],['相处边界','boundaries']])assert.equal(await page.getByRole('textbox',{name:label,exact:true}).inputValue(),expected[key]);
- assert.equal(await page.locator('input[type=file]').count(),0,'Formal role must not invoke the demo IndexedDB image picker');
+ assert.equal(await page.getByLabel('选择角色参考',{exact:true}).count(),1,'Original formal role exposes the authenticated asset picker; IndexedDB remains disabled');
  if(process.env.SMOKE_SCREENSHOT)await page.screenshot({path:process.env.SMOKE_SCREENSHOT,fullPage:true});
  assert.deepEqual(boundaryErrors,[]);assert(writes.size>=6);
  console.log('Original character library smoke passed: direct host connection, name-only draft, all-field update, delete/restore, lost-response immutable replay, preserved newer input, unavailable browser storage, refresh and process restart. No model calls.');

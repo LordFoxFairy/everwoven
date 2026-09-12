@@ -1,6 +1,5 @@
 import type {AssetService} from 'runtime/host';
 import {guardLocalRequest, localRuntimeConfig, sessionToken} from './local-boundary';
-export const ASSET_DATASET_HEADER = 'x-everwoven-dataset-id';
 export type WithAssets = <T>(work: (assets: AssetService) => Promise<T>) => Promise<T>;
 export function localAssetAccess(request: Request, env: Record<string, string | undefined>): WithAssets {
   return async work => {

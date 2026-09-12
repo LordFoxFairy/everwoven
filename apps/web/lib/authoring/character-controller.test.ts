@@ -110,3 +110,37 @@ it.each([false,true])('changing dataset with no pending or working content clear
  const {controller,c,binding}=await setup();c.list.mockResolvedValue({items:[dto()],nextCursor:'old',totalMatching:9});await controller.load();if(emptyForm)controller.newDraft();
  controller.bind({...binding,datasetId:other,invalidate:vi.fn()});expect(controller.getSnapshot()).toMatchObject({datasetChanged:false,unknown:false,dirty:false,confirmed:null,items:[],cursor:null,total:0,busy:false});expect(c.create).not.toHaveBeenCalled();
 });
+it('portrait selection is dataset-bound, dirty-only, and cannot alter an immutable unknown command',async()=>{
+ const {controller,c,binding}=await setup();controller.newDraft();controller.field('name','有图角色');
+ const portrait={kind:'formal' as const,datasetId,id:'01994b80-0000-7000-8000-000000000077'};
+ expect(controller).toHaveProperty('selectPortrait');controller.selectPortrait(portrait);
+ expect(controller.getSnapshot()).toMatchObject({dirty:true,fields:{portraitAssetId:portrait.id}});expect(c.create).not.toHaveBeenCalled();
+ c.create.mockRejectedValueOnce(Error('lost'));await expect(controller.save()).rejects.toThrow();const command=c.create.mock.calls[0]![0];
+ controller.selectPortrait(null);expect(controller.getSnapshot().fields.portraitAssetId).toBe(portrait.id);
+ await controller.confirm();expect(c.create.mock.calls[1]![0]).toEqual(command);
+ controller.selectPortrait(null);expect(controller.getSnapshot().fields.portraitAssetId).toBeNull();expect(controller.getSnapshot().dirty).toBe(true);
+ controller.selectPortrait({...portrait,datasetId:other});expect(controller.getSnapshot().fields.portraitAssetId).toBeNull();
+ controller.bind({...binding,connected:false});controller.selectPortrait(portrait);expect(controller.getSnapshot().fields.portraitAssetId).toBeNull();
+});
+it('editing instance changes for explicit open/new/recovery, not the first server create acknowledgement',async()=>{
+ const {controller}=await setup();controller.newDraft();controller.field('name','创建');const first=controller.getSnapshot().editInstance;
+ expect(first).toBeTypeOf('string');await controller.save();expect(controller.getSnapshot().editInstance).toBe(first);
+ await controller.open(dto().id);const opened=controller.getSnapshot().editInstance;expect(opened).not.toBe(first);
+ controller.newDraft();expect(controller.getSnapshot().editInstance).not.toBe(opened);
+});
+it('saveCopy uses current portrait selection rather than immutable source portrait',async()=>{
+ const {fieldsFromSelection,characterSelection}=await import('./character-viewmodel');
+ const original='01994b80-0000-7000-8000-000000000077',selected='01994b80-0000-7000-8000-000000000078';
+ const selection=characterSelection({...dto('源角色'),portraitAssetId:original},datasetId);
+ expect(selection).toHaveProperty('portraitRef',{kind:'formal',datasetId,id:original});
+ const changed={...selection,portraitRef:{kind:'formal' as const,datasetId,id:selected}};
+ const {controller,c}=await setup();await controller.saveCopy(fieldsFromSelection(changed));
+ expect(c.create.mock.calls[0]![0].portraitAssetId).toBe(selected);expect(changed.source?.portraitAssetId).toBe(original);expect(c.update).not.toHaveBeenCalled();
+ expect(fieldsFromSelection({...changed,portraitRef:null}).portraitAssetId).toBeNull();
+});
+
+it('retained portrait keeps its original read namespace until explicit cross-dataset recovery',async()=>{
+ const {controller,c,binding}=await setup();c.get.mockResolvedValue({...dto(),portraitAssetId:'01994b80-0000-7000-8000-000000000077'});await controller.open(dto().id);
+ expect(controller.getSnapshot().portraitDatasetId).toBe(datasetId);controller.bind({...binding,datasetId:other});expect(controller.getSnapshot().portraitDatasetId).toBe(datasetId);
+ controller.fromRetained();expect(controller.getSnapshot()).toMatchObject({portraitDatasetId:null,fields:{portraitAssetId:null}});
+});
