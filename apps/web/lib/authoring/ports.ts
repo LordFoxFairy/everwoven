@@ -1,7 +1,9 @@
 import type {DraftCreate, DraftCommandResult, DraftDTO, DraftListInput, DraftPage, DraftUpdate, DraftLifecycle} from '../../../runtime/src/contracts/story-draft';
 
+export type AuthoringSession = {authenticated: true; datasetId: string} | {authenticated: false};
+
 export interface DatabaseDraftsClient {
-  session(): Promise<{authenticated: boolean}>;
+  session(): Promise<AuthoringSession>;
   connect(code: string): Promise<void>;
   logout(): Promise<void>;
   create(input: DraftCreate): Promise<DraftCommandResult>;

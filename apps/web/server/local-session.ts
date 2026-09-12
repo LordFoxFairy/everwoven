@@ -27,8 +27,8 @@ export async function handleLocalSession(
     const host = await import('runtime/host');
     if (request.method === 'GET') {
       try {
-        await host.authenticateSession(config.directory, config.environment, sessionToken(request));
-        return json({ authenticated: true });
+        const session = await host.authenticateSession(config.directory, config.environment, sessionToken(request));
+        return json({ authenticated: true, datasetId: session.datasetId });
       } catch {
         return json({ authenticated: false });
       }
@@ -55,13 +55,13 @@ export async function handleLocalSession(
       !/^[A-Za-z0-9_-]{43}$/.test(body.code)
     )
       return json({ error: '连接码格式无效' }, 400);
-    let issued: { token: string; expiresAt: number };
+    let issued: { token: string; expiresAt: number; datasetId: string };
     try {
       issued = await host.exchangeConnectionCode(config.directory, config.environment, body.code);
     } catch {
       return json({ error: '连接码无效、已使用或已过期，请在本机重新获取' }, 401);
     }
-    return json({ authenticated: true, expiresAt: issued.expiresAt }, 200, {
+    return json({ authenticated: true, datasetId: issued.datasetId, expiresAt: issued.expiresAt }, 200, {
       'Set-Cookie': cookie(issued.token, Math.max(0, Math.floor((issued.expiresAt - Date.now()) / 1000))),
     });
   } catch {

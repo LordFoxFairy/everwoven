@@ -10,7 +10,7 @@ import {v7} from 'uuid';
 import {openRuntimeDatabase} from '../infrastructure/db/client.js';
 
 export type LocalEnvironment = 'dev' | 'prod';
-export type HostManifest = {version: 1; ownerId: string; environment: LocalEnvironment; createdAt: string};
+export type HostManifest = {version: 1; ownerId: string; datasetId: string; environment: LocalEnvironment; createdAt: string};
 export const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 const uuid7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const uid = () => {if (!process.getuid) throw new Error('LOCAL_HOST_INVALID'); return process.getuid();};
@@ -85,10 +85,11 @@ export function record(value: unknown, keys: string[]): asserts value is Record<
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).length !== keys.length || keys.some(key => !Object.hasOwn(value, key))) throw new Error('LOCAL_HOST_INVALID');
 }
 function parseManifest(value: unknown, environment: LocalEnvironment): HostManifest {
-  record(value, ['version', 'ownerId', 'environment', 'createdAt']);
+  record(value, ['version', 'ownerId', 'datasetId', 'environment', 'createdAt']);
   if (value.version !== 1 || value.environment !== environment || typeof value.ownerId !== 'string' || !uuid7.test(value.ownerId) ||
+      typeof value.datasetId !== 'string' || !uuid7.test(value.datasetId) || value.datasetId === value.ownerId ||
       typeof value.createdAt !== 'string' || !Number.isFinite(Date.parse(value.createdAt)) || new Date(value.createdAt).toISOString() !== value.createdAt) throw new Error('LOCAL_HOST_INVALID');
-  return {version: 1, ownerId: value.ownerId, environment, createdAt: value.createdAt};
+  return {version: 1, ownerId: value.ownerId, datasetId: value.datasetId, environment, createdAt: value.createdAt};
 }
 export type Target = {directory: string; parent: string; parentIdentity: Stats};
 export async function targetDirectory(directory: string, environment: LocalEnvironment): Promise<Target> {
@@ -167,7 +168,7 @@ export async function initializeHost(directory: string, environment: LocalEnviro
     await writeExclusive(databasePath, '');
     await (options.migrate ?? migrateDatabase)(databasePath);
     await recheckTarget(target, identity); await checkedFile(databasePath);
-    const manifest: HostManifest = {version: 1, ownerId: v7(), environment, createdAt: new Date().toISOString()};
+    const manifest: HostManifest = {version: 1, ownerId: v7(), datasetId: v7(), environment, createdAt: new Date().toISOString()};
     const db = await openRuntimeDatabase(databasePath);
     try {
       if (await db.localProfile.count() !== 0) throw new Error('LOCAL_HOST_INVALID');

@@ -15,7 +15,7 @@
 | 主线 | 当前状态 | 下一可验收结果 |
 |---|---|---|
 | 1 前端逻辑 | 原页面仍是浏览器创作；临时面板有真实CRUD。端口提取/会话校验已完成 | 原角色库异步CRUD；原编辑器完整聚合保存；上传读取均经端口 |
-| 2 后端逻辑 | 根CRUD单一StorySettings、owner/WriteGate/CAS/回执/本机会话；新16表baseline及DDL门禁已实现 | datasetId、角色/图片/聚合用例，受限reset |
+| 2 后端逻辑 | 根CRUD单一StorySettings、owner/WriteGate/CAS/回执/本机会话；新16表baseline及DDL门禁已实现 | 角色/图片/聚合用例、受限reset（datasetId本批已接入） |
 | 3 整体闭环 | M0临时面板闭环通过；原角色+图片+剧本尚未闭环 | 原页面创建→保存→清缓存→进程重启→相同内容读回，异常路径通过 |
 | 4 技术方案 | M1详细稿已写，按新指令删除兼容设计；独立复核通过 | 接口/字段/事务/SQL/架构图/时序图/验收矩阵一致 |
 | 5 推进记录 | 本文件建立 | 每批记录改动、测试、失败、未验证项、下一步、commit及发布状态 |
@@ -88,3 +88,19 @@
 - 基线指纹`--check`、smoke脚本`node --check`和diff空白检查通过。Hegel基线规格、Dewey字段规格、Cicero最终代码质量复核通过。
 - 本轮未执行生产Next构建或浏览器smoke；对应脚本已同步新字段，但语法检查不是浏览器验收。没有清用户库、reset、tag或付费模型调用。
 - 本批提交主题：`feat(authoring): replace legacy contract and database baseline`。接下来按[datasetId执行计划](superpowers/plans/2026-09-12-dataset-bound-commands.md)直接实施，不等待用户再次确认。
+
+远程状态：8c1552a已推送开发分支；[CI 34710192907](https://github.com/LordFoxFairy/everwoven/actions/runs/34710192907)已成功（含生产构建、Docker六环境/端口组合、HTTP浏览器、六字段本机创作及重启smoke）；publish/anonymous-pull因非tag跳过，非发布镜像。M1-A2正在实施，随后按[原角色库计划](superpowers/plans/2026-09-12-original-character-library.md)继续。
+
+M1-A1 CI证据补齐：34710192907成功，verify耗时4m28s。Node20版GitHub Actions兼容警告不影响本次成功；后续独立更新CI actions，不在dataset变更里顺手改依赖。官方H3文档核验已记录于[研究增量](research/MINIMAX-OFFICIAL-RECHECK-2026-09-12.md)，仅确认官方索引，不宣称付费生成验收。
+
+## M1-A2 代码及主仓验收完成
+
+[实施记录](implementation/M1-A2-DATASET-COMMANDS-2026-09-12.md)。主仓首次全量603/604通过，旧压力用例最后的认证返回断言尚缺datasetId，已交给实现者按新契约精确修正；未减少并发检查。最终复验与审查尚未标完成。
+
+### M1-A2 最终证据与下一步
+
+- 实现者报告已执行三批RED（9/22/3项失败），后聚焦12文件338/338及类型检查通过；主仓独立复跑第一遍603/604，修正旧fixture精确断言后**40文件604/604 + runtime/Web typecheck通过**。未降低压力次数、未改变异步精确期望。
+- Hegel后端规格、Dewey前端规格、Cicero代码质量复核通过；无剩余本批P1/P2。
+- 新manifest/credential/会话/command/cursor绑定dataset，异库零自动重放，原文本显式另建。没有旧manifest/字段兼容，没有reset或数据删除。
+- 当前新代码提交主题：`feat(authoring): bind local commands to dataset identity`。原角色/图片/原Editor尚未闭环，继续按角色库计划，禁止发送总体完成通知。
+- M1-B计划已独立复核并补共享sessiongate、Editor另存角色async调用、角色草稿必填/上限一致与正式头像不走IndexedDB等边界。

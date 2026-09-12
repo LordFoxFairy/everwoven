@@ -1,8 +1,9 @@
 import { createAppClient } from '../../trpc/client';
-import type { DatabaseDraftsClient } from './ports';
+import type { AuthoringSession, DatabaseDraftsClient } from './ports';
+import {isBusinessId} from '../../../runtime/src/contracts/primitives';
 export function createDatabaseDraftsClient(): DatabaseDraftsClient {
   const client = createAppClient();
-  async function sessionRequest(method: 'GET' | 'POST' | 'DELETE', code?: string): Promise<{ authenticated: boolean }> {
+  async function sessionRequest(method: 'GET' | 'POST' | 'DELETE', code?: string): Promise<AuthoringSession> {
     try {
       const response = await fetch('/api/local-session', {
         method,
@@ -16,7 +17,9 @@ export function createDatabaseDraftsClient(): DatabaseDraftsClient {
       if (!data || typeof data !== 'object' || Array.isArray(data) ||
           !('authenticated' in data) || typeof data.authenticated !== 'boolean' ||
           (method !== 'GET' && data.authenticated !== (method === 'POST'))) throw Error();
-      return { authenticated: data.authenticated };
+      if (!data.authenticated) return {authenticated: false};
+      if (!('datasetId' in data) || !isBusinessId(data.datasetId)) throw Error();
+      return {authenticated: true, datasetId: data.datasetId};
     } catch {
       // Session failures may contain response bodies, parser snippets or private URLs.
       // Keep their message fixed; CRUD errors below must retain their domain metadata.

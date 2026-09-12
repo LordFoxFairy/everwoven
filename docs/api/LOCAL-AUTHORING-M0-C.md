@@ -1,6 +1,6 @@
 # 本机创作契约 · 当前开发基线
 
-实施版，2026-09-12。M1-A1直接替换旧settings与命令namespace，无旧字段兼容；当前仍为剧本根用例，角色/素材聚合及datasetId门禁待后续实施。此文描述当前可调用边界；历史 `/api/v1` OpenAPI 仍是未实施候选，不为同一业务维护第二套 REST 客户端。
+实施版，2026-09-12。M1-A1直接替换旧settings与命令namespace，无旧字段兼容；当前仍为剧本根用例，datasetId门禁在M1-A2接入；角色/素材聚合待后续实施。此文描述当前可调用边界；历史 `/api/v1` OpenAPI 仍是未实施候选，不为同一业务维护第二套 REST 客户端。
 
 ## 分层与身份
 
@@ -24,8 +24,8 @@ flowchart LR
 
 | 路径/方法 | 请求 | 成功 | 错误 |
 |---|---|---|---|
-| GET /api/local-session | Cookie 可选 | `{authenticated:boolean}` | 未启用 404；来源不符 403 |
-| POST /api/local-session | JSON `{code}`，唯一字段 | `{authenticated:true,expiresAt}` + Set-Cookie | 非法结构 400；无效/过期/已用 401 |
+| GET /api/local-session | Cookie 可选 | `{authenticated:false}` 或 `{authenticated:true,datasetId}` | 未启用 404；来源不符 403 |
+| POST /api/local-session | JSON `{code}`，唯一字段 | `{authenticated:true,datasetId,expiresAt}` + Set-Cookie | 非法结构 400；无效/过期/已用 401 |
 | DELETE /api/local-session | 会话 Cookie | `{authenticated:false}` + 清 Cookie | 来源不符 403；宿主故障 503 |
 
 code、会话 token 为 32 字节 CSPRNG base64url。code 5 分钟且原子单次兑换；会话 8 小时。token 仅通过 `everwoven_local` HttpOnly/SameSite=Strict/Path=/ Cookie 交付，HTTPS 加 Secure；正文不返回 token。code 交换载荷上限 1024 字节；请求与返回均不缓存。没有通过 HTTP 签发连接码的入口。
@@ -36,14 +36,14 @@ code、会话 token 为 32 字节 CSPRNG base64url。code 5 分钟且原子单�
 
 | 操作 | 形态 | 输入 | 输出 |
 |---|---|---|---|
-| create | mutation | commandId, title, settings | `{data:DraftDTO,replayed}` |
+| create | mutation | datasetId, commandId, title, settings | `{data:DraftDTO,replayed}` |
 | get | query | id, includeDeleted? | DraftDTO |
 | list | query | limit?, deleted?, cursor? | `{items:DraftDTO[],nextCursor}` |
-| update | mutation | commandId, id, expectedRevision, patch | `{data:DraftDTO,replayed}` |
-| delete | mutation | commandId, id, expectedRevision | 同上，软删除 |
-| restore | mutation | commandId, id, expectedRevision | 同上，恢复 |
+| update | mutation | datasetId, commandId, id, expectedRevision, patch | `{data:DraftDTO,replayed}` |
+| delete | mutation | datasetId, commandId, id, expectedRevision | 同上，软删除 |
+| restore | mutation | datasetId, commandId, id, expectedRevision | 同上，恢复 |
 
-- commandId/id 是小写 UUIDv7；业务 ID 不是访问凭证。
+- datasetId/commandId/id 是小写UUIDv7，不是访问凭证。datasetId来自已认证宿主世代，命令构造时固定；客户端不提供owner。跨世代在进入业务Store/查回执前拒绝DATASET_CHANGED（PRECONDITION_FAILED）。
 - settings：`world`、`opening`、`genre`、`playerRole`、`worldRules:string[]`、`tone`，六项必填，文本可空用于草稿；禁止旧premise、未知字段与owner注入。标题1–120；world/opening≤12000、genre≤80、playerRole≤4000、worldRules≤30×1000、tone≤500。不静默截断或补齐；命令namespace固定authoring.story.*.v1。
 - DraftDTO：id、title、settings、schemaVersion=1、revision、createdAt、updatedAt、deletedAt、archivedAt。UTC ISO 日期或生命周期 null；无 Prisma 对象、ownerId、路径或密钥。
 - 列表默认排除已删除；`deleted:'only'` 查询回收项。limit 1–100；游标绑定当前查询/owner，前端用 nextCursor，不自行构造。查看回收项需显式 includeDeleted=true；不等于恢复。
@@ -85,3 +85,7 @@ sequenceDiagram
 ## 剩余边界
 
 本切片不包括角色/图片落库、角色版本冻结、经历/树形分支、模型调用、费用授权、worker、备份恢复。正式数据库草稿没有“假装开始游戏”的跳转。先验证存储闭环，再逐项接入这些聚合与对应验收。
+
+## 数据重置与前端确认
+
+同dataset重新连接可以确认原命令；不同dataset不自动重放。清旧实体身份/列表/游标/attempt缓存，保留工作文本及规则数组，以明确的从保留文本新建动作开始新命令。旧库迟到响应不能覆盖新库状态。generic412、401/403不当作DATASET_CHANGED；只有明确领域原因或认证回包世代变化才能触发跨库处理。本批不提供reset命令，也不清用户数据。

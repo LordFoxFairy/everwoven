@@ -9,7 +9,7 @@ vi.mock('../lib/authoring/database-client',()=>({createDatabaseDraftsClient:vi.f
 afterEach(()=>{cleanup(); localStorage.clear(); vi.restoreAllMocks();});
 it('keeps an unknown command mounted across sidebar, storage-tab and create navigation',async()=>{
  const client={
-  session:vi.fn().mockResolvedValue({authenticated:true}),connect:vi.fn(),logout:vi.fn(),
+  session:vi.fn().mockResolvedValue({authenticated:true,datasetId:'01994b80-0000-7000-8000-000000000099'}),connect:vi.fn(),logout:vi.fn(),
   list:vi.fn().mockResolvedValue({items:[],nextCursor:null}),get:vi.fn(),
   create:vi.fn<DatabaseDraftsClient['create']>().mockRejectedValue(new Error('response lost')),update:vi.fn(),delete:vi.fn(),restore:vi.fn(),
  } satisfies DatabaseDraftsClient;

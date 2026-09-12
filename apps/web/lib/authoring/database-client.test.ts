@@ -6,6 +6,7 @@ import type {DraftCreate, DraftDTO, DraftUpdate} from '../../../runtime/src/cont
 
 vi.mock('../../trpc/client', () => ({createAppClient: vi.fn()}));
 
+const datasetId = '01994b80-0000-7000-8000-000000000099';
 const safeError = '本机连接失败，请重试';
 const code = 'local-connection-code';
 const methods = ['GET', 'POST', 'DELETE'] as const;
@@ -31,7 +32,7 @@ function sessionCall(method: Method) {
 
 describe('session HTTP boundary', () => {
   it.each(methods)('%s preserves request credentials, cache and boundary headers', async method => {
-    fetchMock.mockResolvedValueOnce(Response.json({authenticated: method !== 'DELETE'}));
+    fetchMock.mockResolvedValueOnce(Response.json({authenticated: method !== 'DELETE', datasetId}));
     await sessionCall(method);
     expect(fetchMock).toHaveBeenCalledExactlyOnceWith('/api/local-session', {
       method, credentials: 'same-origin', cache: 'no-store',
@@ -42,12 +43,12 @@ describe('session HTTP boundary', () => {
   });
 
   it.each([true, false])('GET accepts authenticated=%s and discards extra fields', async authenticated => {
-    fetchMock.mockResolvedValueOnce(Response.json({authenticated, expiresAt: 123, extra: 'ignored'}));
-    await expect(sessionCall('GET')).resolves.toEqual({authenticated});
+    fetchMock.mockResolvedValueOnce(Response.json({authenticated, datasetId, expiresAt: 123, extra: 'ignored'}));
+    await expect(sessionCall('GET')).resolves.toEqual(authenticated ? {authenticated: true, datasetId} : {authenticated: false});
   });
 
   it.each(['POST', 'DELETE'] as const)('%s accepts its expected boolean and resolves void', async method => {
-    fetchMock.mockResolvedValueOnce(Response.json({authenticated: method === 'POST', expiresAt: 123}));
+    fetchMock.mockResolvedValueOnce(Response.json({authenticated: method === 'POST', datasetId, expiresAt: 123}));
     await expect(sessionCall(method)).resolves.toBeUndefined();
   });
 
@@ -55,6 +56,14 @@ describe('session HTTP boundary', () => {
     fetchMock.mockResolvedValueOnce(Response.json({authenticated: method !== 'POST'}));
     await expect(sessionCall(method)).rejects.toEqual(new Error(safeError));
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  describe.each(['GET', 'POST'] as const)('%s dataset identity', method => {
+    it.each([undefined, null, '', 'bad', 1, [], {}, '01994b80-0000-4000-8000-000000000099'])('rejects authenticated true with invalid dataset %j', async datasetId => {
+      fetchMock.mockResolvedValueOnce(Response.json({authenticated: true, datasetId}));
+      await expect(sessionCall(method)).rejects.toEqual(new Error(safeError));
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe.each(methods)('%s rejects invalid bodies without echoing response content', method => {
@@ -86,7 +95,7 @@ describe('session HTTP boundary', () => {
 
     it.each([
       {status: 400, body: JSON.stringify({error: 'arbitrary server error TOKEN'})},
-      {status: 401, body: JSON.stringify({authenticated: method !== 'DELETE'})},
+      {status: 401, body: JSON.stringify({authenticated: method !== 'DELETE', datasetId})},
       {status: 403, body: 'null'},
       {status: 404, body: '[]'},
       {status: 503, body: '<html>private proxy response</html>'},
@@ -111,13 +120,13 @@ const draft: DraftDTO = {
   updatedAt: '2026-09-12T01:00:00.000Z', deletedAt: null, archivedAt: null,
 };
 const create: DraftCreate = {
-  commandId: '01994b80-0000-7000-8000-000000000002', title: draft.title, settings: draft.settings,
+  datasetId, commandId: '01994b80-0000-7000-8000-000000000002', title: draft.title, settings: draft.settings,
 };
 const update: DraftUpdate = {
-  commandId: create.commandId, id: draft.id, expectedRevision: draft.revision,
+  datasetId, commandId: create.commandId, id: draft.id, expectedRevision: draft.revision,
   patch: {title: '更新世界', settings: draft.settings},
 };
-const lifecycle = {commandId: create.commandId, id: draft.id, expectedRevision: draft.revision};
+const lifecycle = {datasetId, commandId: create.commandId, id: draft.id, expectedRevision: draft.revision};
 const list = {limit: 7, deleted: 'only' as const, cursor: 'page-cursor'};
 const receipt = {data: draft, replayed: true};
 const page = {items: [draft], nextCursor: 'next-page'};

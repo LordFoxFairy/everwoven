@@ -27,3 +27,5 @@
 - 全新结构只经隔离临时库验证；旧业务库没有迁移或自动删除。
 
 最终主仓结果：同名trigger追加后第一遍全量548通过/1条UI异步callback等待失败，修复同类等待（不改断言/timeout）并复审；最终38文件549/549、runtime/Web typecheck通过。Next生产build/真浏览器本轮未运行，不作为已验收。
+
+后续CI补齐：[34710192907](https://github.com/LordFoxFairy/everwoven/actions/runs/34710192907)针对commit8c1552a成功，含生产Next/Docker构建、环境端口组合、HTTP浏览器和本机六字段创建/修改/删除恢复/进程重启/响应丢失smoke。前述“本机本轮未运行”保持准确；远程CI验证现已完成。无tag，未发布新镜像。

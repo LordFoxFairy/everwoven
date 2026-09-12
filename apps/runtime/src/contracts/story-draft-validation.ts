@@ -18,26 +18,26 @@ export function parseSettings(value: unknown): StorySettings {
     worldRules: [...value.worldRules] as string[], tone: value.tone};
 }
 export function parseOwner(value: InternalOwnerContext): string {
-  fields(value, ['ownerId'], [], 'OWNER_UNAVAILABLE');
-  if (!isBusinessId(value.ownerId)) throw new Error('OWNER_UNAVAILABLE'); return value.ownerId;
+  fields(value, ['ownerId', 'datasetId'], [], 'OWNER_UNAVAILABLE');
+  if (!isBusinessId(value.ownerId) || !isBusinessId(value.datasetId)) throw new Error('OWNER_UNAVAILABLE'); return value.ownerId;
 }
 export function parseId(value: unknown): string {if (!isBusinessId(value)) throw new Error('INVALID_STORY_COMMAND'); return value;}
 function revision(value: unknown): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1 || value > 2147483647) throw new Error('INVALID_STORY_COMMAND'); return value;
 }
 export function parseCreate(value: DraftCreate): DraftCreate {
-  fields(value, ['commandId', 'title', 'settings']);
-  return {commandId: parseId(value.commandId), title: parseTitle(value.title), settings: parseSettings(value.settings)};
+  fields(value, ['datasetId', 'commandId', 'title', 'settings']);
+  return {datasetId: parseId(value.datasetId), commandId: parseId(value.commandId), title: parseTitle(value.title), settings: parseSettings(value.settings)};
 }
 export function parseLifecycle(value: DraftLifecycle): DraftLifecycle {
-  fields(value, ['commandId', 'id', 'expectedRevision']);
-  return {commandId: parseId(value.commandId), id: parseId(value.id), expectedRevision: revision(value.expectedRevision)};
+  fields(value, ['datasetId', 'commandId', 'id', 'expectedRevision']);
+  return {datasetId: parseId(value.datasetId), commandId: parseId(value.commandId), id: parseId(value.id), expectedRevision: revision(value.expectedRevision)};
 }
 export function parseUpdate(value: DraftUpdate): DraftUpdate {
-  fields(value, ['commandId', 'id', 'expectedRevision', 'patch']);
+  fields(value, ['datasetId', 'commandId', 'id', 'expectedRevision', 'patch']);
   fields(value.patch, [], ['title', 'settings']);
   if (Object.keys(value.patch).length === 0) throw new Error('INVALID_STORY_COMMAND');
-  return {commandId: parseId(value.commandId), id: parseId(value.id), expectedRevision: revision(value.expectedRevision), patch: {
+  return {datasetId: parseId(value.datasetId), commandId: parseId(value.commandId), id: parseId(value.id), expectedRevision: revision(value.expectedRevision), patch: {
     ...(Object.hasOwn(value.patch, 'title') ? {title: parseTitle(value.patch.title)} : {}),
     ...(Object.hasOwn(value.patch, 'settings') ? {settings: parseSettings(value.patch.settings)} : {}),
   }};

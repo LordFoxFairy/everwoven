@@ -68,3 +68,5 @@ node scripts/smoke/local-authoring.mjs
 ```
 
 可指定 `PLAYWRIGHT_CHANNEL=chrome` 使用已安装的 Chrome。smoke 使用独立临时目录、临时浏览器、3198 端口，结束后只清理自己创建的数据与进程；验收登录、CRUD、删除/恢复、刷新、进程重启后读回和退出，不调用模型。用户端口 3100 不受影响。
+
+当前manifest还包含随机datasetId，连接码/会话与该业务库世代绑定；重启原宿主保持世代。新初始化创建新owner和dataset；旧页面中的命令不跨世代重放。没有自动补齐旧manifest的兼容逻辑。

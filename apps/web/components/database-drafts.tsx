@@ -25,12 +25,13 @@ function errorInfo(error: unknown) {
   const unauthorized = code === 'UNAUTHORIZED' || obj.status === 401 || data.httpStatus === 401 || message === 'UNAUTHORIZED';
   const forbidden = code === 'FORBIDDEN' || obj.status === 403 || data.httpStatus === 403 || message === 'FORBIDDEN';
   const conflict = code === 'CONFLICT' || code === 'REVISION_CONFLICT' || obj.status === 409 || message.includes('REVISION_CONFLICT');
+  const datasetChanged = !unauthorized && !forbidden && (code === 'DATASET_CHANGED' || message === 'DATASET_CHANGED');
   const rejected = unauthorized || forbidden || conflict || code === 'BAD_REQUEST' || message === 'INVALID_STORY_COMMAND' || obj.status === 400;
   // HTTP/generic transport refusals describe this attempt, not historical writes.
   // Only explicit domain rejections can settle an already-unknown command; access
   // denial takes precedence even when other error metadata looks business-like.
   const replayRejected = !unauthorized && !forbidden && ['REVISION_CONFLICT', 'INVALID_STORY_COMMAND'].some(reason => code === reason || message === reason);
-  return {unauthorized, rejected, replayRejected, message: unauthorized ? '会话已失效，请重新连接；未保存输入仍保留。'
+  return {unauthorized, datasetChanged, rejected, replayRejected, message: datasetChanged ? '数据已重置，原命令已停止重放。请重新连接后从保留文本新建草稿。' : unauthorized ? '会话已失效，请重新连接；未保存输入仍保留。'
     : forbidden ? '请求被权限或来源边界拒绝，请检查连接配置后重试。' : conflict
     ? '版本冲突：数据库草稿已被修改。当前输入仍保留；请先复制需要保留的内容，再确认重新载入草稿，人工合并后保存。' : message};
 }
@@ -38,6 +39,8 @@ function errorInfo(error: unknown) {
 export function DatabaseDrafts({client, onPendingChange}: {client: DatabaseDraftsClient; onPendingChange?: (s: {dirty: boolean; busy: boolean; unknown?: boolean}) => void}) {
   const fieldId = useId();
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const dataset = useRef<string | null>(null);
+  const [datasetChanged, setDatasetChanged] = useState(false);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
@@ -53,14 +56,14 @@ export function DatabaseDrafts({client, onPendingChange}: {client: DatabaseDraft
   const [worldRules, setWorldRules] = useState<string[]>([]);
   const [baseline, setBaseline] = useState(snapshot(emptyFields, []));
   const [unknown, setUnknown] = useState<Mutation | null>(null);
-  const dirty = Boolean(unknown) || (editing && snapshot(fields, worldRules) !== baseline);
+  const dirty = datasetChanged || Boolean(unknown) || (editing && snapshot(fields, worldRules) !== baseline);
   const locked = useRef(false);
   const generation = useRef(0);
   const pendingCallback = useRef(onPendingChange);
   const attempts = useRef(new Map<string, {payload: string; commandId: string}>());
 
   useEffect(() => {pendingCallback.current = onPendingChange;}, [onPendingChange]);
-  useEffect(() => {pendingCallback.current?.({dirty, busy, ...(unknown ? {unknown: true} : {})});}, [dirty, busy, unknown]);
+  useEffect(() => {pendingCallback.current?.({dirty, busy, ...(unknown || datasetChanged ? {unknown: true} : {})});}, [dirty, busy, unknown, datasetChanged]);
   useEffect(() => () => {pendingCallback.current?.({dirty: false, busy: false});}, []);
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -73,7 +76,8 @@ export function DatabaseDrafts({client, onPendingChange}: {client: DatabaseDraft
   function fail(cause: unknown) {
     const info = errorInfo(cause);
     setError(info.message);
-    if (info.unauthorized) setAuthenticated(false);
+    if (info.unauthorized || info.datasetChanged) setAuthenticated(false);
+    if (info.datasetChanged) invalidateDataset();
   }
 
   // Ref lock closes the gap before React renders disabled buttons. Generation
@@ -93,13 +97,29 @@ export function DatabaseDrafts({client, onPendingChange}: {client: DatabaseDraft
     setCursor(page.nextCursor); setFilter(nextFilter); setListReady(true);
   }
 
+  function invalidateDataset() {
+    // Never carry an entity identity, revision, cursor or attempt cache into a
+    // fresh dataset. Text and the original rules array stay in memory untouched.
+    setDatasetChanged(true); setSelected(null); setItems([]); setCursor(null);
+    setListReady(false); attempts.current.clear();
+  }
+
+  function fromRetainedText() {
+    if (locked.current || !authenticated || !dataset.current) return;
+    setUnknown(null); setDatasetChanged(false); setSelected(null); attempts.current.clear();
+    setBaseline(snapshot(emptyFields, [])); setEditing(true); setError('');
+  }
+
   async function checkSession(current: () => boolean) {
     const session = await client.session();
     if (!current()) return;
     setAuthenticated(session.authenticated);
     if (session.authenticated) {
+      if (dataset.current !== null && dataset.current !== session.datasetId) invalidateDataset();
+      dataset.current = session.datasetId;
+      const requestedDataset = session.datasetId;
       const page = await client.list({deleted: filter});
-      if (current()) showPage(page, filter);
+      if (current() && dataset.current === requestedDataset) showPage(page, filter);
     }
   }
 
@@ -113,12 +133,14 @@ export function DatabaseDrafts({client, onPendingChange}: {client: DatabaseDraft
 
   function loadList(nextFilter = filter, append = false) {
     void run(async current => {
+      const requestedDataset = dataset.current;
       const page = await client.list({deleted: nextFilter, ...(append && cursor ? {cursor} : {})});
-      if (current()) showPage(page, nextFilter, append);
+      if (current() && dataset.current === requestedDataset) showPage(page, nextFilter, append);
     });
   }
 
   function mayDiscard() {
+    if (datasetChanged) {setError('数据已重置，请先从保留文本新建草稿。'); return false;}
     if (unknown) {setError('上次操作结果尚未确认，请先确认原命令，再切换草稿或退出连接。'); return false;}
     return !locked.current && (!dirty || window.confirm('还有未保存的修改。确定放弃这些输入并继续吗？'));
   }
@@ -132,8 +154,9 @@ export function DatabaseDrafts({client, onPendingChange}: {client: DatabaseDraft
   function openDraft(id: string) {
     if (!mayDiscard()) return;
     void run(async current => {
+      const requestedDataset = dataset.current;
       const data = await client.get(id);
-      if (current()) select(data);
+      if (current() && dataset.current === requestedDataset) select(data);
     });
   }
 
@@ -152,7 +175,7 @@ export function DatabaseDrafts({client, onPendingChange}: {client: DatabaseDraft
   }
 
   function commandId(scope: string, payload: unknown) {
-    const fingerprint = JSON.stringify(payload);
+    const fingerprint = JSON.stringify([dataset.current, payload]);
     const previous = attempts.current.get(scope);
     if (previous?.payload === fingerprint) return previous.commandId;
     const commandId = uuidv7();
@@ -172,17 +195,19 @@ export function DatabaseDrafts({client, onPendingChange}: {client: DatabaseDraft
   }
 
   async function execute(mutation: Mutation, current: () => boolean, confirming = false, preserveInput = false) {
+    if (mutation.input.datasetId !== dataset.current) throw new Error('DATASET_CHANGED');
+    const sameDataset = () => current() && mutation.input.datasetId === dataset.current;
     try {
       const response = mutation.kind === 'create' ? await client.create(mutation.input)
         : mutation.kind === 'update' ? await client.update(mutation.input)
         : await client[mutation.kind](mutation.input);
-      if (current()) {
+      if (sameDataset()) {
         setUnknown(null);
         attempts.current.delete(mutation.kind === 'create' ? 'create' : `${mutation.kind}:${mutation.input.id}`);
         accept(response.data, confirming || preserveInput);
       }
     } catch (cause) {
-      if (current()) {
+      if (sameDataset()) {
         const info = errorInfo(cause);
         setUnknown((confirming ? info.replayRejected : info.rejected) ? null : mutation);
       }
@@ -191,17 +216,19 @@ export function DatabaseDrafts({client, onPendingChange}: {client: DatabaseDraft
   }
 
   function confirmUnknown() {
-    if (!authenticated || !unknown) return;
+    if (!authenticated || !unknown || datasetChanged) return;
     // Replay the immutable original command, never the current form. Once its
     // ID/revision is known, the next explicit save writes the user's newer input.
     void run(current => execute(unknown, current, true));
   }
 
   function save() {
+    if (datasetChanged) return;
     if (unknown) {confirmUnknown(); return;}
-    if (!authenticated || selected?.deletedAt) return;
+    if (!authenticated || !dataset.current || selected?.deletedAt) return;
     void run(async current => {
       if (!fields.title.trim()) throw new Error('请填写标题。');
+      const datasetId = dataset.current!;
       const content = {title: fields.title, settings: {
         world: fields.world, opening: fields.opening, genre: fields.genre, playerRole: fields.playerRole,
         worldRules: [...worldRules], tone: fields.tone,
@@ -210,18 +237,18 @@ export function DatabaseDrafts({client, onPendingChange}: {client: DatabaseDraft
       const payload = selected ? {id: selected.id, expectedRevision: selected.revision, patch: content} : content;
       const id = commandId(scope, payload);
       await execute('patch' in payload
-        ? {kind: 'update', input: {...payload, commandId: id}}
-        : {kind: 'create', input: {...payload, commandId: id}}, current);
+        ? {kind: 'update', input: {...payload, datasetId, commandId: id}}
+        : {kind: 'create', input: {...payload, datasetId, commandId: id}}, current);
     });
   }
 
   function lifecycle(action: 'delete' | 'restore') {
-    if (!authenticated || !selected || locked.current || unknown) return;
+    if (!authenticated || !dataset.current || datasetChanged || !selected || locked.current || unknown) return;
     if (action === 'delete' && !window.confirm(dirty
       ? '删除草稿并放弃未保存的输入？数据库中的草稿可在已删除列表恢复。'
       : '删除这个数据库草稿？之后可在已删除列表恢复。')) return;
     void run(async current => {
-      const payload = {id: selected.id, expectedRevision: selected.revision};
+      const payload = {datasetId: dataset.current!, id: selected.id, expectedRevision: selected.revision};
       const scope = `${action}:${selected.id}`;
       await execute({kind: action, input: {...payload, commandId: commandId(scope, payload)}}, current, false, action === 'restore' && dirty);
     });
@@ -242,6 +269,7 @@ export function DatabaseDrafts({client, onPendingChange}: {client: DatabaseDraft
     void run(async current => {
       await client.logout();
       if (!current()) return;
+      dataset.current = null; setDatasetChanged(false);
       setAuthenticated(false); setItems([]); setCursor(null); setListReady(false); setCode('');
       setEditing(false); setSelected(null); setFields(emptyFields); setWorldRules([]); setBaseline(snapshot(emptyFields, []));
       attempts.current.clear();
@@ -255,7 +283,9 @@ export function DatabaseDrafts({client, onPendingChange}: {client: DatabaseDraft
     </header>
     <p className={styles.note}>浏览器草稿另行保留，不自动导入。此处编辑不会修改浏览器草稿。</p>
     {error && <p role="alert" className={styles.error}>{error}</p>}
-    {unknown && <p className={styles.note}>上次操作结果待确认。当前输入仍保留；请先按原命令确认结果，再保存新修改。</p>}
+    {datasetChanged && <div><p className={styles.note}>数据已重置，原命令已停止重放；工作文本仍保留。</p>
+      <Button disabled={busy || !authenticated} onClick={fromRetainedText}>从保留文本新建草稿</Button></div>}
+    {unknown && !datasetChanged && <p className={styles.note}>上次操作结果待确认。当前输入仍保留；请先按原命令确认结果，再保存新修改。</p>}
     {busy && <p role="status" className={styles.muted}>正在处理，请稍候…</p>}
     {!authenticated && <div className={styles.connection}>
       {authenticated === false && <form aria-label="连接数据库" onSubmit={event => {event.preventDefault(); connect();}}>
@@ -297,7 +327,7 @@ export function DatabaseDrafts({client, onPendingChange}: {client: DatabaseDraft
             <label><span id={`${fieldId}-tone`}>{'语气'}</span><input aria-labelledby={`${fieldId}-tone`} value={fields.tone} onChange={event => field('tone', event.target.value)} maxLength={500}/></label>
           </fieldset>
           <div className={styles.actions}>
-            {unknown ? <Button type="button" disabled={busy} onClick={confirmUnknown}>{unknown.kind === 'delete' ? '确认上次删除' : unknown.kind === 'restore' ? '确认上次恢复' : '确认上次保存'}</Button>
+            {datasetChanged ? null : unknown ? <Button type="button" disabled={busy} onClick={confirmUnknown}>{unknown.kind === 'delete' ? '确认上次删除' : unknown.kind === 'restore' ? '确认上次恢复' : '确认上次保存'}</Button>
               : selected?.deletedAt ? <Button type="button" disabled={busy} onClick={() => lifecycle('restore')}>恢复草稿</Button>
               : <Button type="submit" disabled={busy || (!dirty && Boolean(selected))}>{busy ? '保存中…' : selected ? '保存' : '创建草稿'}</Button>}
             {selected && <Button type="button" variant="outline" disabled={busy} onClick={() => openDraft(selected.id)}>重新载入草稿</Button>}

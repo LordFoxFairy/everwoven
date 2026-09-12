@@ -16,6 +16,11 @@ it('maps revision conflicts to the public conflict code without database details
  const caller=appRouter.createCaller({env:{},withStories:async work=>work({
   create:async()=>{throw Error('unused');},get:async()=>{throw Error('unused');},list:async()=>({items:[],nextCursor:null}),
   update:async()=>{throw Error('REVISION_CONFLICT');},delete:async()=>{throw Error('unused');},restore:async()=>{throw Error('unused');},
- },{ownerId:id})});
- await expect(caller.storyDrafts.update({id,commandId:id,expectedRevision:1,patch:{title:'世界'}})).rejects.toMatchObject({code:'CONFLICT',message:'REVISION_CONFLICT'});
+ },{ownerId:id,datasetId:id})});
+ await expect(caller.storyDrafts.update({datasetId:id,id,commandId:id,expectedRevision:1,patch:{title:'世界'}})).rejects.toMatchObject({code:'CONFLICT',message:'REVISION_CONFLICT'});
+});
+
+it('preserves the dataset reset reason as PRECONDITION_FAILED',async()=>{
+ const {localError}=await import('../local-runtime');
+ expect(localError(new Error('DATASET_CHANGED'))).toMatchObject({code:'PRECONDITION_FAILED',message:'DATASET_CHANGED'});
 });

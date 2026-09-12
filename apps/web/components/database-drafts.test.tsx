@@ -5,6 +5,7 @@ import type {DraftDTO, DraftPage, DraftCommandResult} from '../../runtime/src/co
 import {DatabaseDrafts} from './database-drafts';
 import type {DatabaseDraftsClient} from '../lib/authoring/ports';
 
+const datasetId = '01994b80-0000-7000-8000-000000000099';
 const draft = (overrides: Partial<DraftDTO> = {}): DraftDTO => ({
   id: '01994b80-0000-7000-8000-000000000001', title: '海岛来信',
   settings: {world: '潮汐中的小岛', opening: '一封来信', genre: '日常', playerRole: '旅人', worldRules: ['每晚涨潮'], tone: '温柔'},
@@ -14,7 +15,7 @@ const draft = (overrides: Partial<DraftDTO> = {}): DraftDTO => ({
 const result = (data = draft()): DraftCommandResult => ({data, replayed: false});
 function port() {
   return {
-    session: vi.fn<DatabaseDraftsClient['session']>().mockResolvedValue({authenticated: true}),
+    session: vi.fn<DatabaseDraftsClient['session']>().mockResolvedValue({authenticated: true, datasetId}),
     connect: vi.fn<DatabaseDraftsClient['connect']>().mockResolvedValue(undefined),
     logout: vi.fn<DatabaseDraftsClient['logout']>().mockResolvedValue(undefined),
     list: vi.fn<DatabaseDraftsClient['list']>().mockResolvedValue({items: [draft()], nextCursor: null}),
@@ -414,5 +415,142 @@ describe('DatabaseDrafts injected port', () => {
     expect(value()).toBe('海岛来信');
     expect(client.update.mock.calls.map(([input]) => input)).toEqual([original, original, original]);
     await waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith({dirty: true, busy: false}));
+  });
+});
+
+
+describe('dataset reset boundaries', () => {
+  it.each(['create', 'update', 'delete', 'restore'] as const)('freezes %s pending dataset, blocks foreign replay, and explicitly copies retained input', async action => {
+    const client = port(), pending = vi.fn();
+    const originalRules = ['一条规则\n仍是同一条', ''];
+    client.get.mockResolvedValue(draft({settings: {...draft().settings, worldRules: originalRules},
+      ...(action === 'restore' ? {deletedAt: '2026-09-12T01:00:00Z'} : {})}));
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await edit(client, pending);
+    if (action === 'create') {fireEvent.click(button('新建数据库草稿')); change('标题', '保留输入');}
+    else if (action !== 'restore') change('标题', '保留输入');
+    client[action].mockRejectedValueOnce(new Error('response lost'));
+    fireEvent.click(button(action === 'create' ? '创建草稿' : action === 'update' ? '保存' : action === 'delete' ? '删除草稿' : '恢复草稿'));
+    await screen.findByText(/上次操作结果待确认/);
+    const original = client[action].mock.calls[0][0];
+    expect(original.datasetId).toBe(datasetId);
+    client[action].mockRejectedValueOnce(Object.assign(new Error('expired'), {status: 401}));
+    fireEvent.click(button(action === 'delete' ? '确认上次删除' : action === 'restore' ? '确认上次恢复' : '确认上次保存'));
+    await screen.findByLabelText('一次性连接码');
+    const next = '01994b80-0000-7000-8000-000000000098';
+    client.session.mockResolvedValue({authenticated: true, datasetId: next});
+    client.list.mockResolvedValue({items: [], nextCursor: null});
+    change('一次性连接码', 'new-code'); fireEvent.click(button('连接'));
+    await screen.findByText(/数据已重置/);
+    expect(client[action]).toHaveBeenCalledTimes(2);
+    expect(client[action].mock.calls[1][0]).toEqual(original);
+    expect(screen.queryByRole('button', {name: '重新载入草稿'})).toBeNull();
+    expect(screen.queryByRole('button', {name: '编辑 海岛来信'})).toBeNull();
+    expect(value()).toBe(action === 'restore' ? '海岛来信' : '保留输入');
+    await waitFor(() => expect(pending).toHaveBeenLastCalledWith({dirty: true, busy: false, unknown: true}));
+    fireEvent.click(button('从保留文本新建草稿'));
+    await waitFor(() => expect(pending).toHaveBeenLastCalledWith({dirty: true, busy: false}));
+    expect(client[action]).toHaveBeenCalledTimes(2);
+    fireEvent.click(button('创建草稿')); await screen.findByText(/已保存/);
+    const fresh = client.create.mock.calls.at(-1)![0];
+    expect(fresh.datasetId).toBe(next); expect(fresh.commandId).not.toBe(original.commandId);
+    expect(fresh).not.toHaveProperty('id'); expect(fresh).not.toHaveProperty('expectedRevision');
+    expect(fresh.settings.worldRules).toEqual(action === 'create' ? [] : originalRules);
+  });
+
+  it('retains dirty text without unknown across dataset change and requires explicit new creation', async () => {
+    const first = port(), next = port();
+    const rules = ['one\ntwo', '']; first.get.mockResolvedValue(draft({settings: {...draft().settings, worldRules: rules}}));
+    const view = await edit(first); change('标题', '旧草稿新文本');
+    next.session.mockResolvedValue({authenticated: true, datasetId: '01994b80-0000-7000-8000-000000000098'});
+    next.list.mockResolvedValue({items: [], nextCursor: null});
+    view.rerender(<DatabaseDrafts client={next}/>);
+    await screen.findByText(/数据已重置/);
+    expect(value()).toBe('旧草稿新文本'); expect(next.update).not.toHaveBeenCalled(); expect(next.create).not.toHaveBeenCalled();
+    fireEvent.click(button('从保留文本新建草稿')); fireEvent.click(button('创建草稿'));
+    await screen.findByText(/已保存/);
+    expect(next.create.mock.calls[0][0].settings.worldRules).toEqual(rules);
+    expect(next.update).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('dataset reconciliation and late responses', () => {
+  it.each(['create', 'update', 'delete', 'restore'] as const)('reconnects the same dataset and confirms the exact %s command', async action => {
+    const client = port(); vi.spyOn(window, 'confirm').mockReturnValue(true);
+    if (action === 'restore') client.get.mockResolvedValue(draft({deletedAt: '2026-09-12T01:00:00Z'}));
+    await edit(client);
+    if (action === 'create') {fireEvent.click(button('新建数据库草稿')); change('标题', '同库原命令');}
+    if (action === 'update') change('标题', '同库原命令');
+    client[action].mockRejectedValueOnce(new Error('lost')).mockRejectedValueOnce(Object.assign(new Error('expired'), {status: 401}));
+    fireEvent.click(button(action === 'create' ? '创建草稿' : action === 'update' ? '保存' : action === 'delete' ? '删除草稿' : '恢复草稿'));
+    const confirm = action === 'delete' ? '确认上次删除' : action === 'restore' ? '确认上次恢复' : '确认上次保存';
+    fireEvent.click(await screen.findByRole('button', {name: confirm}));
+    await screen.findByLabelText('一次性连接码');
+    change('一次性连接码', 'same-dataset-code'); fireEvent.click(button('连接'));
+    fireEvent.click(await screen.findByRole('button', {name: confirm}));
+    await waitFor(() => expect(client[action]).toHaveBeenCalledTimes(3));
+    expect(client[action].mock.calls.map(([input]) => input)).toEqual(Array(3).fill(client[action].mock.calls[0][0]));
+    expect(client[action].mock.calls[0][0].datasetId).toBe(datasetId);
+    await waitFor(() => expect(screen.queryByText(/上次操作结果待确认/)).toBeNull());
+    expect(screen.queryByText(/数据已重置/)).toBeNull();
+  });
+
+  it.each([
+    {message: 'precondition', data: {code: 'PRECONDITION_FAILED', httpStatus: 412}},
+    {message: 'DATASET_CHANGED', data: {code: 'UNAUTHORIZED', httpStatus: 401}},
+    {message: 'DATASET_CHANGED', data: {code: 'FORBIDDEN', httpStatus: 403}},
+  ])('does not settle unknown from generic 412 or access denial: $data.code', async rejection => {
+    const client = port(), pending = vi.fn(); await edit(client, pending);
+    client.update.mockRejectedValueOnce(new Error('lost')).mockRejectedValueOnce(rejection);
+    change('标题', '仍未知'); fireEvent.click(button('保存'));
+    fireEvent.click(await screen.findByRole('button', {name: '确认上次保存'}));
+    await waitFor(() => expect(pending).toHaveBeenLastCalledWith({dirty: true, busy: false, unknown: true}));
+    expect(screen.getByText(/上次操作结果待确认/)).toBeTruthy();
+    expect(screen.queryByRole('button', {name: '从保留文本新建草稿'})).toBeNull();
+  });
+
+  it('recognizes explicit DATASET_CHANGED on replay and stops further sends until explicit new creation', async () => {
+    const client = port(), pending = vi.fn(); await edit(client, pending);
+    client.update.mockRejectedValueOnce(new Error('lost')).mockRejectedValueOnce({message: 'DATASET_CHANGED', data: {code: 'PRECONDITION_FAILED', httpStatus: 412}});
+    change('标题', '重置时保留'); fireEvent.click(button('保存'));
+    fireEvent.click(await screen.findByRole('button', {name: '确认上次保存'}));
+    await screen.findByLabelText('一次性连接码');
+    await waitFor(() => expect(pending).toHaveBeenLastCalledWith({dirty: true, busy: false, unknown: true}));
+    expect((button('从保留文本新建草稿') as HTMLButtonElement).disabled).toBe(true);
+    client.session.mockResolvedValue({authenticated: true, datasetId: '01994b80-0000-7000-8000-000000000098'});
+    client.list.mockResolvedValue({items: [], nextCursor: null});
+    change('一次性连接码', 'fresh'); fireEvent.click(button('连接'));
+    await waitFor(() => expect((button('从保留文本新建草稿') as HTMLButtonElement).disabled).toBe(false));
+    expect(value()).toBe('重置时保留'); expect(client.update).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('button', {name: '确认上次保存'})).toBeNull();
+  });
+
+  it.each(['list', 'get', 'write'] as const)('ignores an old dataset late %s response without clearing the new unknown command', async action => {
+    const old = port(), next = port(), pending = vi.fn();
+    const view = await edit(old, pending);
+    change('标题', '保留的文本');
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const lateList = deferred<DraftPage>(), lateGet = deferred<DraftDTO>(), lateWrite = deferred<DraftCommandResult>();
+    if (action === 'list') {old.list.mockReturnValueOnce(lateList.promise); fireEvent.click(button('刷新列表'));}
+    if (action === 'get') {old.get.mockReturnValueOnce(lateGet.promise); fireEvent.click(button('重新载入草稿'));}
+    if (action === 'write') {old.update.mockReturnValueOnce(lateWrite.promise); fireEvent.click(button('保存'));}
+    next.session.mockResolvedValue({authenticated: true, datasetId: '01994b80-0000-7000-8000-000000000098'});
+    next.list.mockResolvedValue({items: [], nextCursor: null}); next.create.mockRejectedValueOnce(new Error('new response lost'));
+    view.rerender(<DatabaseDrafts client={next} onPendingChange={pending}/>);
+    await screen.findByText(/数据已重置/);
+    fireEvent.click(button('从保留文本新建草稿')); change('标题', '新库未确认命令'); fireEvent.click(button('创建草稿'));
+    await screen.findByText(/上次操作结果待确认/);
+    const original = next.create.mock.calls[0][0];
+    await act(async () => {
+      if (action === 'list') lateList.resolve({items: [draft({title: '迟到旧实体'})], nextCursor: 'old-cursor'});
+      if (action === 'get') lateGet.resolve(draft({title: '迟到旧实体'}));
+      if (action === 'write') lateWrite.resolve(result(draft({title: '迟到旧实体'})));
+    });
+    expect(value()).toBe('新库未确认命令'); expect(screen.queryByRole('button', {name: /迟到旧实体|加载更多/})).toBeNull();
+    expect(pending).toHaveBeenLastCalledWith({dirty: true, busy: false, unknown: true});
+    fireEvent.click(button('确认上次保存')); await screen.findByText(/已保存/);
+    expect(next.create.mock.calls[1][0]).toEqual(original);
+    expect(next.update).not.toHaveBeenCalled();
   });
 });

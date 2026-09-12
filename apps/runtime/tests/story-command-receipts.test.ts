@@ -2,7 +2,9 @@ import {describe, expect, it} from 'vitest';
 import {createDraft, deleteDraft, getDraft, restoreDraft, updateDraft} from '../src/application/story-drafts.js';
 import type {StoryDraftRecord, StoryDraftStore, StoryReceiptInsert} from '../src/ports/story-draft-store.js';
 
-const owner = {ownerId: '01994b80-0000-7000-8000-000000000001'};
+const datasetId = '01994b80-0000-7000-8000-000000000099';
+
+const owner = {datasetId, ownerId: '01994b80-0000-7000-8000-000000000001'};
 const id = '01994b80-0000-7000-8000-000000000002';
 const commandId = '01994b80-0000-7000-8000-000000000003';
 const now = new Date('2026-09-12T00:00:00.000Z');
@@ -39,9 +41,9 @@ function memoryPort(deleted = false) {
 describe('single authoring command namespace and receipt settings', () => {
   it.each(['create', 'update', 'delete', 'restore'] as const)('%s uses authoring.story and canonicalizes both new and replayed receipt settings', async action => {
     const port = memoryPort(action === 'restore');
-    const lifecycle = {commandId, id, expectedRevision: 1};
+    const lifecycle = {datasetId, commandId, id, expectedRevision: 1};
     const invoke = (content = settings) => action === 'create'
-      ? createDraft(port.store, owner, {commandId, title: '草稿', settings: content})
+      ? createDraft(port.store, owner, {datasetId, commandId, title: '草稿', settings: content})
       : action === 'update'
       ? updateDraft(port.store, owner, {...lifecycle, patch: {settings: content}})
       : action === 'delete' ? deleteDraft(port.store, owner, lifecycle) : restoreDraft(port.store, owner, lifecycle);
@@ -68,7 +70,7 @@ describe('single authoring command namespace and receipt settings', () => {
 
   it('rejects premise settings in a receipt instead of replaying converted content', async () => {
     const port = memoryPort();
-    const input = {commandId, title: '草稿', settings};
+    const input = {datasetId, commandId, title: '草稿', settings};
     await createDraft(port.store, owner, input);
     Object.assign(port.receipt().response, {settings: {premise: '旧前提', playerRole: '', worldRules: [], tone: ''}});
     await expect(createDraft(port.store, owner, input)).rejects.toThrow('COMMAND_RECEIPT_INVALID');

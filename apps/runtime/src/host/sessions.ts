@@ -5,17 +5,17 @@ import {checkedDirectory, checkedFile, digest, readSecureJSON, record, recheckTa
   type HostManifest, type LocalEnvironment, type ValidatedHost} from './storage.js';
 
 const CODE_TTL = 5 * 60_000, SESSION_TTL = 8 * 60 * 60_000;
-type Credential = {version: 1; ownerId: string; environment: LocalEnvironment; issuedAt: number; expiresAt: number};
+type Credential = {version: 1; ownerId: string; datasetId: string; environment: LocalEnvironment; issuedAt: number; expiresAt: number};
 function validSecret(secret: string) {
   if (typeof secret !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(secret) || Buffer.from(secret, 'base64url').toString('base64url') !== secret) throw new Error('LOCAL_SESSION_INVALID');
 }
 function validTime(now: number) {if (!Number.isSafeInteger(now) || now < 0) throw new Error('LOCAL_SESSION_INVALID'); return now;}
 function credential(manifest: HostManifest, now: number, ttl: number): Credential {
-  return {version: 1, ownerId: manifest.ownerId, environment: manifest.environment, issuedAt: now, expiresAt: now + ttl};
+  return {version: 1, ownerId: manifest.ownerId, datasetId: manifest.datasetId, environment: manifest.environment, issuedAt: now, expiresAt: now + ttl};
 }
 function validateCredential(value: unknown, manifest: HostManifest, now: number, ttl: number): Credential {
-  record(value, ['version', 'ownerId', 'environment', 'issuedAt', 'expiresAt']);
-  if (value.version !== 1 || value.ownerId !== manifest.ownerId || value.environment !== manifest.environment ||
+  record(value, ['version', 'ownerId', 'datasetId', 'environment', 'issuedAt', 'expiresAt']);
+  if (value.version !== 1 || value.ownerId !== manifest.ownerId || value.datasetId !== manifest.datasetId || value.environment !== manifest.environment ||
       typeof value.issuedAt !== 'number' || !Number.isSafeInteger(value.issuedAt) || value.issuedAt < 0 || value.issuedAt > now ||
       typeof value.expiresAt !== 'number' || !Number.isSafeInteger(value.expiresAt) || value.expiresAt !== value.issuedAt + ttl || now >= value.expiresAt) throw new Error('LOCAL_SESSION_INVALID');
   return value as Credential;
@@ -39,7 +39,7 @@ export function createSessionOperations(options: {now: () => number} = {now: Dat
         return code;
       } catch {throw new Error('LOCAL_SESSION_INVALID');}
     },
-    async exchangeConnectionCode(directory: string, environment: LocalEnvironment, code: string): Promise<{token: string; expiresAt: number}> {
+    async exchangeConnectionCode(directory: string, environment: LocalEnvironment, code: string): Promise<{token: string; expiresAt: number; datasetId: string}> {
       try {
         validSecret(code);
         const host = await validatedHost(directory, environment), source = join(host.target.directory, 'security/codes', `${digest(code)}.json`);
@@ -61,7 +61,7 @@ export function createSessionOperations(options: {now: () => number} = {now: Dat
             const session = credential(host.manifest, time, SESSION_TTL), path = join(host.target.directory, 'security/sessions', `${digest(token)}.json`);
             const sessionIdentity = await writeExclusive(path, JSON.stringify(session));
             try {await recheckHost(host);} catch (error) {await unlinkOwned(path, sessionIdentity); throw error;}
-            return {token, expiresAt: session.expiresAt};
+            return {token, expiresAt: session.expiresAt, datasetId: session.datasetId};
           } finally {await unlinkOwned(claimed, identity);}
         } finally {
           // Only our own empty claim directory; never restore a claimed code after uncertainty.
@@ -69,13 +69,13 @@ export function createSessionOperations(options: {now: () => number} = {now: Dat
         }
       } catch {throw new Error('LOCAL_SESSION_INVALID');}
     },
-    async authenticateSession(directory: string, environment: LocalEnvironment, token: string): Promise<{ownerId: string}> {
+    async authenticateSession(directory: string, environment: LocalEnvironment, token: string): Promise<{ownerId: string; datasetId: string}> {
       try {
         validSecret(token); const host = await validatedHost(directory, environment);
         const value = await readSecureJSON(join(host.target.directory, 'security/sessions', `${digest(token)}.json`));
         await recheckHost(host);
         validateCredential(value, host.manifest, now(), SESSION_TTL);
-        return {ownerId: host.manifest.ownerId};
+        return {ownerId: host.manifest.ownerId, datasetId: host.manifest.datasetId};
       } catch {throw new Error('LOCAL_SESSION_INVALID');}
     },
     async revokeSession(directory: string, environment: LocalEnvironment, token: string): Promise<void> {

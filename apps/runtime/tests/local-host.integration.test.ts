@@ -47,13 +47,59 @@ describe('local host: real SQLite and restricted filesystem', () => {
     const h = await host(), first = await h.initializeLocalHost(directory, 'dev');
     expect(await h.initializeLocalHost(directory, 'dev')).toEqual(first);
     expect(await h.readLocalHost(directory, 'dev')).toEqual(first);
-    expect(Object.keys(first).sort()).toEqual(['createdAt', 'environment', 'ownerId', 'version']);
+    expect(Object.keys(first).sort()).toEqual(['createdAt', 'datasetId', 'environment', 'ownerId', 'version']);
     expect(first.environment).toBe('dev'); expect(first.version).toBe(1);
     expect((await lstat(directory)).mode & 0o777).toBe(0o700);
     expect((await lstat(join(directory, 'manifest.json'))).mode & 0o777).toBe(0o600);
     const db = await openRuntimeDatabase(join(directory, 'runtime.db'));
     try {expect(await db.localProfile.count()).toBe(1); expect((await db.localProfile.findFirstOrThrow()).id).toBe(first.ownerId);}
     finally {await db.$disconnect();}
+  }, 30_000);
+  it('binds stable commands and credentials to two isolated host datasets', async () => {
+    const {h, manifest: first, token} = await connected();
+    const other = join(parent, 'other-host');
+    const second = await h.initializeLocalHost(other, 'dev');
+    expect(first.datasetId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(first.datasetId).not.toBe(first.ownerId);
+    expect(second.datasetId).not.toBe(first.datasetId);
+    expect(await h.readLocalHost(directory, 'dev')).toEqual(first);
+    expect(await h.authenticateSession(directory, 'dev', token)).toEqual({ownerId: first.ownerId, datasetId: first.datasetId});
+    const command = {datasetId: first.datasetId, commandId: v7(), title: '原命令', settings: {world: '', opening: '', genre: '', playerRole: '', worldRules: [], tone: ''}};
+    const created = await h.withLocalStories(directory, 'dev', token, (s, o) => s.create(o, command));
+    const reconnected = await h.exchangeConnectionCode(directory, 'dev', await h.issueConnectionCode(directory, 'dev'));
+    expect((await h.withLocalStories(directory, 'dev', reconnected.token, (s, o) => s.create(o, command)))).toEqual({...created, replayed: true});
+    for (const [action, expectedRevision] of [['update', 1], ['delete', 2], ['restore', 3]] as const) {
+      const input = {datasetId: first.datasetId, commandId: v7(), id: created.data.id, expectedRevision};
+      const invoke = (session: string) => h.withLocalStories(directory, 'dev', session, (s, o) => action === 'update'
+        ? s.update(o, {...input, patch: {title: '更新后的文本'}}) : s[action](o, input));
+      const saved = await invoke(token);
+      const reconnect = await h.exchangeConnectionCode(directory, 'dev', await h.issueConnectionCode(directory, 'dev'));
+      expect(await invoke(reconnect.token)).toEqual({...saved, replayed: true});
+    }
+    const fresh = await h.exchangeConnectionCode(other, 'dev', await h.issueConnectionCode(other, 'dev'));
+    for (const action of ['create', 'update', 'delete', 'restore'] as const) {
+      const lifecycle = {datasetId: first.datasetId, commandId: v7(), id: created.data.id, expectedRevision: 1};
+      await expect(h.withLocalStories(other, 'dev', fresh.token, (s, o) => action === 'create' ? s.create(o, command)
+        : action === 'update' ? s.update(o, {...lifecycle, patch: {title: '旧输入'}}) : s[action](o, lifecycle))).rejects.toThrow('DATASET_CHANGED');
+    }
+    const db = await openRuntimeDatabase(join(other, 'runtime.db'));
+    try {expect(await db.storyDraft.count()).toBe(0); expect(await db.commandReceipt.count()).toBe(0);
+      expect((await db.localProfile.findUniqueOrThrow({where: {id: second.ownerId}})).writeEpoch).toBe(0);}
+    finally {await db.$disconnect();}
+  }, 30_000);
+  it('rejects missing, invalid and owner-equal dataset manifests and foreign dataset credentials', async () => {
+    const {h, manifest, token} = await connected();
+    const path = join(directory, 'manifest.json');
+    for (const datasetId of [undefined, 'bad', manifest.ownerId]) {
+      await writeFile(path, JSON.stringify({...manifest, datasetId}));
+      await expect(h.readLocalHost(directory, 'dev')).rejects.toThrow('LOCAL_HOST_INVALID');
+    }
+    await writeFile(path, JSON.stringify(manifest));
+    const session = sessionPath(token), record = JSON.parse(await readFile(session, 'utf8'));
+    for (const datasetId of [undefined, v7()]) {
+      await writeFile(session, JSON.stringify({...record, datasetId}));
+      await expect(h.authenticateSession(directory, 'dev', token)).rejects.toThrow('LOCAL_SESSION_INVALID');
+    }
   }, 30_000);
   it('rejects relative paths, missing parents, unsafe parents and non dev/prod environments without creating a host', async () => {
     const h = await host();
@@ -114,7 +160,7 @@ describe('local host: real SQLite and restricted filesystem', () => {
     const raw = await readFile(sessionPath(token), 'utf8');
     expect(raw.includes(token)).toBe(false); expect(raw.includes(code)).toBe(false);
     expect(JSON.parse(raw).expiresAt).toBe(expiresAt);
-    expect(await child({action: 'authenticate', directory, token})).toEqual({ok: true, ownerId: manifest.ownerId});
+    expect(await child({action: 'authenticate', directory, token})).toEqual({ok: true, ownerId: manifest.ownerId, datasetId: manifest.datasetId});
     await h.revokeSession(directory, 'dev', token); await h.revokeSession(directory, 'dev', token);
     await expect(h.authenticateSession(directory, 'dev', token)).rejects.toThrow();
     await expect(h.exchangeConnectionCode(directory, 'dev', code)).rejects.toThrow();
@@ -160,17 +206,17 @@ describe('local host: real SQLite and restricted filesystem', () => {
     await expect(h.authenticateSession(directory, 'dev', token)).rejects.toThrow();
   }, 30_000);
   it('reopens SQLite for CRUD, handles callback failure, and persists across another process', async () => {
-    const {h, token} = await connected();
+    const {h, token, manifest} = await connected();
     const work = <T>(fn: Parameters<typeof h.withLocalStories<T>>[3]) => h.withLocalStories(directory, 'dev', token, fn);
-    const input = {commandId: v7(), title: 'Host draft', settings: {world: '', opening: '', genre: '', playerRole: '', worldRules: [], tone: ''}};
+    const input = {datasetId: manifest.datasetId, commandId: v7(), title: 'Host draft', settings: {world: '', opening: '', genre: '', playerRole: '', worldRules: [], tone: ''}};
     const created = await work((s, o) => s.create(o, input));
     expect((await work((s, o) => s.create(o, input))).replayed).toBe(true);
     const id = created.data.id;
-    await work((s, o) => s.update(o, {commandId: v7(), id, expectedRevision: 1, patch: {title: 'Persisted'}}));
-    await expect(work((s, o) => s.update(o, {commandId: v7(), id, expectedRevision: 1, patch: {title: 'Stale'}}))).rejects.toThrow('REVISION_CONFLICT');
-    await work((s, o) => s.delete(o, {commandId: v7(), id, expectedRevision: 2}));
+    await work((s, o) => s.update(o, {datasetId: manifest.datasetId, commandId: v7(), id, expectedRevision: 1, patch: {title: 'Persisted'}}));
+    await expect(work((s, o) => s.update(o, {datasetId: manifest.datasetId, commandId: v7(), id, expectedRevision: 1, patch: {title: 'Stale'}}))).rejects.toThrow('REVISION_CONFLICT');
+    await work((s, o) => s.delete(o, {datasetId: manifest.datasetId, commandId: v7(), id, expectedRevision: 2}));
     expect((await work((s, o) => s.list(o))).items).toHaveLength(0);
-    await work((s, o) => s.restore(o, {commandId: v7(), id, expectedRevision: 3}));
+    await work((s, o) => s.restore(o, {datasetId: manifest.datasetId, commandId: v7(), id, expectedRevision: 3}));
     expect((await work((s, o) => s.get(o, id))).revision).toBe(4);
     await expect(work(async () => {throw new Error('PRIVATE /sensitive/path');})).rejects.toThrow('LOCAL_STORIES_FAILED');
     expect(await child({action: 'get', directory, token, id})).toEqual({ok: true, title: 'Persisted'});
@@ -258,9 +304,9 @@ describe('local host: real SQLite and restricted filesystem', () => {
     expect(await readdir(join(directory, 'security/sessions'))).toHaveLength(0);
   }, 30_000);
   it('preserves public input validation errors while always closing database sidecars', async () => {
-    const {h, token} = await connected();
+    const {h, token, manifest} = await connected();
     await expect(h.withLocalStories(directory, 'dev', token, (s, o) => s.create(o, {
-      commandId: 'bad', title: 'Bad', settings: {world: '', opening: '', genre: '', playerRole: '', worldRules: [], tone: ''},
+      datasetId: manifest.datasetId, commandId: 'bad', title: 'Bad', settings: {world: '', opening: '', genre: '', playerRole: '', worldRules: [], tone: ''},
     }))).rejects.toThrow('INVALID_STORY_COMMAND');
     const names = await readdir(directory);
     expect(names.includes('runtime.db-wal')).toBe(false); expect(names.includes('runtime.db-shm')).toBe(false);
@@ -273,7 +319,7 @@ describe('local host: real SQLite and restricted filesystem', () => {
     const saved = join(parent, 'manifest-saved'); await rename(manifestPath, saved); await mkdir(manifestPath, {mode: 0o700});
     await expect(h.readLocalHost(directory, 'dev')).rejects.toThrow(); await rm(manifestPath, {recursive: true}); await rename(saved, manifestPath);
     const code = await h.issueConnectionCode(directory, 'dev'), path = codePath(code), original = JSON.parse(await readFile(path, 'utf8'));
-    for (const patch of [{environment: 'prod'}, {ownerId: v7()}, {expiresAt: original.expiresAt + 1}]) {
+    for (const patch of [{environment: 'prod'}, {ownerId: v7()}, {datasetId: v7()}, {datasetId: undefined}, {expiresAt: original.expiresAt + 1}]) {
       await writeFile(path, JSON.stringify({...original, ...patch}));
       await expect(h.exchangeConnectionCode(directory, 'dev', code)).rejects.toThrow('LOCAL_SESSION_INVALID');
     }
@@ -350,7 +396,7 @@ describe('local host: real SQLite and restricted filesystem', () => {
         try {
           if (kind === 'auth') {
             const owner = await h.authenticateSession(directory, 'dev', token);
-            if (owner.ownerId !== manifest.ownerId) throw new Error('OWNER_MISMATCH');
+            if (owner.ownerId !== manifest.ownerId || owner.datasetId !== manifest.datasetId) throw new Error('OWNER_MISMATCH');
           } else {
             await h.withLocalStories(directory, 'dev', token, (service, owner) => service.list(owner));
           }
@@ -360,7 +406,7 @@ describe('local host: real SQLite and restricted filesystem', () => {
     }
     await Promise.all([...Array.from({length: 5}, () => lane('auth')), ...Array.from({length: 3}, () => lane('read'))]);
     expect(failures).toEqual([]); expect(counts).toEqual({auth: 900, read: 540});
-    expect(await h.authenticateSession(directory, 'dev', token)).toEqual({ownerId: manifest.ownerId});
+    expect(await h.authenticateSession(directory, 'dev', token)).toEqual({ownerId: manifest.ownerId, datasetId: manifest.datasetId});
   }, 120_000);
 
 });

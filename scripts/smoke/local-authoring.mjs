@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {spawn, execFileSync} from 'node:child_process';
-import {mkdtemp, chmod, realpath, rm} from 'node:fs/promises';
+import {mkdtemp, chmod, realpath, readFile, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -46,6 +46,10 @@ async function stop() {
 }
 try {
   cli('init');
+  const manifest = JSON.parse(await readFile(path.join(directory, 'manifest.json'), 'utf8'));
+  const datasetId = manifest.datasetId;
+  assert.match(datasetId, /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.notEqual(datasetId, manifest.ownerId);
   // Raw code stays in memory; never print, save, or put it in a URL.
   const code = cli('connect');
   assert.match(code, /^[A-Za-z0-9_-]{43}$/);
@@ -57,6 +61,25 @@ try {
   browser = await chromium.launch({...process.env.PLAYWRIGHT_CHANNEL ? {channel: process.env.PLAYWRIGHT_CHANNEL} : {}});
   page = await browser.newPage({viewport: {width: 1440, height: 1000}});
   const errors = [];
+  const commands = new Map();
+  const commandErrors = [];
+  page.on('request', request => {
+    if (!/\/api\/trpc\/storyDrafts\.(create|update|delete|restore)(?:\?|,|$)/.test(request.url())) return;
+    try {
+      const body = request.postDataJSON();
+      const inputs = new URL(request.url()).searchParams.get('batch') === '1' ? Object.values(body) : [body];
+      for (const input of inputs) {
+        assert.equal(input.datasetId, datasetId);
+        const key = input.commandId, payload = JSON.stringify(input);
+        if (commands.has(key)) assert.equal(commands.get(key), payload, 'Replayed command must be immutable');
+        commands.set(key, payload);
+      }
+    } catch (error) {commandErrors.push(error.message);}
+  });
+  async function assertSession() {
+    const response = await page.request.get(`${origin}/api/local-session`, {headers: {'x-everwoven-request': '1'}});
+    assert.deepEqual(await response.json(), {authenticated: true, datasetId});
+  }
   page.on('pageerror', error => errors.push(error.message));
   page.on('dialog', dialog => dialog.accept());
   await page.goto(origin, {waitUntil: 'networkidle'});
@@ -68,6 +91,7 @@ try {
   await page.getByLabel('一次性连接码', {exact: true}).fill(code);
   await page.getByRole('button', {name: '连接', exact: true}).click();
   await page.getByRole('button', {name: '新建数据库草稿'}).click();
+  await assertSession();
   const title = '浏览器闭环验收';
   await page.getByLabel('标题', {exact: true}).fill(title);
   await page.getByLabel('世界背景', {exact: true}).fill('海边小镇，潮汐记录每一次选择。');
@@ -132,6 +156,8 @@ try {
   }
   await assertSettings();
   await stop(); await start();
+  assert.equal(JSON.parse(await readFile(path.join(directory, 'manifest.json'), 'utf8')).datasetId, datasetId);
+  await assertSession();
   await page.reload({waitUntil: 'networkidle'});
   await openLibrary();
   await page.getByRole('button', {name: `编辑 ${title}`, exact: true}).click();
@@ -142,6 +168,10 @@ try {
   await page.getByRole('button', {name: '退出连接', exact: true}).click();
   await page.getByLabel('一次性连接码', {exact: true}).waitFor();
   assert.deepEqual(errors, [], 'Browser JavaScript errors');
+  assert.deepEqual(commandErrors, [], 'Dataset-bound immutable commands');
+  assert(commands.size > 0);
+  const signedOut = await page.request.get(`${origin}/api/local-session`, {headers: {'x-everwoven-request': '1'}});
+  assert.deepEqual(await signedOut.json(), {authenticated: false});
   console.log('Local authoring smoke passed: loopback launcher, one-use login, SQLite CRUD/delete/restore, refresh, process restart, lost-response reconciliation, logout; no model calls.');
 } catch (error) {
   if (page) console.error((await page.locator('body').innerText()).slice(-12000));

@@ -5,6 +5,8 @@ import {describe, expect, expectTypeOf, it} from 'vitest';
 import {createDraft, getDraft, updateDraft} from '../src/application/story-drafts.js';
 import type {StoryDraftRecord, StoryDraftStore, StoryReceiptRecord} from '../src/ports/story-draft-store.js';
 
+const datasetId = '01994b80-0000-7000-8000-000000000099';
+
 const src = resolve(dirname(fileURLToPath(import.meta.url)), '../src');
 
 // Covers static imports/re-exports, dynamic imports, import types and require.
@@ -38,7 +40,7 @@ describe('story store dependency direction', () => {
 });
 
 describe('application accepts the port without database types', () => {
-  const owner = {ownerId: '01993ce0-0000-7000-8000-000000000001'};
+  const owner = {datasetId, ownerId: '01993ce0-0000-7000-8000-000000000001'};
   const id = '01993ce0-0000-7000-8000-000000000002';
   const settings = {world: '', opening: '', genre: '', playerRole: '', worldRules: [], tone: ''};
 
@@ -64,8 +66,8 @@ describe('application accepts the port without database types', () => {
     let calls = 0;
     const unexpected = async () => {calls++; throw new Error('unexpected transaction');};
     const store: StoryDraftStore = {read: unexpected, write: unexpected};
-    await expect(createDraft(store, owner, {commandId: id, title: ' ', settings})).rejects.toThrow('INVALID_STORY_COMMAND');
-    await expect(updateDraft(store, owner, {commandId: id, id, expectedRevision: 1, patch: {}})).rejects.toThrow('INVALID_STORY_COMMAND');
+    await expect(createDraft(store, owner, {datasetId, commandId: id, title: ' ', settings})).rejects.toThrow('INVALID_STORY_COMMAND');
+    await expect(updateDraft(store, owner, {datasetId, commandId: id, id, expectedRevision: 1, patch: {}})).rejects.toThrow('INVALID_STORY_COMMAND');
     expect(calls).toBe(0);
   });
 });

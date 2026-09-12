@@ -24,6 +24,7 @@ export type WithStories = <T>(
 export function localError(error: unknown): TRPCError {
   if (error instanceof TRPCError) return error;
   const code = error instanceof Error ? error.message : '';
+  if (code === 'DATASET_CHANGED') return new TRPCError({ code: 'PRECONDITION_FAILED', message: code });
   if (['REVISION_CONFLICT', 'IDEMPOTENCY_CONFLICT', 'STORY_NOT_DELETED'].includes(code))
     return new TRPCError({ code: 'CONFLICT', message: code });
   if (code === 'STORY_NOT_FOUND') return new TRPCError({ code: 'NOT_FOUND', message: 'STORY_NOT_FOUND' });
