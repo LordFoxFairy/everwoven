@@ -28,4 +28,4 @@
 
 ## Final verification
 
-361 tests, both typechecks and production build passed. Real browser CRUD/restart/lost-response recovery and insecure HTTP demo regression passed. Independent security/UI reviews closed four P2 findings. Docker daemon returned 500 locally; changed container build must pass CI before any new release tag. No model calls or user data migration.
+361 tests, both typechecks and production build passed. Real browser CRUD/restart/lost-response recovery and insecure HTTP demo regression passed. Independent security/UI reviews closed four P2 findings. Docker daemon returned 500 locally; GitHub CI 34703786441 subsequently passed the changed container build, all environment/port smoke checks, both browser regressions and restart checks on commit 6e4de7f. No new release tag or image was published. No model calls or user data migration.
