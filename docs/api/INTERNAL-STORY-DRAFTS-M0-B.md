@@ -2,6 +2,8 @@
 
 2026-09-10 · 实现入口：`apps/runtime/src/application/story-drafts.ts`。
 
+> **2026-09-12 M0-C1：** 应用函数的第一个参数由 `PrismaClient` 改为 `StoryDraftStore`；这是内部调用签名调整。宿主使用 `createStoryDraftService(db, services)` 组合入口，返回 `create/get/list/update/delete/restore`。命令输入、返回DTO、错误码与事务语义不变。详情见[事务边界实施记录](../implementation/M0-C1-STORY-STORE-2026-09-12.md)。
+
 这是内部TypeScript应用用例，不是可访问的REST/tRPC接口。旧OpenAPI中的正式创作操作继续保持未实现；当前Web仍只有公开、非敏感的模型配置查询。不得把本契约示例包装成无需身份的公开路由。
 
 ## 1. 上下文与输入
@@ -104,3 +106,18 @@ sequenceDiagram
 无SQL迁移：沿用15表、13项真实唯一及零物理外键，不修改已应用迁移。删除只更新根的deletedAt/updatedAt/revision，保留冻结版本与既有引用。
 
 宿主稳定身份、会话交换、CSRF、单实例、备份、tRPC路由与UI迁移均不在本轮。前端Mock与浏览器用户数据不导入或重置；正式UI接入时应复用这些用例，而不是复制另一套CRUD逻辑。
+
+## 7. 宿主组合入口（M0-C1）
+
+实现：`apps/runtime/src/composition/story-draft-service.ts`；专用端口：`apps/runtime/src/ports/story-draft-store.ts`；具体适配器：`apps/runtime/src/infrastructure/db/prisma-story-draft-store.ts`。
+
+```ts
+// 仅受控宿主内部调用；db生命周期和trustedOwner来自宿主，不接受客户端自报身份。
+const stories = createStoryDraftService(db, runtimeServices);
+const result = await stories.create(trustedOwner, createCommand);
+const latest = await stories.get(trustedOwner, result.data.id);
+```
+
+应用用例不再导入Prisma类型/查询方法；组合入口显式注入。Store.write先取得WriteGate并限定owner，整段命令及回执共享事务；Store.read在同一读事务验证有效owner并读取快照。端口不负责HTTP认证，不允许将write scope保存到事务回调之外复用。
+
+`settings`与历史`response`在存储读接口中保持unknown，经用例校验后才返回DTO。适配器投影不输出owner与其他内部字段。禁止把JSON类型断言代替格式检查。
