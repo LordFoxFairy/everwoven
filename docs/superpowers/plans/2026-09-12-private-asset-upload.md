@@ -8,11 +8,11 @@
 
 ## 1. 契约和纯验证
 
-- [ ] UploadIntentDTO与AssetDTO只含公开字段；字节数用十进制字符串，绝不透传storageKey/目录/processingToken/lease。
-- [ ] begin固定dataset/command、原hash/原字节数/原始文件名/权利声明。ID和资产路径由服务端产生；文件名只是元数据。
-- [ ] JPG/PNG/WebP魔数与实际解码双核验；最多10MiB，每边至少256、至多8000，像素至多24MP。拒绝动画/多页/SVG/URL/path/截断文件。
-- [ ] EXIF方向归一，去元数据，最大边2048静态WebP；输出hash/真实宽高/字节数来自产物。
-- [ ] 固定编码参数、解码并发、输出上限与处理超时；队列有界，不能无限驻留大Buffer。用实际生成的小型测试图片，不使用用户图片。
+- [x] UploadIntentDTO与AssetDTO只含公开字段；字节数用十进制字符串，绝不透传storageKey/目录/processingToken/lease。
+- [x] begin固定dataset/command、原hash/原字节数/原始文件名/权利声明。ID和资产路径由服务端产生；文件名只是元数据。
+- [x] JPG/PNG/WebP魔数与实际解码双核验；最多10MiB，每边至少256、至多8000，像素至多24MP。拒绝动画/多页/SVG/URL/path/截断文件。
+- [x] EXIF方向归一，去元数据，最大边2048静态WebP；输出hash/真实宽高/字节数来自产物。
+- [x] 固定编码参数、解码并发、输出上限与处理超时；队列有界，不能无限驻留大Buffer。用实际生成的小型测试图片，不使用用户图片。
 
 ## 2. 私有文件端口
 
@@ -57,7 +57,7 @@
 
 B的原页面生产Chrome验收已通过（5f037bf），开始C1；下面是单一协议逐层实现，不是多套功能。
 
-1. **C1a（进行中）**：严格公开契约、image-normalizer端口与sharp真实解码。写集runtime/contracts/asset*、ports/image-normalizer、infrastructure/media、相关tests、直接sharp依赖和lock；Feynman唯一实现者。最多2个活跃解码，不建立无界等待队列；超时后必须等真实处理结束/取消才归还容量。
+1. **C1a（已本地验收）**：严格公开契约、image-normalizer端口与sharp真实解码。写集runtime/contracts/asset*、ports/image-normalizer、infrastructure/media、相关tests、直接sharp依赖和lock；Feynman唯一实现者。最多2个活跃解码，不建立无界等待队列；超时后必须等真实处理结束/取消才归还容量。
 2. **C1b**：私有无覆盖文件端口，安全目录/句柄/持久化故障测试。依赖C1a规范化输出，不修改Web表现层。
 3. **C1c**：上传意图与receipt/CAS/租约/清理状态、Host及HTTP边界、全上传HTTP与重启验收。
 4. **C2**：接原图片控件、角色绑定和原剧本聚合，全流程验收后删除旧页面路径。
@@ -78,3 +78,5 @@ B的原页面生产Chrome验收已通过（5f037bf），开始C1；下面是单�
 - partial、fsync失败和迟到writer创建的文件归原意图终态清理。删除失败保持deleting供重试；不恢复为reserved，不重用assetId，不由失败writer删除其他任务的文件。
 
 测试包括整链权限、symlink/身份可检测变动、无覆盖竞争、短写/中断/file+dir sync故障、同handle返回、cleanup交错。不得用这些测试宣称抵御任意同UID恶意TOCTOU；macOS与Linux都需实际验证。当前HTTP入口核查未发现可由请求重命名素材祖先的路由。
+
+C1a主仓58文件853/853、双端typecheck、生产构建、三Chrome及compiled-dist三格式核验通过；Dewey/Hegel规格与Cicero质量通过。仅第1节实现，后续文件/状态服务/HTTP不在本次完成范围。

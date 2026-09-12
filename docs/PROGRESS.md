@@ -2,7 +2,7 @@
 
 更新：2026-09-12。**这是实施真值台账，不用设计完成代替功能完成，不用commit代替验收。**
 
-**当前执行入口：M1-B原角色库已通过主仓55文件746/746、双端typecheck、隔离生产构建和两项Chrome重启smoke；Hegel/Dewey规格与Cicero质量复核通过。准备提交并验证远程CI，直接进入M1-C私有图片上传，再接原剧本聚合和删除旧路径。普通阶段进度不通知用户。**
+**当前执行入口：M1-B原角色库和修订smoke已推送，CI34715399381成功。C1a严格图片契约与真实解码已通过主仓58文件853/853、双端typecheck、生产构建、三项Chrome与独立规格/质量复核，准备提交。下一步C1b私有文件端口，再上传事务/HTTP、原图片和剧本聚合。普通阶段进度不通知用户。**
 
 ## 当前决策（按最新用户指令）
 
@@ -17,7 +17,7 @@
 | 主线 | 当前状态 | 下一可验收结果 |
 |---|---|---|
 | 1 前端逻辑 | 原角色库正式异步CRUD与共享连接已接通；原剧本聚合/图片待接 | 原编辑器完整聚合保存；上传读取均经端口 |
-| 2 后端逻辑 | 根CRUD单一StorySettings、owner/WriteGate/CAS/回执/本机会话；新16表baseline及DDL门禁已实现 | 图片/聚合用例、受限reset（datasetId和角色六操作已接入） |
+| 2 后端逻辑 | 根CRUD单一StorySettings、角色模板六操作、owner/dataset/WriteGate/CAS/回执/共享会话；16表baseline及DDL门禁已实现 | 图片/聚合用例、受限reset（datasetId和角色六操作已接入） |
 | 3 整体闭环 | M0临时面板闭环通过；原角色+图片+剧本尚未闭环 | 原页面创建→保存→清缓存→进程重启→相同内容读回，异常路径通过 |
 | 4 技术方案 | M1详细稿已写，按新指令删除兼容设计；独立复核通过 | 接口/字段/事务/SQL/架构图/时序图/验收矩阵一致 |
 | 5 推进记录 | 本文件建立 | 每批记录改动、测试、失败、未验证项、下一步、commit及发布状态 |
@@ -144,3 +144,11 @@ C1b只读设计复核：明确纯Node22文件系统威胁模型与局限，补�
 远程5f037bf CI34715019332失败：verify 4m47s，测试/typecheck/生产构建/Docker六组合通过，旧HTTP演练smoke仍按已变更placeholder定位性格框超时；原角色smoke因此未执行。主会话核对失败日志后更新测试可访问名称和新浏览器保存状态，并加强重载字段与demo零正式写入断言；正在同隔离生产构建Chrome复验，不改产品代码迁就旧文案。
 
 HTTP演练smoke修订后同隔离5f037bf生产构建的真实Chrome已通过（退出0），Dewey聚焦review PASS；测试继续验证非安全HTTP环境crypto、原导航、浏览器角色重载和零正式角色写入。仅提交smoke/docs修订，C1a进行中的runtime源码不混入。
+
+2caaec8已推送，远程修订CI34715399381已成功；C1a尚在TDD实施，未混入该提交。总技术方案阶段表与当前批次已同步真实进度，不保留角色后端尚未接入的过期描述。
+
+远程最终核实：2caaec8 [CI34715399381](https://github.com/LordFoxFairy/everwoven/actions/runs/34715399381)status=completed/conclusion=success；全量/typecheck/生产构建/Docker六环境端口、HTTP演练、原root和新增原角色重启smoke全部通过。publish/anonymous-pull非tag跳过，没有新镜像发布。
+
+C1a实现者停止写入；主仓58文件853/853及双端typecheck通过，隔离生产构建+三Chrome smoke通过，主仓compiled-dist三种合成图输出hash/尺寸/字节核验通过。Dewey契约规格67/67、Hegel解码规格107/107通过；Cicero质量review中。新资产契约和C1实施记录已更新，未把decoder成功称为HTTP上传/文件持久化完成。
+
+C1a Cicero最终代码质量PASS，无确认P1/P2；未以只读review替代主仓实跑。提交主题`feat(assets): add strict contracts and bounded image normalization`。本切片不改schema、不接HTTP、不重置业务数据或调用付费模型。

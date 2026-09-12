@@ -14,13 +14,14 @@
     "host": "tsx src/host/cli.ts"
   },
   "dependencies": {
-    "@prisma/client": "7.10.0",
     "@prisma/adapter-better-sqlite3": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "sharp": "0.35.4",
     "uuid": "13.0.0"
   },
   "devDependencies": {
-    "prisma": "7.10.0",
     "@types/node": "22.19.21",
+    "prisma": "7.10.0",
     "tsx": "4.23.13",
     "typescript": "7.0.2"
   },
@@ -44,6 +45,14 @@
     "./contracts/character-template-validation": {
       "types": "./src/contracts/character-template-validation.ts",
       "default": "./dist/contracts/character-template-validation.js"
+    },
+    "./contracts/asset": {
+      "types": "./src/contracts/asset.ts",
+      "default": "./dist/contracts/asset.js"
+    },
+    "./contracts/asset-validation": {
+      "types": "./src/contracts/asset-validation.ts",
+      "default": "./dist/contracts/asset-validation.js"
     }
   }
 }

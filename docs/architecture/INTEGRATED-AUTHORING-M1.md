@@ -20,11 +20,11 @@
 
 | 层 | 已有且需复用 | 本批缺口 |
 |---|---|---|
-| 前端 | 原 StoryEditor/CharacterLibrary/图片控件、DatabaseDrafts待确认写入保护 | 原页面异步控制器、正式角色/图片端口、单一创作入口 |
-| HTTP | 受保护 storyDrafts 六操作、一次性本机会话、来源校验 | 统一聚合契约、角色路由、受保护二进制路由 |
-| 应用 | 剧本根CRUD、owner范围、WriteGate、CAS、事务回执 | 角色CRUD/固定版本、剧本聚合保存、素材发布恢复 |
+| 前端 | 原角色库异步六操作、共享会话、Editor另存角色；原图片与剧本控件仍待接 | 原图片端口、原剧本聚合控制器，删除临时DatabaseDrafts |
+| HTTP | 受保护 storyDrafts/characters 六操作、一次性本机会话、来源校验 | 剧本聚合契约、受保护图片二进制路由 |
+| 应用 | 剧本根/角色模板CRUD、owner+dataset、WriteGate、CAS、事务回执 | 固定角色版本、剧本聚合保存、素材发布恢复 |
 | 数据 | 新baseline16表、零FK、固定DDL指纹/checksum门禁；作用域/图片元数据/上传意图结构 | 引用用例/上传协议与受限重置流程 |
-| 验收 | M0真实数据库及临时面板浏览器闭环 | 原角色/图片/剧本全流程与重启、异常、隔离验证 |
+| 验收 | 原角色与原root真实生产Chrome CRUD/重启、unknown/跨库回归 | 图片/剧本聚合完整原页面链路、异常与隔离 |
 
 ## 2. 结构与设计模式：只抽取有实际边界的部分
 
@@ -382,7 +382,7 @@ sequenceDiagram
 
 ### 当前小批次
 
-先执行[端口与会话边界计划](../superpowers/plans/2026-09-12-integrated-authoring-m1-a.md)。这一步消除transport依赖UI、错误会话响应被当成功两类隐患；不是宣布原编辑器已接通。
+M1-A端口/新契约/dataset与M1-B原角色页已完成本地验收；角色切片CI中过期smoke定位已修正，2caaec8远程CI34715399381成功。当前执行[私有图片计划](../superpowers/plans/2026-09-12-private-asset-upload.md)C1a严格契约/解码，再文件端口、上传事务/HTTP、原图片和剧本聚合。
 
 ## 9. M2生成闭环与未来扩展预留
 
@@ -397,7 +397,7 @@ sequenceDiagram
 
 ## 10. 文档与实施防漂移
 
-- 当前已实现API看 `docs/api/LOCAL-AUTHORING-M0-C.md`；M1实施后从runtime实际类型补对应契约及测试，本文拟增表升级为已实现状态。旧REST/OpenAPI只作历史候选，不混作现行协议。
+- 当前已实现API看 [剧本根契约](../api/LOCAL-AUTHORING-M0-C.md)与[角色契约](../api/LOCAL-CHARACTERS-M1-B.md)；图片/聚合尚未注册HTTP，后续从runtime实际类型补对应契约及测试。旧REST/OpenAPI只作历史候选，不混作现行协议。
 - SQL落地时同步Prisma schema、migration、门禁、UNIQUE-KEY-REGISTER、DATA-DESIGN和故障测试。
 - 图与时序在本文件维护M1细节，总技术方案链接过来，不复制两份相互漂移的正文。
 - 每次推进更新PROGRESS：改了什么、实际验证命令/结果、未验证范围、阻碍、下一最小交付、commit/CI/publish状态。没有测试证据不写完成，没有推送不写GitHub已更新。
