@@ -8,6 +8,12 @@
 !apps/web/**
 !apps/runtime/
 !apps/runtime/package.json
+!apps/runtime/src/
+!apps/runtime/src/**
+!apps/runtime/prisma/
+!apps/runtime/prisma/**
+!apps/runtime/prisma.config.ts
+!apps/runtime/tsconfig.json
 !packages/
 !packages/**
 **/node_modules
@@ -21,3 +27,7 @@
 **/*.sqlite*
 **/.DS_Store
 **/AGENTS.md
+**/.everwoven
+**/.everwoven/**
+**/.vitest
+**/.vitest/**

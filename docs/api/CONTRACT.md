@@ -1,5 +1,7 @@
 # 未完 · V1 API 契约
 
+> **2026-09-12 实施更新：** M0-C2/C3 已接入显式本机初始化、会话和同一页面的 SQLite 世界设定 CRUD；当前契约/验收以[实施记录](../implementation/M0-C2-C3-LOCAL-AUTHORING-2026-09-12.md)为准。下方此前状态保留为阶段记录，不代表新增能力仍未接入，也不代表角色、素材、模型和分支已完成。
+
 > **2026-09-10 最新实施裁决：** 传输方案已调整为T3/tRPC，见[最新裁决](../architecture/T3-FRONTEND-MOCK-2026-09-10.md)。本文件及现有OpenAPI保留为未上线的历史REST候选与业务语义检查表，不再生成第二套内部REST客户端。新上线操作以AppRouter、Zod和对应测试为机器基准；当前仅video.configuration只读元数据已实现，47项业务操作尚待逐项映射/评审。
 
 版本 **1.0.0 · 2026-09-10 · Review baseline，语义修订3**。与[技术方案](../architecture/TECHNICAL-SOLUTION-V1.md)共同评审；**尚未实现这些 `/api/v1` 路由，不代表当前原型接口可直接调用**。

@@ -10,7 +10,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:check": "tsx src/main.ts",
     "build": "pnpm db:generate && tsc -p tsconfig.json",
-    "typecheck": "pnpm db:generate && tsc --noEmit -p tsconfig.json && tsc -p tsconfig.test.json"
+    "typecheck": "pnpm db:generate && tsc --noEmit -p tsconfig.json && tsc -p tsconfig.test.json",
+    "host": "tsx src/host/cli.ts"
   },
   "dependencies": {
     "@prisma/client": "7.10.0",
@@ -22,5 +23,19 @@
     "@types/node": "22.19.21",
     "tsx": "4.23.13",
     "typescript": "7.0.2"
+  },
+  "exports": {
+    "./host": {
+      "types": "./src/host/index.ts",
+      "default": "./dist/host/index.js"
+    },
+    "./contracts/story-draft": {
+      "types": "./src/contracts/story-draft.ts",
+      "default": "./dist/contracts/story-draft.js"
+    },
+    "./contracts/story-draft-validation": {
+      "types": "./src/contracts/story-draft-validation.ts",
+      "default": "./dist/contracts/story-draft-validation.js"
+    }
   }
 }

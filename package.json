@@ -2,11 +2,13 @@
   "name": "everwoven",
   "private": true,
   "scripts": {
-    "dev": "pnpm --filter web dev",
+    "dev": "pnpm --filter runtime build && pnpm --filter web dev",
     "build": "pnpm --filter runtime build && pnpm --filter web build",
-    "test": "pnpm --filter runtime db:generate && vitest run",
+    "test": "pnpm --filter runtime build && vitest run",
     "typecheck": "pnpm --filter runtime typecheck && pnpm --filter web typecheck",
-    "runtime:check": "pnpm --filter runtime db:check"
+    "runtime:check": "pnpm --filter runtime db:check",
+    "local": "pnpm --filter runtime build && pnpm --filter web local",
+    "runtime:host": "pnpm --filter runtime host"
   },
   "devDependencies": {
     "vitest": "5.0.0",

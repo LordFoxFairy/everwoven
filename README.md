@@ -4,7 +4,9 @@
 
 本地优先的 AI 互动视频游戏平台，面向 Web 与后续桌面端。晴空浅蓝 × 淡紫，桌面自适应单视频舞台，交互浮层按剧情阶段出现，而不是常驻聊天面板。
 
-## 当前版本：0.1.0 · 工程与交互原型
+## 当前开发状态 · 工程与交互原型
+
+已发布版本为 **v0.1.0**；下表包含尚未发布的本机存储切片，新功能不等于旧镜像已更新。
 
 **一期交互：生成 → 观看 → 情境建议／自由回应 → 生成下一段。** 生成和播放中不支持实时插入指令。`APP_ENV=demo` 默认运行前端 Mock 演练：静态参考图与显式模拟结束，不是已上线的真实视频生成。
 
@@ -12,9 +14,9 @@
 |---|---|
 | 剧本浏览/编辑、角色管理、自定义图片、个人接续入口 | 创作设定在浏览器 localStorage，图片在 IndexedDB；非云同步 |
 | 自适应单舞台、全屏、情境建议、自由回应、草稿保护 | Mock 数据与行为由前端管理；不调用模型 |
-| T3 组合：Next.js + TypeScript + tRPC + TanStack Query + Zod | 当前仅开放供应商配置元数据读取，正式业务 API 尚未接入 |
+| T3 组合：Next.js + TypeScript + tRPC + TanStack Query + Zod | 供应商配置元数据读取；专用本机模式已接入受保护的剧本根 tRPC CRUD |
 | shadcn AlertDialog/Button 与独立布局组件 | 复用 Radix 的焦点/模态能力；非全站组件迁移完成 |
-| Prisma + SQLite 内部数据切片、剧本根 CRUD 集成测试 | 未接入现有页面；无数据库外键，仅保留已登记的真实唯一约束 |
+| Prisma + SQLite 本机剧本根 CRUD、短期本机会话 | 已接入同一我的剧本页面；无数据库外键，仅保留已登记的真实唯一约束 |
 | 供应商—模型绑定、MiniMax 官方任务适配基础代码 | 指定模型的可用性、付费端到端生成与恢复尚未验收；不自动转到 fal |
 | Docker Web 打包与 CI | 同一个应用的另一种启动方式，不是第二套站点或完整多用户服务 |
 
@@ -39,7 +41,13 @@ pnpm typecheck
 pnpm build     # runtime 检查构建 + Next standalone 构建
 ```
 
-最新验证：**278 项测试、类型检查、构建及 HTTP 浏览器交互通过**，见[环境与发布验证](docs/implementation/ENVIRONMENTS-RELEASE-2026-09-11.md)。此前组件验证见[实施记录](docs/implementation/SHADCN-SHELL-2026-09-11.md)。
+当前本机存储切片与验证状态见 [M0-C2/C3 实施记录](docs/implementation/M0-C2-C3-LOCAL-AUTHORING-2026-09-12.md)。已发布 v0.1.0 的验证另见[环境与发布验证](docs/implementation/ENVIRONMENTS-RELEASE-2026-09-11.md)，不要把本地新实现当作旧镜像已有功能。
+
+## 启用本机数据库
+
+普通开发默认保留前端存储。正式 SQLite 草稿使用**同一应用**的显式本机启动器：初始化专用数据目录 → `pnpm local` → 我的剧本/本机数据库 → 一次性连接码。它固定监听 loopback，当前支持世界设定保存/删除/恢复；不自动导入浏览器数据、不冒充真实视频生成。
+
+详见[启动与数据边界](docs/deployment/LOCAL-HOST.md)及[当前 tRPC/会话契约与时序](docs/api/LOCAL-AUTHORING-M0-C.md)。
 
 ## 环境选择
 
@@ -72,7 +80,7 @@ docker compose up --build -d
 
 ```text
 apps/web/             唯一 Web 应用、前端 Mock、布局与舞台组件
-apps/runtime/         内部服务与 Prisma/SQLite 切片（尚未暴露业务 HTTP）
+apps/runtime/         本机宿主、会话、应用服务与 Prisma/SQLite 适配（由同一 Next 暴露受保护 tRPC）
 packages/             共享契约、供应商适配、主题等
 FINAL-PRD.md          当前产品范围与验收基准
 TECH-STACK-DECISIONS.md 技术裁决入口

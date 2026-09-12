@@ -4,7 +4,7 @@ import {chromium} from '@playwright/test';
 // Map a non-localhost HTTP origin to the local test server. No browser security bypass.
 const port = Number(process.env.SMOKE_PORT ?? 3100);
 assert(Number.isInteger(port) && port > 0 && port < 65536, 'Invalid SMOKE_PORT');
-const browser = await chromium.launch({args: ['--host-resolver-rules=MAP everwoven.test 127.0.0.1', '--no-proxy-server']});
+const browser = await chromium.launch({...process.env.PLAYWRIGHT_CHANNEL ? {channel: process.env.PLAYWRIGHT_CHANNEL} : {}, args: ['--host-resolver-rules=MAP everwoven.test 127.0.0.1', '--no-proxy-server']});
 try {
   const page = await browser.newPage();
   const errors = [];

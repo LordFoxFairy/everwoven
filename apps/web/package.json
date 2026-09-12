@@ -2,9 +2,10 @@
   "name": "web",
   "private": true,
   "scripts": {
-    "dev": "next dev --hostname 127.0.0.1 --port 3100",
-    "build": "next build",
-    "typecheck": "next typegen && tsc --noEmit"
+    "dev": "next dev --webpack --hostname 127.0.0.1 --port 3100",
+    "build": "next build --webpack",
+    "typecheck": "next typegen && tsc --noEmit",
+    "local": "node scripts/local-start.mjs"
   },
   "dependencies": {
     "@fal-ai/client": "1.11.0-alpha.2",
@@ -20,7 +21,9 @@
     "radix-ui": "1.6.7",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "zod": "4.5.4"
+    "zod": "4.5.4",
+    "runtime": "workspace:*",
+    "uuid": "13.0.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",

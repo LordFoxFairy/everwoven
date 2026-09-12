@@ -1,5 +1,7 @@
 # 当前技术选择：SQLite 本地优先 + 单一编排
 
+> **2026-09-12 实施更新：** M0-C2/C3 已接入显式本机初始化、会话和同一页面的 SQLite 世界设定 CRUD；当前契约/验收以[实施记录](docs/implementation/M0-C2-C3-LOCAL-AUTHORING-2026-09-12.md)为准。下方此前状态保留为阶段记录，不代表新增能力仍未接入，也不代表角色、素材、模型和分支已完成。
+
 > **2026-09-10 最新实施裁决：** 最新确认：采用[T3全栈与前端Mock](docs/architecture/T3-FRONTEND-MOCK-2026-09-10.md)。以下与新裁决冲突的独立HTTP runtime/BFF及双入口描述仅供历史追溯，不指导新增实现。
 
 更新：2026-09-10。状态：技术评审稿；前期SQLite已选择，M0-A已安装Prisma适配并在临时真实文件库验证；尚未迁移用户数据/接通正式HTTP。与旧研究冲突时以 [PRD](FINAL-PRD.md) 和 [当前架构方案](docs/architecture/ARCHITECTURE.md) 为准。

@@ -192,6 +192,12 @@ importers:
       react-dom:
         specifier: 19.2.8
         version: 19.2.8(react@19.2.8)
+      runtime:
+        specifier: workspace:*
+        version: link:../runtime
+      uuid:
+        specifier: 13.0.0
+        version: 13.0.0
       zod:
         specifier: 4.5.4
         version: 4.5.4

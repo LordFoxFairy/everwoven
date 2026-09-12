@@ -10,6 +10,11 @@ COPY apps/runtime/package.json ./apps/runtime/package.json
 RUN pnpm --filter web... install --frozen-lockfile
 COPY apps/web ./apps/web
 COPY packages ./packages
+COPY apps/runtime/src ./apps/runtime/src
+COPY apps/runtime/prisma ./apps/runtime/prisma
+COPY apps/runtime/prisma.config.ts ./apps/runtime/prisma.config.ts
+COPY apps/runtime/tsconfig.json ./apps/runtime/tsconfig.json
+RUN pnpm --filter runtime build
 RUN pnpm --filter web build
 
 FROM node:22.22.2-bookworm-slim AS runner
