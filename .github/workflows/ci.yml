@@ -70,6 +70,12 @@ jobs:
       - name: Verify original Studio aggregate, recovery and process restart
         run: node scripts/smoke/local-story-ui.mjs
 
+      - name: Verify shared provider startup and immutable opening HTTP
+        run: node scripts/smoke/local-openings.mjs
+
+      - name: Verify original preparation UI and committed-response recovery
+        run: node scripts/smoke/local-opening-ui.mjs
+
       - name: Verify original character library and process restart
         run: node scripts/smoke/local-characters.mjs
 

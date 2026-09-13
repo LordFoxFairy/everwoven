@@ -63,7 +63,7 @@ type BindingDirectory = {
 | 503 | PROVIDER_CONFIGURATION_UNAVAILABLE / PROVIDER_NOT_INITIALIZED |
 | 500 | EXPERIENCE_INTERNAL_ERROR（包括不可信异常及坏持久事实/DTO） |
 
-未知传输结果仍需保留同一command/payload再核对；不得靠重连、重开浮层或换model生成另一个command掩盖未知提交。该前端控制逻辑在下一切片实施，不因为后台幂等就假定UI已完成。
+未知传输结果仍需保留同一command/payload再核对；不得靠重连、重开浮层或换model生成另一个command掩盖未知提交。原准备浮层已接入此控制逻辑，见第6节；不因为后台幂等就假定浏览器丢失所有内存之后也已经恢复。
 
 ## 5. 实际时序与验证
 
@@ -87,4 +87,55 @@ sequenceDiagram
 
 `scripts/smoke/local-openings.mjs`使用临时私有目录、原启动器和真实Chrome会话，在production/dev分别验证：未登录拒绝→自动会话→空目录→写配置但请求不热读→重启ready→真实开局→删配置后旧进程不变→重启empty且回执/get仍正常→坏配置unavailable且新命令503、原剧本可读→换账号同版本冲突且历史不变。脚本零模型请求，不是伪Provider或演示数据库。
 
-下一步：原准备浮层的目录/选择/预算与异步unknown/epoch控制；之后Quote/执行Profile/持久任务/媒体/播后回应。两幕实际生成与恢复验收前，产品goal保持未完成。
+下一步：Quote/执行Profile/持久任务/媒体/播后回应，以及经历目录与冷浏览器续玩入口。两幕实际生成与恢复验收前，产品goal保持未完成。
+
+## 6. M2-A5 原准备浮层与前端契约
+
+唯一原入口：Editor「保存并进入准备」收到真实DraftDTO后，展示该来源修订。表单期间后续修改不混入已确认版本，浮层提示未包含未保存修改；不新建页面或第二个播放器。
+
+- `OpeningClient`只使用原非batch tRPC三条操作，same-origin cookie/请求标记/no-store/禁止redirect；没有会话重试、付费重试或浏览器业务存储。
+- 请求和响应逐项严格parse；响应dataset/来源/revision/binding版本/预算/get身份均对应原请求。错误必须匹配白名单code、HTTP状态和tRPC元数据；传输失败、坏JSON/坏DTO、未知代理错误均为unknown。
+- 成功响应有界 **2MiB**，错误8KiB；读到上限立即取消流。上限覆盖冻结世界58,700码点、角色version/overrides/effective三份54,360码点及relationship两份8,000码点，即使astral按12字节JSON转义仍有固定结构余量；目录最多128项。真实SQLite最大字段中文及转义astral create/replay/get回归验证。不能采用低于合法聚合体积的256KiB界限。
+- 预算由规范十进制文本转BigInt micros，不经浮点乘法。最多6位小数，最终不超过有符号64位整数。0不产生费用；正预算也仅保存上限，不是Quote或付款授权。
+
+### 状态与动作
+
+| 状态 | 用户可做 | 明确禁止 |
+|---|---|---|
+| 空/坏模型目录 | 继续编辑、显式刷新启动快照 | 伪造可选模型、自动改用fal、输入密钥到聊天 |
+| 有可选配置 | 显式选择模型/币种/上限，确认开局配置 | 打开浮层就创建或开始生成 |
+| 提交中 | 收起浮层、通过「继续故事准备」回来 | 双击重复提交、修改该请求、丢弃恢复入口 |
+| unknown | 重连后显式「确认上次开局请求」 | 重开/重连自动提交、新command替换旧command |
+| 历史确认收到 | 查看固定开局；显式读取准备状态 | 根据CREATE回执声称当前正在preparing/playing |
+| dataset变化 | 保留原上下文，接回原数据集后再确认 | 把原请求迁移到新dataset |
+
+`OpeningController`生命周期在Platform内而非Dialog内。只有一个pending intent和一个flight；同dataset会话重连同样切epoch，旧目录/成功/401/finally不覆盖新attempt。已有unknown即使重试得到明确400/404等也继续保留，因该拒绝只描述这次尝试，不能证明原提交没发生。
+
+关闭浮层仅隐藏，不销毁命令；pending/unknown时离开编辑器会返回原准备入口。beforeunload提醒避免关闭/刷新导致内存意图丢失。**当前未实现浏览器完全关闭后的unknown查询恢复，不宣称此项完成。** 后续经历目录和恢复用例需要服务端事实支持，不把正式业务数据塞回localStorage。
+
+```mermaid
+sequenceDiagram
+  participant U as 用户
+  participant E as 原Editor
+  participant C as OpeningController
+  participant H as 原tRPC与Host
+  participant D as SQLite
+  U->>E: 保存并进入准备
+  E-->>C: 已保存DraftDTO与revision
+  C->>H: 只读bindings
+  H-->>C: 公开配置目录
+  U->>C: 选择配置和预算，显式确认
+  C->>H: create(固定commandId与payload)
+  H->>D: 原子开局与回执
+  D-->>H: 历史确认
+  H--xC: 响应丢失
+  Note over C: 收起/重入保留同一个pending
+  U->>C: 显式确认上次请求
+  C->>H: create(完全相同commandId与payload)
+  H-->>C: replayed历史确认，current=false
+  U->>C: 读取准备状态
+  C->>H: getPreparing(经历ID)
+  H-->>C: 当前初始状态或明确已离开准备态
+```
+
+真实production Chrome新增 `scripts/smoke/local-opening-ui.mjs`：原编辑器输入→真实保存→server binding选择→零预算开局→实际提交后故意损坏响应→关闭重入/导航守卫→宿主重启→同command确认→独立当前状态读取，禁用浏览器业务存储且零模型调用。它保留同一浏览器内存，不等于冷浏览器续玩、真实生成或最终产品验收。

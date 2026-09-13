@@ -1,10 +1,11 @@
 'use client';
 import {useEffect,useState,useRef,useMemo,useCallback,type ReactNode} from 'react';
-import {Dialog} from 'radix-ui';
 import {StoryLibrary} from './story-library';
+import {StoryPreparation} from './story-preparation';
+import {createOpeningClient} from '../lib/experience/opening-client';
+import {useOpeningController} from '../lib/experience/use-opening-controller';
 import {createStoryDraftClient} from '../lib/authoring/story-client';
 import {useStoryController} from '../lib/authoring/use-story-controller';
-import type {DraftDTO} from '../../runtime/src/contracts/story-draft';
 import {createAuthoringSessionClient} from '../lib/authoring/session-client';
 import {AuthoringSessionProvider,useAuthoringSession} from '../lib/authoring/session-context';
 import {createCharacterClient} from '../lib/authoring/character-client';
@@ -39,7 +40,9 @@ function AssetWorkspace({children}:{children:ReactNode}){
 function PlatformContent({databaseEnabled}:{databaseEnabled:boolean}){
  const [storyClient]=useState(createStoryDraftClient);
  const {controller:storyController,state:storyState}=useStoryController(storyClient);
- const [prepared,setPrepared]=useState<DraftDTO|null>(null),preparationTrigger=useRef<HTMLButtonElement>(null);
+ const [openingClient]=useState(createOpeningClient);
+ const {controller:openingController,state:openingState}=useOpeningController(openingClient);
+ const preparationTrigger=useRef<HTMLButtonElement>(null);
  const [characterClient]=useState(createCharacterClient);
  const {controller:characterController,state:characterState,session}=useCharacterController(characterClient);
  const [characterSource,setCharacterSource]=useState<CharacterSource|undefined>();
@@ -57,6 +60,8 @@ function PlatformContent({databaseEnabled}:{databaseEnabled:boolean}){
  function start(s:Story){if(!demo){setNotice('真实生成尚未接通；不会使用演练替代。');return;}const save=newSave(s);if(persist({...data,saves:[save,...data.saves]})){setActive(save);setSelected(null);setView('player');}}
  function updateSave(s:Save){if(persist({...data,saves:data.saves.map(x=>x.id===s.id?s:x)})){setActive(s);return true;}return false;}
  function mayLeave(){
+  const opening=openingController.getSnapshot();
+  if(opening.busy||opening.unknown){setNotice('开局请求仍待确认，请先完成原请求；编辑内容与准备配置都保留。');if(opening.source)openingController.open(opening.source);return false;}
   const current=characterController.getSnapshot(),pending=characterPendingRef.current;
   if(pending.unknown||editorSourceChanged||(!demo&&(current.unknown||current.datasetChanged))||databasePending.unknown){setNotice('上次保存结果待确认，请先确认原命令再离开。');return false;}
   return !pending.busy&&!(!demo&&(current.saving||current.reading))&&!databasePending.busy&&(!(pending.dirty||databasePending.dirty)||confirm('有未保存的修改，确定离开吗？'));
@@ -92,7 +97,7 @@ function PlatformContent({databaseEnabled}:{databaseEnabled:boolean}){
  const stories=(view==='library'?data.drafts:examples).filter(s=>(genre==='全部'||s.genre===genre)&&`${s.title}${s.world}${s.character}`.includes(query));
  if(!ready)return <main className="empty" aria-busy="true">正在读取本地故事…</main>;
  if(demo&&view==='player'&&active)return <MockSession key={active.id} save={active} onChange={updateSave} onExit={()=>{setView('saves');setActive(null);}}/>;
- if(view==='editor')return <Editor key={demo?draft.id:'formal-editor'} story={demo?undefined:{controller:storyController,state:storyState}} onPrepared={setPrepared} prepareButtonRef={preparationTrigger} connectionSlot={<LocalConnection/>} initial={draft} characters={data.characters} onSave={saveDraft} onSaveCharacter={saveCharacter} formal={!demo} characterSource={characterSource} characterPending={!demo?{dirty:characterState.dirty,busy:characterState.saving||characterState.reading,unknown:characterState.unknown||editorNeedsRecovery}:undefined} characterReset={editorNeedsRecovery} characterEpoch={session.invalidate} onResetCharacter={()=>{characterController.fromRetained();setCharacterSource(undefined);}} onBack={()=>{if(mayLeave()){if(!demo)storyController.close();setView('library');}}} onPlay={s=>setSelected(structuredClone(s))} notice={notice} dialog={!demo&&prepared?<Dialog.Root open onOpenChange={open=>{if(!open)setPrepared(null);}}><Dialog.Portal><Dialog.Overlay className="modal-backdrop"><Dialog.Content className="modal" onCloseAutoFocus={event=>{event.preventDefault();preparationTrigger.current?.focus();}}><Dialog.Title asChild><h2>正式故事准备</h2></Dialog.Title><h3>{prepared.title}</h3><p>剧本已保存到本机 · 修订 {prepared.revision}</p><p>{prepared.settings.world}</p><p>{prepared.mainCharacter?.effective.name??'尚未设置角色'}</p><Dialog.Description asChild><p>生成尚未接通；模型与运行配置待完成，不创建游玩、任务或付费请求。</p></Dialog.Description><Dialog.Close asChild><button className="primary">返回编辑</button></Dialog.Close></Dialog.Content></Dialog.Overlay></Dialog.Portal></Dialog.Root>:selected&&<StartDialog story={selected} onClose={()=>setSelected(null)} onStart={()=>start(selected)}/>}/>;
+ if(view==='editor')return <Editor key={demo?draft.id:'formal-editor'} story={demo?undefined:{controller:storyController,state:storyState}} onPrepared={dto=>openingController.open(dto)} prepareButtonRef={preparationTrigger} connectionSlot={<><LocalConnection/>{openingState.source&&!openingState.visible&&<button className="secondary" type="button" onClick={()=>openingController.open(openingState.source!)}>继续故事准备</button>}</>} initial={draft} characters={data.characters} onSave={saveDraft} onSaveCharacter={saveCharacter} formal={!demo} characterSource={characterSource} characterPending={!demo?{dirty:characterState.dirty,busy:characterState.saving||characterState.reading,unknown:characterState.unknown||editorNeedsRecovery}:undefined} characterReset={editorNeedsRecovery} characterEpoch={session.invalidate} onResetCharacter={()=>{characterController.fromRetained();setCharacterSource(undefined);}} onBack={()=>{if(mayLeave()){if(!demo)storyController.close();setView('library');}}} onPlay={s=>setSelected(structuredClone(s))} notice={notice} dialog={!demo?<StoryPreparation controller={openingController} state={openingState} unsavedChanges={storyState.dirty} triggerRef={preparationTrigger} connectionSlot={<LocalConnection/>}/>:selected&&<StartDialog story={selected} onClose={()=>setSelected(null)} onStart={()=>start(selected)}/>}/>;
  return <><AppShell view={view==='player'?'saves':view} draftCount={data.drafts.length} onNavigate={navigate} onCreate={()=>edit()}>
  <LocalConnection/>
  {error&&view!=='home'&&<p role="alert" className="error">{error}</p>}

@@ -472,3 +472,15 @@ M2-A3精确CI34743836566已completed/success（c8f711a）。M2-A4实码新增纯
 当前聚焦72及双端typesGREEN；独立56/56+额外非法预算零service调用PASS、确认P1/P2=0。启动配置替换/增长确定性race两个新增测试通过，FD均关闭。最关键compiled边界已实际验收：隔离production build+local-openings完整HTTP/SQLite/重启，及同脚本SMOKE_DEV=true均exit0；同一launcher/Next确实共享startup实例。文件后来删除/坏格式/换账号时历史回放/getPreparing仍可用，新命令拒绝，原剧本可读且零模型调用。主仓全量正在跑，原准备UI尚未改，不把新路由当产品完成。
 
 M2-A4最终证据：主仓109文件1750/1750与runtime/Web源码及测试类型实际exit0；稳定源码production build已exit0，最终增强断言的production/dev opening HTTP以及原Studio完整聚合/四图/unknown/重启Chrome均exit0。新增明确empty新create=404/PROVIDER_BINDING_NOT_REGISTERED，换account新create=409/PROVIDER_BINDING_CONFLICT；非仅检查泛错误。配置文件替换/增长race注入位于打开FD后首次fstat返回前，不宣称已覆盖两次metadata检查之间的所有竞态。独立Cicero当前P1/P2=0。用户原3100使用同目录温和停机exit0后重新启动以加载compiled Host，自动会话/无取码框/原编辑器/刷新复用及受认证provider目录非not_initialized全部实测通过；不打印配置、不写用户业务数据、不触发模型。Chunk2-C Host/HTTP完成，准备UI与正式任务链仍待实码，不将1750测试当作整个产品完成。
+
+M2-A4已commit cbec5ef0e94da89c7d8e18cce2b579d804764770并push既有分支；精确CI34744937914 completed/success。未改main/tag/镜像。
+
+M2-A5原准备UI实码推进：新增窄OpeningClient/Controller/Hook、原Editor浮层及恢复按钮，仍一个3100/T3应用。client行为RED34→GREEN34；controller RED22fail/2pass→GREEN24；组件RED4→GREEN4；原导航RED缺radio→接入后发现测试fixture返回未保存字段造成既有dirty确认，修正fixture如实echo已保存字段（未绕过生产导航保护），随后通过。未知请求关闭浮层仍保留，重连不自动重发、导航重新打开原请求，dataset/epoch和原command隔离；保存预算不是付费授权。
+
+Cicero独立发现两个P2并已关闭：1)256KiB成功响应上限小于合法大聚合，新增真实SQLite中文与JSON转义astral最大字段create/replay/get，两项实际RED后推导并改为2MiB有界流；另有非结束超限流取消反例。2)历史CREATE回放错误地标当前preparing，新增实际RED后所有CREATE确认current=false，只读get才确认当前。独立7文件73/73与补充非结束流PASS，当前确认P1/P2=0。没有读密钥或调用模型。
+
+本片主仓首次114文件1816/1816及双端types实际exit0；稳定树首次build发现漏复制既有runtime测试fixture，补齐显式fixture后真实production build exit0，原准备UI HTTP/SQLite提交后丢响应/收起重入/导航守卫/宿主重启/同命令回放/独立读状态全部exit0，原Studio四图/聚合/unknown/冷浏览器/重启回归也exit0。新流取消测试和截图检查后的标题层级小修后，正在最终重验；不把首次结果冒充最后版本。准备UI smoke只保留同浏览器内存，不宣称冷浏览器unknown恢复；后续Quote/Worker/媒体/两幕/经历目录待继续。
+
+M2-A5最终验收：主仓114文件1817/1817、runtime/Web源码及测试types实际exit0；最后production build、原准备UI（含1024×768桌面边界和1440窗口截图人工检查）、完整opening HTTP恢复、原Studio四图/聚合/重启/冷浏览器全部exit0。当前用户3100原入口再次Chrome验证自动会话、无取码框、原编辑器、刷新复用、shared provider目录初始化，零业务seed和模型调用。Cicero最终PASS，两个P2已关闭，撤回其旧oversize读旧行意见；当前开放P1/P2=0。CI新增两个已实测opening脚本，不发tag或改main。
+
+下一有限序列经只读复核：先用既有Experience表补有界列表/按ID重入原准备UI（冷浏览器发现已提交事实，不冒充丢失内存command恢复），然后主线Profile/Quote→原子接受/根BudgetScope预留与Outbox→planner/PreparedGeneration/一次submit及unknown查询恢复→私有媒体/校验→播放证明/事实/存档节点/情境建议→下一幕。按实际事务逐批迁移与登记真唯一，不一次预建全部远期表，也不把更多CRUD替代视频生成链。第一付费发送前这些门锁必须齐全；仍未获付费预算授权，不调用模型。

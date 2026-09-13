@@ -1,5 +1,9 @@
 export const OPENING_QUERY_MAX_BYTES = 8192;
 export const OPENING_COMMAND_MAX_BYTES = 16384;
+// Frozen story <=58,700 codepoints, three character copies <=54,360,
+// two relationship copies <=8,000. Even 12-byte escaped astral codepoints
+// plus fixed IDs/JSON structure fit 2 MiB; 128 bounded directory choices do too.
+export const OPENING_RESPONSE_MAX_BYTES = 2 * 1024 * 1024;
 export const OPENING_HTTP_STATUS = Object.freeze({
   INVALID_EXPERIENCE_COMMAND: 400, INVALID_EXPERIENCE_QUERY: 400,
   LOCAL_SESSION_INVALID: 401, LOCAL_ORIGIN_DENIED: 403,

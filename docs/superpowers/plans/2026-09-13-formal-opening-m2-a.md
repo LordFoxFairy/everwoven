@@ -34,7 +34,7 @@ Run: `PATH=/Users/nako/.nvm/versions/node/v22.22.2/bin:$PATH pnpm exec vitest ru
 - [x] 固定Binding的版本化JSON及本地resolver端口：connectionId/region/endpointProfileId/providerAccountScopeId、精确model、capability/adapter版本、有效参数，credentialRef仅引用。实际宿主Connection/Deployment登记与矩阵Policy后续接入。
 - [x] 实现内部CreateExperience严格契约：owner来自受信调用上下文，dataset/commandId/revision防重复；固定内容、预算上限/币种及Binding快照，与immutable结果回执原子创建。回放不重新读取source/registry；完整模型能力组合预检属于Quote前的下一切片，不将opaque capabilities作为准入。
 - [x] 在同一WriteGate调用Chunk1封存、验证/写Binding、Experience/setup/空ResponseDraft及回执；任一点失败新写全体回滚，既有版本保留。孩子端口也校验父归属和节点关系，防止无FK环境的跨owner影子孩子。存入零调用preparing不是已生成。
-- [ ] 原准备页面对接单一tRPC命令，真实异步pending/unknown/epoch；正式任务链尚未完备时不显示已开始生成。
+- [x] 原准备页面对接单一tRPC命令，真实异步pending/unknown/epoch；正式任务链尚未完备时不显示已开始生成。
 - [ ] 真实SQLite/HTTP/Chrome完整开局、丢响应与进程重启；再接持久Quote、Operation/worker、媒体与后续回合。
 
 ## 不变的整体验收
@@ -60,12 +60,12 @@ RED重点：max预算精度、任意额外URL/owner字段、resolver错绑/同�
 
 新文件以`apps/runtime/src/{contracts/video-deployments.ts,providers/minimax-request.ts,providers/minimax-constraints.ts,providers/minimax-capabilities.ts,application/video-binding-registry.ts,contracts/video-binding-registry.ts}`为边界；tests按纯registry/能力/request分组。本片无schema变更、无账户API/报价费用调用。
 
-### Chunk2-C 原Host/tRPC/准备入口（Host/HTTP已验收，原准备UI继续实现）
+### Chunk2-C 原Host/tRPC/准备入口（Host/HTTP与原准备UI已实施，真实任务链待接）
 
 - [x] 增加浏览器纯`parseExperienceOpeningDTO/Result`及binding选择目录契约，严格字段/UUID/时间/来源关系；不给原始binding私密字段进入wire。
 - [x] 复用Host认证/目录身份及DB生命周期，固定startup加载非秘密provider配置，缺失为空、坏配置只阻断新provider选择而不阻断角色/剧本或历史经历读回；resolver在新开局才解析，回执仍优先。
 - [x] 增加窄`withLocalExperienceOpenings`和公开错误白名单，不由Web打开Prisma。统一服务端binding列表、create、getPreparing，runtime包新增纯契约出口。
 - [x] 同步tRPC router/context/http的来源、标记、非batch、大小和错误脱敏；真实HTTP未认证/跨源/未知字段/混batch/超限/数据库断开重启验证。不是仅root挂三个函数。
-- [ ] 原保存后的准备浮层消费目录与explicit预算，明确零调用固定确认；unknown保留原command/payload、dataset/epoch挡迟到，目录/弹窗/自动会话不创建经历。公开API实际验证后再接UI，最后原3100Chrome。
+- [x] 原保存后的准备浮层消费目录与explicit预算，明确零调用固定确认；unknown保留原command/payload、dataset/epoch挡迟到，目录/弹窗/自动会话不创建经历。公开API实际验证后再接UI，最后原3100Chrome。
 
 固定启动对象必须跨Node launcher与Next route模块可见并绑定directory/environment/owner/dataset，热加载不重复重读可变配置；实际同进程桥接以production+dev HTTP验证，不仅单元测试假设。私密配置字段不返回前端、不建密钥输入框；缺密钥只在后续真实付费测试阶段由用户本地提供，当前代码仍可实施。
