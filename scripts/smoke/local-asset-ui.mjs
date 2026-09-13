@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {expect} from '@playwright/test';
-import {withLocalBrowser} from './local-browser-harness.mjs';
+import {withLocalBrowser,fillConnectionCode} from './local-browser-harness.mjs';
 
 // Actual original-page interaction, not an API-seeded portrait demonstration.
 process.env.SMOKE_PORT ??= '3195';
@@ -41,7 +41,7 @@ await withLocalBrowser(async ({page, origin, datasetId, connectionCode, restart}
   });
   await page.goto(origin, {waitUntil: 'networkidle'});
   await page.getByRole('button', {name: '角色库', exact: true}).click();
-  await page.getByLabel('本机连接码', {exact: true}).fill(connectionCode);
+  await fillConnectionCode(page.getByLabel('本机连接码', {exact: true}), connectionCode);
   await page.getByRole('button', {name: '连接本机', exact: true}).click();
   await page.getByRole('status').filter({hasText: '已连接本机'}).waitFor();
   await page.getByRole('button', {name: '创建角色', exact: true}).click();

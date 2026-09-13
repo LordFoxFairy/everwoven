@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
-import {expect} from '@playwright/test';
-import {withLocalBrowser} from './local-browser-harness.mjs';
+import {chromium, expect} from '@playwright/test';
+import {withLocalBrowser,fillConnectionCode} from './local-browser-harness.mjs';
 
 // Original Studio only. This gate deliberately rejects the temporary root panel.
 process.env.SMOKE_PORT ??= '3198';
@@ -13,7 +13,7 @@ const reference = await picture('story-source.png', '#a6c5ef');
 const portrait = await picture('story-person.png', '#c5b1eb');
 const cover = await picture('story-cover.png', '#eaceb7');
 const opening = await picture('story-opening.png', '#b3ded4');
-await withLocalBrowser(async ({page, origin, datasetId, connectionCode, restart}) => {
+await withLocalBrowser(async ({page, origin, datasetId, connectionCode, newConnectionCode, restart}) => {
   page.setDefaultTimeout(15000);
   const commands = new Map(), boundaryErrors = [];
   page.on('request', request => {
@@ -62,7 +62,7 @@ await withLocalBrowser(async ({page, origin, datasetId, connectionCode, restart}
   }
   await page.goto(origin, {waitUntil: 'networkidle'});
   await page.getByRole('button', {name: '角色库', exact: true}).click();
-  await page.getByLabel('本机连接码', {exact: true}).fill(connectionCode);
+  await fillConnectionCode(page.getByLabel('本机连接码', {exact: true}), connectionCode);
   await page.getByRole('button', {name: '连接本机', exact: true}).click();
   await page.getByRole('status').filter({hasText: '已连接本机'}).waitFor();
   await page.getByRole('button', {name: '创建角色', exact: true}).click();
@@ -222,5 +222,51 @@ await withLocalBrowser(async ({page, origin, datasetId, connectionCode, restart}
   if (process.env.SMOKE_SCREENSHOT) await page.screenshot({path: process.env.SMOKE_SCREENSHOT, fullPage: true});
   assert.deepEqual(boundaryErrors, []);
   assert.equal(commands.size, 7);
-  console.log('Original Studio smoke passed: complete settings, fixed character, four actual images, unknown command and pre-receipt 400 reconciliation, preserved edits, process restart/readback, source independence, update/delete/restore and dataset isolation. No model calls.');
+  // A process restart in the same tab is not a browser restart. Close the
+  // first Chromium process, open a separate clean one and explicitly reconnect.
+  const persisted = await query('storyDrafts.get', {protocolVersion: 1, datasetId, id: created.data.id});
+  assert.equal(persisted.revision, 7);
+  await page.context().browser().close();
+  const freshBrowser = await chromium.launch({...process.env.PLAYWRIGHT_CHANNEL ? {channel: process.env.PLAYWRIGHT_CHANNEL} : {}});
+  try {
+    const fresh = await freshBrowser.newPage({viewport: {width: 1440, height: 1000}});
+    const freshErrors = [], freshWrites = [];
+    fresh.on('pageerror', error => freshErrors.push(error.message));
+    fresh.on('request', request => {if (request.method() === 'POST' && !request.url().includes('/api/local-session')) freshWrites.push(new URL(request.url()).pathname);});
+    await fresh.addInitScript(() => {
+      Storage.prototype.getItem = function () {throw Error('test storage unavailable');};
+      Storage.prototype.setItem = function () {throw Error('test storage unavailable');};
+      IDBFactory.prototype.open = function () {throw Error('test IndexedDB unavailable');};
+    });
+    await fresh.goto(origin, {waitUntil: 'networkidle'});
+    await fresh.getByRole('button', {name: '我的剧本', exact: true}).click();
+    await fillConnectionCode(fresh.getByLabel('本机连接码', {exact: true}), newConnectionCode());
+    await fresh.getByRole('button', {name: '连接本机', exact: true}).click();
+    await fresh.getByRole('button', {name: `打开剧本 ${title}`, exact: true}).click();
+    await expect(fresh.getByLabel('剧本名称')).toHaveValue(persisted.title);
+    const reopened = await fresh.request.get(`${origin}/api/trpc/storyDrafts.get?input=${encodeURIComponent(JSON.stringify({protocolVersion: 1, datasetId, id: persisted.id}))}`, {headers: {'x-everwoven-request': '1'}});
+    assert.equal(reopened.status(), 200);
+    assert.deepEqual((await reopened.json()).result.data, persisted, 'A fresh browser receives the same entire stored aggregate');
+    await fresh.getByRole('button', {name: /世界与开局/}).click();
+    await expect(fresh.getByLabel('世界背景')).toHaveValue(persisted.settings.world);
+    await expect(fresh.getByLabel('开局情境')).toHaveValue(persisted.settings.opening);
+    await expect(fresh.getByRole('textbox', {name: '玩家身份', exact: true})).toHaveValue(persisted.settings.playerRole);
+    await expect(fresh.getByRole('textbox', {name: '叙事语气', exact: true})).toHaveValue(persisted.settings.tone);
+    await expect(fresh.getByRole('textbox', {name: '世界规则（每行一条）', exact: true})).toHaveValue(persisted.settings.worldRules.join('\n'));
+    await fresh.getByRole('button', {name: /角色配置/}).click();
+    await expect(fresh.getByLabel('你们的初始关系')).toHaveValue(relationship);
+    await expect(fresh.getByRole('textbox', {name: '性格与背景', exact: true})).toHaveValue(persisted.mainCharacter.effective.settings.personality);
+    for (const [label, key] of [['外貌与穿着', 'appearance'], ['表达习惯', 'speakingStyle'], ['相处边界', 'boundaries']]) {
+      await expect(fresh.getByRole('textbox', {name: label, exact: true})).toHaveValue(persisted.mainCharacter.effective.settings[key]);
+    }
+    await fresh.getByRole('button', {name: /画面与素材/}).click();
+    for (const slot of ['剧本封面', '开场画面']) {
+      const picker = fresh.locator('section').filter({has: fresh.getByRole('heading', {name: slot, exact: true})});
+      await expect(picker.locator('img')).toBeVisible();
+      await picker.locator('img').evaluate(async image => {await image.decode(); if (!image.naturalWidth) throw Error('Reopened image did not decode');});
+    }
+    assert.deepEqual(freshErrors, []);
+    assert.deepEqual(freshWrites, [], 'Reopening must not create or rewrite the persisted aggregate');
+  } finally {await freshBrowser.close();}
+  console.log('Original Studio smoke passed: complete settings, fixed character, four actual images, unknown command and pre-receipt 400 reconciliation, preserved edits, server restart and separate cold browser reconnection/readback, source independence, update/delete/restore and dataset isolation. No model calls.');
 });

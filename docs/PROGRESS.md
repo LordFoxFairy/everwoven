@@ -380,3 +380,11 @@ Editor会话锁P2复审已关闭：Cicero独立3文件30/30，当前全M1-D P1/P
 当前单入口已实际启用，不再只是/tmp：再次核验83312为本仓Next demo父进程、83321为唯一3100监听后，仅向该父进程SIGTERM，确认端口释放。使用APP_ENV=dev、RUNTIME_DATA_DIR=$HOME/.everwoven/local-dev通过pnpm local启动同一应用，仍仅127.0.0.1:3100。真实Chrome在这个用户入口取得当前Host一次性码（仅进程内存，不写日志/聊天），经原连接表单兑换，禁用浏览器业务存储后实际打开原角色Editor与原剧本Editor全部世界字段，dev元信息与JS无错误通过。验证未向用户库写测试角色/剧本/图片，结束撤销测试会话；用户首次进入仍须用终端一次性码连接，不隐式登录或伪造空库。
 
 全片源码/文档准备提交；精确新GitHub CI仍待触发与核验，尚不发送M1完成通知。不打tag，不称旧v0.1.0镜像已更新，也不称模型生成已接通。
+
+聚合最终实现已commit ca6bc55（74条明确源码/测试/文档路径），push实际exit0。新CI34729115312确认headSha为ca6bc5541aa78a09359683493eaab5b6ec33ec6d，当前in_progress；未提前声称通过。当前3100正式监听PID62129，启动exec会话70783需保持运行，不清理为测试进程。所有3195–3199生产验收子进程已由各harness清理。用户根目录研究MD保持原有untracked，不混入提交；正式Host在Git外，没有录入测试实体。
+
+ca6bc55精确远端CI34729115312已completed/success，verify103648521549所有源码/类型/Next/Docker/环境/五Chrome步骤成功；publish/anonymous-pull因无tag跳过，未称镜像发布。为严格核对验收矩阵“关闭浏览器”而非只重启服务，再补test-only门禁：关第一Chrome进程→全新Chrome/无cookie→同Host新一次性码原表单重连→完整DTO一致与世界/角色字段、图像读回，不写业务。第一轮闭旧page后的harness诊断掩盖原失败，已加isClosed；第二轮发现已填textarea的getByLabel精确文字包含值而定位失败，改实际textbox可访问名后实际冷浏览器GREEN，无产品改动/断言删减。
+
+Cicero对新test-only增量指出fill参数可能进入Playwright失败日志，已集中fillConnectionCode固定净化异常并替换四smoke所有码输入，保留原UI兑换、不输出cause/log。新增测试实际RED1/1→GREEN2/2，最后审查与包含冷浏览器的全正式Chrome/主仓100文件验证进行中。未因此重新打开或修改已验收产品实现；最终门禁增量与文档确认后再通知。
+
+最后test-only门禁修订完成：Cicero独立凭据净化2/2复审PASS，当前P1/P2=0；所有正式四Chrome在同一验收生产产物再次实际exit0。冷浏览器最后还增加独立GET完整DTO严格相等与所有世界设置、角色覆盖字段读回，真实再跑exit0；封面/开场图片均重新从私有HTTP解码。主仓100文件1538/1538、双端types实际exit0，应用源码仍为ca6bc55（其精确CI已成功）。准备提交仅test-only门禁与最终验收文档，新提交CI仍会完整执行，不跳过失败检查。

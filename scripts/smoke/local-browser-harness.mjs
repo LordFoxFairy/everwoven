@@ -7,6 +7,12 @@ import {fileURLToPath} from 'node:url';
 import {setTimeout as delay} from 'node:timers/promises';
 import {chromium} from '@playwright/test';
 
+// Playwright may include fill's argument in timeout logs, even for password
+// inputs. Never let that diagnostic escape the credential entry boundary.
+export async function fillConnectionCode(input, code) {
+ try {await input.fill(code);} catch {throw Error('Connection code entry failed');}
+}
+
 /** Test-only fixture. Owns exactly one temporary host, browser and child server. */
 export async function withLocalBrowser(work){
  const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
@@ -43,11 +49,11 @@ export async function withLocalBrowser(work){
   browser=await chromium.launch({...process.env.PLAYWRIGHT_CHANNEL?{channel:process.env.PLAYWRIGHT_CHANNEL}:{}});
   page=await browser.newPage({viewport:{width:1440,height:1000}});
   const errors=[];page.on('pageerror',error=>errors.push(error.message));page.on('dialog',dialog=>dialog.accept());
-  await work({page,origin,datasetId:manifest.datasetId,connectionCode:code,
+  await work({page,origin,datasetId:manifest.datasetId,connectionCode:code,newConnectionCode:()=>cli('connect'),
    async restart(){await stop();await start();assert.equal(JSON.parse(await readFile(path.join(directory,'manifest.json'),'utf8')).datasetId,manifest.datasetId);},
   });
   assert.deepEqual(errors,[],'Browser JavaScript errors');
- }catch(error){if(page)console.error((await page.locator('body').innerText()).slice(-12000));throw error;}
+ }catch(error){if(page&&!page.isClosed())console.error((await page.locator('body').innerText()).slice(-12000));throw error;}
  finally{
   try{await browser?.close();}finally{try{await stop();}finally{await rm(parent,{recursive:true,force:true});}}
  }
