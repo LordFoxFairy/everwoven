@@ -3,7 +3,7 @@ import {StrictMode} from 'react';
 import {afterEach,expect,it,vi} from 'vitest';
 import {act,cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import {AuthoringSessionProvider,useAuthoringSession} from './session-context';
-import type {AuthoringSession} from './ports';
+import type {AuthoringSession} from './session-client';
 afterEach(cleanup);
 const datasetId='01994b80-0000-7000-8000-000000000099';
 function Probe(){const s=useAuthoringSession();return <><output>{s.state.status}:{s.state.datasetId??'none'}</output><button onClick={()=>void s.connect('code')}>connect</button><button onClick={s.invalidate}>invalidate</button><input aria-label="draft" defaultValue="retained"/></>;}

@@ -24,7 +24,7 @@ it('provides independent six-operation character composition on a temporary auth
   await work((s, o) => s.restore(o, life(3)));
   const reconnected = await host.exchangeConnectionCode(directory, 'dev', await host.issueConnectionCode(directory, 'dev'));
   expect(await withCharacters(directory, 'dev', reconnected.token, (s, o) => s.create(o, command))).toEqual({...created, replayed: true});
-  expect((await host.withLocalStories(directory, 'dev', session.token, (s, o) => s.list(o))).items).toEqual([]);
+  expect((await host.withLocalStories(directory, 'dev', session.token, (s, o) => s.list(o, {protocolVersion: 1, datasetId: o.datasetId}))).items).toEqual([]);
   await expect(work((s, o) => s.create(o, {...command, datasetId: v7()}))).rejects.toThrow('DATASET_CHANGED');
   await expect(work((s, o) => s.create(o, {...command, commandId: v7(), portraitAssetId: v7()}))).rejects.toThrow('INVALID_CHARACTER_PORTRAIT');
   await expect(work(async () => {throw Error('SQL /private/path');})).rejects.toThrow('LOCAL_CHARACTERS_FAILED');

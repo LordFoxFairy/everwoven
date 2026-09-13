@@ -67,8 +67,8 @@ jobs:
           curl --retry 20 --retry-delay 2 --retry-all-errors --max-time 5 --retry-max-time 60 --fail http://127.0.0.1:3100/ -o /dev/null
           node scripts/smoke/http-browser.mjs
 
-      - name: Verify local authoring and process restart
-        run: node scripts/smoke/local-authoring.mjs
+      - name: Verify original Studio aggregate, recovery and process restart
+        run: node scripts/smoke/local-story-ui.mjs
 
       - name: Verify original character library and process restart
         run: node scripts/smoke/local-characters.mjs

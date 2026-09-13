@@ -31,3 +31,11 @@ describe('trusted dataset double authentication', () => {
     expect(work).toHaveBeenCalledWith({}, fixture.owner); expect(fixture.authenticate).toHaveBeenCalledTimes(2);
   });
 });
+
+it.each(['CLIENT_RELOAD_REQUIRED', 'TEMPLATE_REVISION_CONFLICT', 'CHARACTER_NOT_FOUND', 'ASSET_NOT_FOUND', 'STORY_ASSET_NOT_READY'])('preserves the exact story aggregate identifier %s', async code => {
+  await expect(withLocalStories('/isolated', 'dev', 'token', async () => {throw Error(code);})).rejects.toThrow(new RegExp(`^${code}$`));
+  expect(fixture.disconnect).toHaveBeenCalledOnce();
+});
+it('never exposes a prefixed unknown story error', async () => {
+  await expect(withLocalStories('/isolated', 'dev', 'token', async () => {throw Error('STORY_ASSET_NOT_READY /private/fixture');})).rejects.toThrow(/^LOCAL_STORIES_FAILED$/);
+});

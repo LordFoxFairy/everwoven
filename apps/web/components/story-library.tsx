@@ -1,0 +1,19 @@
+'use client';
+import {useState} from 'react';
+import {BookOpen,Plus,Search,ArrowUpRight} from 'lucide-react';
+import type {StoryController,StoryState} from '../lib/authoring/story-controller';
+import {FormalStoryCover} from './story-assets';
+export function StoryLibrary({controller,state,onCreate,onOpen}:{controller:StoryController;state:StoryState;onCreate:()=>void;onOpen:(id:string)=>void}){
+ const [q,setQ]=useState(state.filters.q),[genre,setGenre]=useState(state.filters.genre??'');
+ const blocked=state.saving||state.reading||state.unknown||state.datasetChanged;
+ async function lifecycle(id:string){if(blocked)return;if(await controller.open(id,false)){try{await controller.lifecycle(state.filters.deleted==='only'?'restore':'delete');}catch{/* controller owns recovery */}}}
+ return <><div className="page-heading"><div><p className="eyebrow">YOUR STORY STUDIO</p><h1>我的剧本</h1><p>世界、角色和图片随剧本保存，角色设定独立保留；后续生成另行配置。</p></div><button className="primary" disabled={blocked} onClick={onCreate}><Plus size={16}/>新建剧本</button></div>
+ <form className="section-heading" onSubmit={e=>{e.preventDefault();void controller.load({q,genre:genre||undefined});}}><label className="search"><Search size={17}/><input aria-label="搜索剧本标题" value={q} onChange={e=>setQ(e.target.value)} placeholder="仅搜索剧本标题…"/></label><label>题材筛选<input aria-label="精确题材" value={genre} onChange={e=>setGenre(e.target.value)} placeholder="精确匹配，留空为全部"/></label><button className="secondary" disabled={!state.connected||state.listBusy}>搜索剧本</button></form>
+ <div className="filters"><button className={state.filters.deleted==='exclude'?'chip selected':'chip'} onClick={()=>void controller.load({deleted:'exclude'})}>创作中的故事</button><button className={state.filters.deleted==='only'?'chip selected':'chip'} onClick={()=>void controller.load({deleted:'only'})}>回收列表</button><button className="text-button" disabled={!state.connected||state.listBusy} onClick={()=>void controller.load()}>刷新剧本</button><span>{state.total} 个匹配剧本</span></div>
+ {!state.connected?<p role="status">尚未连接本机，请连接后读取剧本。</p>:state.listBusy?<p role="status">正在读取剧本列表…</p>:state.listStatus==='idle'?<p role="status">剧本列表尚未读取。</p>:null}
+ {state.listStatus==='error'&&<p role="alert">{state.listError}</p>}{state.error&&<p role="alert">{state.error}</p>}{state.unknown&&!state.datasetChanged&&<button className="primary" disabled={!state.connected||state.saving} onClick={()=>void controller.confirm().catch(()=>{})}>确认上次剧本命令</button>}
+ {state.datasetChanged&&<button className="secondary" disabled={!state.connected} onClick={()=>{if(controller.fromRetained())onCreate();}}>从保留文本新建剧本</button>}
+ <div className="story-grid">{state.items.map(item=><article className="story-card" key={item.id}><FormalStoryCover datasetId={item.datasetId} assetId={item.coverAssetId} className="cover" disabled={blocked} onClick={()=>onOpen(item.id)} aria-label={`打开剧本 ${item.title}`}><span className="cover-tag">{state.filters.deleted==='only'?'回收中的剧本':'我的草稿'}</span><span className="cover-title">{item.title}</span><span className="cover-arrow"><ArrowUpRight size={20}/></span></FormalStoryCover><div className="card-line"><h3>{item.title}</h3><span>{item.genre}</span></div><div className="card-meta"><span>{item.mainCharacterName??'尚未设置角色'}</span><small>修订 {item.revision}</small></div><button className="text-button" disabled={blocked||!state.connected} onClick={()=>void lifecycle(item.id)}>{state.filters.deleted==='only'?'恢复':'删除'}剧本 {item.title}</button></article>)}</div>
+ {state.connected&&!state.listBusy&&state.listStatus==='ready'&&!state.items.length&&<div className="empty"><BookOpen/><h3>{q||genre?'没有匹配的剧本':state.filters.deleted==='only'?'回收列表为空':'你的第一个故事，还没开始'}</h3><p>当前结果来自本机 SQLite，不读取演示草稿。</p></div>}
+ {state.cursor&&<button className="secondary" disabled={!state.connected||state.listBusy} onClick={()=>void controller.load(undefined,true)}>加载更多剧本</button>}</>;
+}

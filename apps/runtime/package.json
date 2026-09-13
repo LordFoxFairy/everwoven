@@ -53,6 +53,10 @@
     "./contracts/asset-validation": {
       "types": "./src/contracts/asset-validation.ts",
       "default": "./dist/contracts/asset-validation.js"
+    },
+    "./contracts/story-draft-output": {
+      "types": "./src/contracts/story-draft-output.ts",
+      "default": "./dist/contracts/story-draft-output.js"
     }
   }
 }

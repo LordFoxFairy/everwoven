@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
-import {act,cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
+import {act,cleanup,fireEvent,render,screen,waitFor,within} from '@testing-library/react';
 import {useState,StrictMode} from 'react';
 import {webcrypto} from 'node:crypto';
 import {v7} from 'uuid';
@@ -108,7 +108,7 @@ it('formal Editor switches configuration tabs during unknown and saves current i
  click('03角色配置');await upload();await screen.findByRole('button',{name:'确认上次图片命令'});click('01基础信息');click('我的剧本');expect(back).not.toHaveBeenCalled();click('03角色配置');expect(screen.getByRole('button',{name:'确认上次图片命令'})).toBeTruthy();
  vi.mocked(client.completeUpload).mockImplementation(complete);click('确认上次图片命令');await screen.findByText('图片已保存到本机，保存角色后生效');click('另存为角色模板');await screen.findByText(/角色模板已保存。此剧本仍是编辑副本/);
  expect(save.mock.calls[0]![0]).toMatchObject({source,portraitRef:{kind:'formal',datasetId}});expect(save.mock.calls[0]![0].portraitRef.id).not.toBe(source.portraitAssetId);
- click('04画面与素材');expect(screen.queryByLabelText('选择剧本封面')).toBeNull();expect((screen.getByRole('button',{name:'保存草稿'}) as HTMLButtonElement).disabled).toBe(true);
+ click('04画面与素材');expect(screen.getByLabelText('选择剧本封面')).toBeTruthy();expect((screen.getByRole('button',{name:'保存草稿'}) as HTMLButtonElement).disabled).toBe(true);
 });
 it.each(['missing','error'])('a referenced formal portrait %s never pretends to be an initial-letter or demo image',async kind=>{
  const {client,binding}=formal();vi.mocked(client.read).mockRejectedValue(kind==='missing'?{kind:'missing',message:'图片不存在'}:TypeError('offline'));
@@ -169,4 +169,22 @@ it('Platform use-TA then replace-and-saveCopy submits the current image without 
  render(<Platform environment="dev" databaseEnabled/>);await screen.findByText('已连接本机');click('角色库');await screen.findByRole('button',{name:'用 角色 创作'});click('用 角色 创作');click('03角色配置');
  await upload();await screen.findByText('图片已保存到本机，保存角色后生效');click('另存为角色模板');await screen.findByText(/角色模板已保存。此剧本仍是编辑副本/);
  expect(c.client.create).toHaveBeenCalledOnce();const submitted=vi.mocked(c.client.create).mock.calls[0]![0];expect(submitted.portraitAssetId).toBeTruthy();expect(submitted.portraitAssetId).not.toBe(original.portraitAssetId);expect(c.client.update).not.toHaveBeenCalled();
+});
+it('original formal Editor stores three uploaded slots atomically while retaining the fixed base portrait',async()=>{
+ const{StoryController}=await import('../lib/authoring/story-controller'),{storyClient,rootId,assetId,version}=await import('../lib/authoring/story-test-fixtures'),{useSyncExternalStore}=await import('react');
+ const {binding,client:assets}=formal(),client=storyClient(),controller=new StoryController();controller.bind({client,connected:true,datasetId,invalidate:vi.fn()});await controller.open(rootId);
+ function Form(){const state=useSyncExternalStore(controller.subscribe,controller.getSnapshot);return <AssetProvider binding={binding}><Editor story={{controller,state}} formal initial={blankStory()} characters={[]} onSave={vi.fn()} onSaveCharacter={vi.fn()} onBack={vi.fn()} onPlay={vi.fn()} notice="" dialog={null}/></AssetProvider>;}
+ render(<Form/>);click('03角色配置');
+ async function uploadSlot(title:string,slot:'character'|'cover'|'opening'){
+  const section=screen.getByRole('heading',{name:title}).closest('section')!;
+  await act(async()=>fireEvent.change(within(section).getByLabelText(`选择${title}`),{target:{files:[file(`${slot}.png`)]}}));
+  const rights=within(section).getByRole('checkbox',{name:'我确认有权使用这张图片'}) as HTMLInputElement;await waitFor(()=>expect(rights.disabled).toBe(false));fireEvent.click(rights);fireEvent.click(within(section).getByRole('button',{name:'上传图片'}));
+  await waitFor(()=>expect(controller.getSnapshot().fields.assetSlots[slot]).not.toBeNull());
+  await waitFor(()=>expect(within(section).getByText('图片已保存到本机，保存角色后生效')).toBeTruthy());
+ }
+ await uploadSlot('角色参考','character');click('04画面与素材');await uploadSlot('剧本封面','cover');await uploadSlot('开场画面','opening');
+ expect(client.update).not.toHaveBeenCalled();click('保存草稿');await waitFor(()=>expect(client.update).toHaveBeenCalledTimes(1));const input=client.update.mock.calls[0]![0];
+ expect(new Set(Object.values(input.patch.assetSlots!)).size).toBe(3);expect(Object.values(input.patch.assetSlots!)).not.toContain(null);
+ expect(input.patch.mainCharacter).toMatchObject({kind:'bound',characterVersionId:version.id,overrides:{relationship:'旧友',portrait:{mode:'asset',assetId:input.patch.assetSlots!.character}}});
+ expect(controller.getSnapshot().fields.source).toMatchObject({kind:'bound',version:{portraitAssetId:assetId}});expect(assets.beginUpload).toHaveBeenCalledTimes(3);
 });

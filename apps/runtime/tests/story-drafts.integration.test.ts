@@ -8,10 +8,10 @@ import {v7} from 'uuid';
 import {openRuntimeDatabase} from '../src/infrastructure/db/client.js';
 import type {PrismaClient} from '../src/generated/prisma/client.js';
 import {createDraft, getDraft, listDrafts, updateDraft, deleteDraft, restoreDraft} from '../src/application/story-drafts.js';
-import type {StorySettings} from '../src/contracts/story-draft.js';
+import type {DraftDTO, StorySettings} from '../src/contracts/story-draft.js';
 import {PrismaStoryDraftStore} from '../src/infrastructure/db/prisma-story-draft-store.js';
 import {createStoryDraftService} from '../src/composition/story-draft-service.js';
-import type {StoryDraftInsert, StoryReceiptInsert} from '../src/ports/story-draft-store.js';
+import type {StoryDraftInsert, StoryReceiptInsert, StoryDraftStore} from '../src/ports/story-draft-store.js';
 
 const datasetId = '01994b80-0000-7000-8000-000000000099';
 
@@ -20,7 +20,12 @@ let baseDir: string, base: string, dir: string, path: string, db: PrismaClient;
 let connections: PrismaClient[] = [];
 let owner: {ownerId: string; datasetId: string};
 const settings: StorySettings = {world: '', opening: '', genre: '', playerRole: '', worldRules: [], tone: ''};
-const command = (title = '新的世界') => ({datasetId, commandId: v7(), title, settings: structuredClone(settings)});
+const command = (title = '新的世界') => ({protocolVersion: 1 as const, datasetId, commandId: v7(), title, mainCharacter: null, assetSlots: {cover: null, opening: null, character: null}, settings: structuredClone(settings)});
+const summary = (d: DraftDTO) => ({protocolVersion: d.protocolVersion, datasetId: d.datasetId,
+  id: d.id, title: d.title, genre: d.settings.genre, mainCharacterName: d.mainCharacter?.effective.name ?? null,
+  coverAssetId: d.assetSlots.cover, revision: d.revision, createdAt: d.createdAt, updatedAt: d.updatedAt,
+  deletedAt: d.deletedAt, archivedAt: d.archivedAt});
+const summaryRecord = ({settings, ...d}: StoryDraftInsert) => ({...d, genre: settings.genre, mainCharacterName: null, coverAssetId: null});
 async function connect() {const client = await openRuntimeDatabase(path); connections.push(client); return client;}
 beforeAll(async () => {
   baseDir = await mkdtemp(join(tmpdir(), 'weiwan-m0b-base-')); base = join(baseDir, 'base.db');
@@ -45,81 +50,81 @@ describe('internal story root CRUD on a real SQLite file', () => {
     expect(result.data.createdAt).toBe(result.data.updatedAt); expect(result.data.deletedAt).toBeNull();
     expect(result.data.settings).toEqual(settings); expect(result.data).not.toHaveProperty('ownerId');
     await db.$disconnect(); const reopened = await connect();
-    expect(await getDraft(new PrismaStoryDraftStore(reopened), owner, result.data.id)).toEqual(result.data);
+    expect(await getDraft(new PrismaStoryDraftStore(reopened), owner, {protocolVersion: 1, datasetId, id: result.data.id})).toEqual(result.data);
   });
   it('updates only provided fields, preserves createdAt, and advances CAS revision', async () => {
     const {data: created} = await createDraft(new PrismaStoryDraftStore(db), owner, command());
-    const {data: changed} = await updateDraft(new PrismaStoryDraftStore(db), owner, {datasetId, commandId: v7(), id: created.id, expectedRevision: 1, patch: {title: '打磨后的世界'}});
+    const {data: changed} = await updateDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: created.id, expectedRevision: 1, patch: {title: '打磨后的世界'}});
     expect(changed.title).toBe('打磨后的世界'); expect(changed.settings).toEqual(settings); expect(changed.createdAt).toBe(created.createdAt); expect(changed.revision).toBe(2);
     const replacement = {world: '一座安静的海边小镇', opening: '收到一封来信', genre: '日常',
       playerRole: '旅人', worldRules: ['不替玩家决定感情'], tone: '温柔'};
-    const {data: next} = await updateDraft(new PrismaStoryDraftStore(db), owner, {datasetId, commandId: v7(), id: created.id, expectedRevision: 2, patch: {settings: replacement}});
+    const {data: next} = await updateDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: created.id, expectedRevision: 2, patch: {settings: replacement}});
     expect(next.settings).toEqual(replacement); expect(next.title).toBe(changed.title); expect(next.revision).toBe(3);
   });
   it('soft-deletes, hides default reads, and restores with a new revision', async () => {
     const {data} = await createDraft(new PrismaStoryDraftStore(db), owner, command());
-    const deleted = await deleteDraft(new PrismaStoryDraftStore(db), owner, {datasetId, commandId: v7(), id: data.id, expectedRevision: 1});
+    const deleted = await deleteDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 1});
     expect(deleted.data.deletedAt).toBe(deleted.data.updatedAt); expect(deleted.data.revision).toBe(2);
-    await expect(getDraft(new PrismaStoryDraftStore(db), owner, data.id)).rejects.toThrow('STORY_NOT_FOUND');
-    expect((await listDrafts(new PrismaStoryDraftStore(db), owner)).items).toEqual([]);
-    expect((await listDrafts(new PrismaStoryDraftStore(db), owner, {deleted: 'only'})).items).toEqual([deleted.data]);
-    expect(await getDraft(new PrismaStoryDraftStore(db), owner, data.id, true)).toEqual(deleted.data);
-    const restored = await restoreDraft(new PrismaStoryDraftStore(db), owner, {datasetId, commandId: v7(), id: data.id, expectedRevision: 2});
+    await expect(getDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1, datasetId, id: data.id})).rejects.toThrow('STORY_NOT_FOUND');
+    expect((await listDrafts(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1, datasetId})).items).toEqual([]);
+    expect((await listDrafts(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1, datasetId, deleted: 'only'})).items).toEqual([summary(deleted.data)]);
+    expect(await getDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1, datasetId, id: data.id, includeDeleted: true})).toEqual(deleted.data);
+    const restored = await restoreDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 2});
     expect(restored.data.revision).toBe(3); expect(restored.data.deletedAt).toBeNull(); expect(restored.data.createdAt).toBe(data.createdAt);
   });
   it('replays create/update/delete receipts across reopen, not a new business operation', async () => {
     const input = command(); const created = await createDraft(new PrismaStoryDraftStore(db), owner, input);
-    const update = {datasetId, commandId: v7(), id: created.data.id, expectedRevision: 1, patch: {title: '已修改'}};
+    const update = {protocolVersion: 1 as const, datasetId, commandId: v7(), id: created.data.id, expectedRevision: 1, patch: {title: '已修改'}};
     const changed = await updateDraft(new PrismaStoryDraftStore(db), owner, update);
     expect(await createDraft(new PrismaStoryDraftStore(db), owner, input)).toEqual({...created, replayed: true});
-    const deletion = {datasetId, commandId: v7(), id: created.data.id, expectedRevision: 2};
+    const deletion = {protocolVersion: 1 as const, datasetId, commandId: v7(), id: created.data.id, expectedRevision: 2};
     const deleted = await deleteDraft(new PrismaStoryDraftStore(db), owner, deletion); await db.$disconnect(); const reopened = await connect();
     expect(await deleteDraft(new PrismaStoryDraftStore(reopened), owner, deletion)).toEqual({...deleted, replayed: true});
     expect(await updateDraft(new PrismaStoryDraftStore(reopened), owner, update)).toEqual({...changed, replayed: true});
     expect(await reopened.storyDraft.count()).toBe(1); expect(await reopened.commandReceipt.count()).toBe(3);
-    expect((await getDraft(new PrismaStoryDraftStore(reopened), owner, created.data.id, true)).revision).toBe(3);
+    expect((await getDraft(new PrismaStoryDraftStore(reopened), owner, {protocolVersion: 1, datasetId, id: created.data.id, includeDeleted: true})).revision).toBe(3);
   });
   it('canonicalizes settings key order but rejects changed payloads and command types', async () => {
     const input = command(); const created = await createDraft(new PrismaStoryDraftStore(db), owner, input);
     expect((await createDraft(new PrismaStoryDraftStore(db), owner, {...input, settings: {tone: '', worldRules: [], playerRole: '', genre: '', opening: '', world: ''}})).replayed).toBe(true);
     await expect(createDraft(new PrismaStoryDraftStore(db), owner, {...input, title: '不同内容'})).rejects.toThrow('IDEMPOTENCY_CONFLICT');
-    await expect(deleteDraft(new PrismaStoryDraftStore(db), owner, {datasetId, commandId: input.commandId, id: created.data.id, expectedRevision: 1})).rejects.toThrow('IDEMPOTENCY_CONFLICT');
+    await expect(deleteDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1 as const, datasetId, commandId: input.commandId, id: created.data.id, expectedRevision: 1})).rejects.toThrow('IDEMPOTENCY_CONFLICT');
   });
   it('isolates reads, lists and all write actions by active owner', async () => {
     const {data} = await createDraft(new PrismaStoryDraftStore(db), owner, command()); const other = {datasetId, ownerId: v7()}; const now = new Date();
     await db.localProfile.create({data: {id: other.ownerId, displayName: '另一身份', createdAt: now, updatedAt: now}});
-    expect((await listDrafts(new PrismaStoryDraftStore(db), other)).items).toEqual([]);
-    await expect(getDraft(new PrismaStoryDraftStore(db), other, data.id, true)).rejects.toThrow('STORY_NOT_FOUND');
-    await expect(updateDraft(new PrismaStoryDraftStore(db), other, {datasetId, commandId: v7(), id: data.id, expectedRevision: 1, patch: {title: '越权'}})).rejects.toThrow('STORY_NOT_FOUND');
-    await expect(deleteDraft(new PrismaStoryDraftStore(db), other, {datasetId, commandId: v7(), id: data.id, expectedRevision: 1})).rejects.toThrow('STORY_NOT_FOUND');
-    await expect(restoreDraft(new PrismaStoryDraftStore(db), other, {datasetId, commandId: v7(), id: data.id, expectedRevision: 1})).rejects.toThrow('STORY_NOT_FOUND');
+    expect((await listDrafts(new PrismaStoryDraftStore(db), other, {protocolVersion: 1, datasetId})).items).toEqual([]);
+    await expect(getDraft(new PrismaStoryDraftStore(db), other, {protocolVersion: 1, datasetId, id: data.id, includeDeleted: true})).rejects.toThrow('STORY_NOT_FOUND');
+    await expect(updateDraft(new PrismaStoryDraftStore(db), other, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 1, patch: {title: '越权'}})).rejects.toThrow('STORY_NOT_FOUND');
+    await expect(deleteDraft(new PrismaStoryDraftStore(db), other, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 1})).rejects.toThrow('STORY_NOT_FOUND');
+    await expect(restoreDraft(new PrismaStoryDraftStore(db), other, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 1})).rejects.toThrow('STORY_NOT_FOUND');
     await db.localProfile.update({where: {id: owner.ownerId}, data: {deletedAt: now}});
-    await expect(getDraft(new PrismaStoryDraftStore(db), owner, data.id)).rejects.toThrow('OWNER_UNAVAILABLE');
-    await expect(listDrafts(new PrismaStoryDraftStore(db), owner)).rejects.toThrow('OWNER_UNAVAILABLE');
+    await expect(getDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1, datasetId, id: data.id})).rejects.toThrow('OWNER_UNAVAILABLE');
+    await expect(listDrafts(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1, datasetId})).rejects.toThrow('OWNER_UNAVAILABLE');
     await expect(createDraft(new PrismaStoryDraftStore(db), owner, command())).rejects.toThrow('OWNER_UNAVAILABLE');
   });
   it('rejects stale update/delete/restore without changing data or receipts', async () => {
     const {data} = await createDraft(new PrismaStoryDraftStore(db), owner, command()); const second = await connect();
-    await updateDraft(new PrismaStoryDraftStore(db), owner, {datasetId, commandId: v7(), id: data.id, expectedRevision: 1, patch: {title: '先保存'}});
-    await expect(updateDraft(new PrismaStoryDraftStore(second), owner, {datasetId, commandId: v7(), id: data.id, expectedRevision: 1, patch: {title: '旧窗口'}})).rejects.toThrow('REVISION_CONFLICT');
-    await expect(deleteDraft(new PrismaStoryDraftStore(second), owner, {datasetId, commandId: v7(), id: data.id, expectedRevision: 1})).rejects.toThrow('REVISION_CONFLICT');
-    await deleteDraft(new PrismaStoryDraftStore(db), owner, {datasetId, commandId: v7(), id: data.id, expectedRevision: 2});
-    await expect(restoreDraft(new PrismaStoryDraftStore(second), owner, {datasetId, commandId: v7(), id: data.id, expectedRevision: 2})).rejects.toThrow('REVISION_CONFLICT');
+    await updateDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 1, patch: {title: '先保存'}});
+    await expect(updateDraft(new PrismaStoryDraftStore(second), owner, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 1, patch: {title: '旧窗口'}})).rejects.toThrow('REVISION_CONFLICT');
+    await expect(deleteDraft(new PrismaStoryDraftStore(second), owner, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 1})).rejects.toThrow('REVISION_CONFLICT');
+    await deleteDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 2});
+    await expect(restoreDraft(new PrismaStoryDraftStore(second), owner, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 2})).rejects.toThrow('REVISION_CONFLICT');
     expect(await db.commandReceipt.count()).toBe(3);
   });
   it('allows same-name stories and keyset pagination without duplicates on stable data', async () => {
     for (let i = 0; i < 5; i++) await createDraft(new PrismaStoryDraftStore(db), owner, command('同名'));
-    const first = await listDrafts(new PrismaStoryDraftStore(db), owner, {limit: 2});
-    const second = await listDrafts(new PrismaStoryDraftStore(db), owner, {limit: 2, cursor: first.nextCursor!});
-    const third = await listDrafts(new PrismaStoryDraftStore(db), owner, {limit: 2, cursor: second.nextCursor!});
+    const first = await listDrafts(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1, datasetId, limit: 2});
+    const second = await listDrafts(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1, datasetId, limit: 2, cursor: first.nextCursor!});
+    const third = await listDrafts(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1, datasetId, limit: 2, cursor: second.nextCursor!});
     expect(first.items).toHaveLength(2); expect(second.items).toHaveLength(2); expect(third.items).toHaveLength(1); expect(third.nextCursor).toBeNull();
     expect(new Set([...first.items, ...second.items, ...third.items].map(item => item.id)).size).toBe(5);
-    await expect(listDrafts(new PrismaStoryDraftStore(db), owner, {cursor: first.nextCursor!, deleted: 'only'})).rejects.toThrow('INVALID_CURSOR');
+    await expect(listDrafts(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1, datasetId, cursor: first.nextCursor!, deleted: 'only'})).rejects.toThrow('INVALID_CURSOR');
   });
   it('does not cascade deletion into frozen versions', async () => {
     const {data} = await createDraft(new PrismaStoryDraftStore(db), owner, command()); const now = new Date(), versionId = v7();
     await db.storyVersion.create({data: {id: versionId, ownerId: owner.ownerId, storyDraftId: data.id, title: data.title, settings: {...settings}, versionNo: 1, sourceRevision: 1, createdAt: now, sealedAt: now, contentHash: '0'.repeat(64)}});
-    await deleteDraft(new PrismaStoryDraftStore(db), owner, {datasetId, commandId: v7(), id: data.id, expectedRevision: 1});
+    await deleteDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 1});
     expect(await db.storyVersion.count({where: {id: versionId}})).toBe(1);
     expect(await db.storyDraft.count({where: {id: data.id}})).toBe(1);
     expect(await db.$queryRawUnsafe('PRAGMA foreign_key_list("story_drafts")')).toEqual([]);
@@ -137,10 +142,10 @@ describe('internal story root CRUD on a real SQLite file', () => {
   it('rejects empty/unknown updates, invalid limits and forged cursor scope', async () => {
     const {data} = await createDraft(new PrismaStoryDraftStore(db), owner, command());
     for (const patch of [{}, {title: null}, {ownerId: v7()}, {settings: {world: 'partial'}}]) {
-      await expect(updateDraft(new PrismaStoryDraftStore(db), owner, {datasetId, commandId: v7(), id: data.id, expectedRevision: 1, patch} as never)).rejects.toThrow('INVALID_STORY_COMMAND');
+      await expect(updateDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 1, patch} as never)).rejects.toThrow('INVALID_STORY_COMMAND');
     }
-    for (const input of [{limit: 0}, {limit: 101}, {limit: 1.5}, {cursor: 'invalid'}]) await expect(listDrafts(new PrismaStoryDraftStore(db), owner, input)).rejects.toThrow();
-    expect((await getDraft(new PrismaStoryDraftStore(db), owner, data.id)).revision).toBe(1);
+    for (const input of [{limit: 0}, {limit: 101}, {limit: 1.5}, {cursor: 'invalid'}]) await expect(listDrafts(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1, datasetId, ...input})).rejects.toThrow();
+    expect((await getDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1, datasetId, id: data.id})).revision).toBe(1);
   });
   it('uses the injected Clock/IdFactory and never moves updatedAt backwards', async () => {
     const createdAt = new Date('2026-09-10T12:00:00.123Z');
@@ -148,14 +153,15 @@ describe('internal story root CRUD on a real SQLite file', () => {
     const {data} = await createDraft(new PrismaStoryDraftStore(db), owner, command(), services);
     expect(data.createdAt).toBe(createdAt.toISOString());
     const backwards = {...services, clock: {now: () => new Date('2020-01-01T00:00:00.000Z')}};
-    const updated = await updateDraft(new PrismaStoryDraftStore(db), owner, {datasetId, commandId: v7(), id: data.id, expectedRevision: 1, patch: {title: '时钟倒退时也保留顺序'}}, backwards);
+    const updated = await updateDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 1, patch: {title: '时钟倒退时也保留顺序'}}, backwards);
     expect(updated.data.updatedAt).toBe(data.updatedAt); expect(updated.data.revision).toBe(2);
   });
-  it('rolls back the created root and Gate if receipt ID generation fails after business write', async () => {
-    let calls = 0;
-    const input = command();
-    const services = {clock: {now: () => new Date()}, ids: {next: () => {if (++calls === 2) throw new Error('injected receipt failure');return v7();}}};
-    await expect(createDraft(new PrismaStoryDraftStore(db), owner, input, services)).rejects.toThrow('injected receipt failure');
+  it('rolls back the created root and Gate if receipt insertion fails after business write', async () => {
+    const input = command(), base = new PrismaStoryDraftStore(db);
+    const failing: StoryDraftStore = {read: base.read.bind(base), write: (ownerId, work) => base.write(ownerId, scope => work({
+      ...scope, insertReceipt: async receipt => {expect(await scope.findDraft(receipt.id)).not.toBeNull(); throw Error('injected receipt failure');},
+    }))};
+    await expect(createDraft(failing, owner, input)).rejects.toThrow('injected receipt failure');
     expect(await db.storyDraft.count()).toBe(0); expect(await db.commandReceipt.count()).toBe(0);
     expect((await db.localProfile.findUniqueOrThrow({where: {id: owner.ownerId}})).writeEpoch).toBe(0);
     await db.$disconnect(); const reopened = await connect();
@@ -166,8 +172,8 @@ describe('internal story root CRUD on a real SQLite file', () => {
     const {data} = await createDraft(new PrismaStoryDraftStore(db), owner, command()); const receipt = await db.commandReceipt.findFirstOrThrow();
     const before = await db.localProfile.findUniqueOrThrow({where: {id: owner.ownerId}});
     const services = {clock: {now: () => new Date()}, ids: {next: () => receipt.id}};
-    await expect(updateDraft(new PrismaStoryDraftStore(db), owner, {datasetId, commandId: v7(), id: data.id, expectedRevision: 1, patch: {title: '不应留下'}}, services)).rejects.toMatchObject({code: 'P2002'});
-    expect(await getDraft(new PrismaStoryDraftStore(db), owner, data.id)).toEqual(data); expect(await db.commandReceipt.count()).toBe(1);
+    await expect(updateDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 1, patch: {title: '不应留下'}}, services)).rejects.toMatchObject({code: 'P2002'});
+    expect(await getDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1, datasetId, id: data.id})).toEqual(data); expect(await db.commandReceipt.count()).toBe(1);
     expect((await db.localProfile.findUniqueOrThrow({where: {id: owner.ownerId}})).writeEpoch).toBe(before.writeEpoch);
   });
   it.each(['invalid-clock', 'invalid-id'])('rejects broken runtime services atomically: %s', async failure => {
@@ -181,38 +187,38 @@ describe('internal story root CRUD on a real SQLite file', () => {
     await expect(createDraft(new PrismaStoryDraftStore(db), owner, input)).rejects.toThrow('COMMAND_RECEIPT_INVALID');
     await db.commandReceipt.updateMany({where: {ownerId: owner.ownerId}, data: {schemaVersion: 1, response: {id: data.id}}});
     await expect(createDraft(new PrismaStoryDraftStore(db), owner, input)).rejects.toThrow('COMMAND_RECEIPT_INVALID');
-    expect(await db.storyDraft.count()).toBe(1); expect((await getDraft(new PrismaStoryDraftStore(db), owner, data.id)).revision).toBe(1);
+    expect(await db.storyDraft.count()).toBe(1); expect((await getDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1, datasetId, id: data.id})).revision).toBe(1);
   });
   it('refuses unknown stored schema and does not silently downgrade its content', async () => {
     const {data} = await createDraft(new PrismaStoryDraftStore(db), owner, command());
     await db.storyDraft.update({where: {id: data.id}, data: {schemaVersion: 2}});
-    await expect(getDraft(new PrismaStoryDraftStore(db), owner, data.id)).rejects.toThrow('STORED_STORY_INVALID');
-    await expect(updateDraft(new PrismaStoryDraftStore(db), owner, {datasetId, commandId: v7(), id: data.id, expectedRevision: 1, patch: {title: '不要覆盖未来数据'}})).rejects.toThrow('STORED_STORY_INVALID');
+    await expect(getDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1, datasetId, id: data.id})).rejects.toThrow('STORED_STORY_INVALID');
+    await expect(updateDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 1, patch: {title: '不要覆盖未来数据'}})).rejects.toThrow('STORED_STORY_INVALID');
     expect(await db.commandReceipt.count()).toBe(1);
   });
   it('replays restore even after a later deletion without undoing the latest state', async () => {
     const {data} = await createDraft(new PrismaStoryDraftStore(db), owner, command());
-    await deleteDraft(new PrismaStoryDraftStore(db), owner, {datasetId, commandId: v7(), id: data.id, expectedRevision: 1});
-    const restoration = {datasetId, commandId: v7(), id: data.id, expectedRevision: 2};
+    await deleteDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 1});
+    const restoration = {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 2};
     const restored = await restoreDraft(new PrismaStoryDraftStore(db), owner, restoration);
-    await deleteDraft(new PrismaStoryDraftStore(db), owner, {datasetId, commandId: v7(), id: data.id, expectedRevision: 3});
+    await deleteDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 3});
     expect(await restoreDraft(new PrismaStoryDraftStore(db), owner, restoration)).toEqual({...restored, replayed: true});
-    expect((await getDraft(new PrismaStoryDraftStore(db), owner, data.id, true)).revision).toBe(4);
-    expect((await getDraft(new PrismaStoryDraftStore(db), owner, data.id, true)).deletedAt).not.toBeNull();
+    expect((await getDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1, datasetId, id: data.id, includeDeleted: true})).revision).toBe(4);
+    expect((await getDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1, datasetId, id: data.id, includeDeleted: true})).deletedAt).not.toBeNull();
   });
   it('rejects a cursor from another owner even when both identities are active', async () => {
     await createDraft(new PrismaStoryDraftStore(db), owner, command()); await createDraft(new PrismaStoryDraftStore(db), owner, command());
-    const {nextCursor} = await listDrafts(new PrismaStoryDraftStore(db), owner, {limit: 1}); const now = new Date(), another = {datasetId, ownerId: v7()};
+    const {nextCursor} = await listDrafts(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1, datasetId, limit: 1}); const now = new Date(), another = {datasetId, ownerId: v7()};
     await db.localProfile.create({data: {id: another.ownerId, displayName: '独立身份', createdAt: now, updatedAt: now}});
-    await expect(listDrafts(new PrismaStoryDraftStore(db), another, {cursor: nextCursor!})).rejects.toThrow('INVALID_CURSOR');
+    await expect(listDrafts(new PrismaStoryDraftStore(db), another, {protocolVersion: 1, datasetId, cursor: nextCursor!})).rejects.toThrow('INVALID_CURSOR');
   });
   it('allows only one concurrent stale-revision command across independent connections', async () => {
     const {data} = await createDraft(new PrismaStoryDraftStore(db), owner, command()); const other = await connect();
-    const a = {datasetId, commandId: v7(), id: data.id, expectedRevision: 1, patch: {title: 'A'}};
-    const b = {datasetId, commandId: v7(), id: data.id, expectedRevision: 1, patch: {title: 'B'}};
+    const a = {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 1, patch: {title: 'A'}};
+    const b = {protocolVersion: 1 as const, datasetId, commandId: v7(), id: data.id, expectedRevision: 1, patch: {title: 'B'}};
     const results = await Promise.allSettled([updateDraft(new PrismaStoryDraftStore(db), owner, a), updateDraft(new PrismaStoryDraftStore(other), owner, b)]);
     expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
-    expect((await getDraft(new PrismaStoryDraftStore(db), owner, data.id)).revision).toBe(2); expect(await db.commandReceipt.count()).toBe(2);
+    expect((await getDraft(new PrismaStoryDraftStore(db), owner, {protocolVersion: 1, datasetId, id: data.id})).revision).toBe(2); expect(await db.commandReceipt.count()).toBe(2);
     const losing = results[0]!.status === 'rejected' ? a : b;
     await expect(updateDraft(new PrismaStoryDraftStore(db), owner, losing)).rejects.toThrow('REVISION_CONFLICT');
   });
@@ -227,7 +233,7 @@ const draftRecord = (title = '端口草稿'): StoryDraftInsert => {
 };
 const receiptRecord = (draft: StoryDraftInsert): StoryReceiptInsert => ({
   id: v7(), commandId: v7(), commandType: 'authoring.story.create.v1', payloadHash: '0'.repeat(64), schemaVersion: 1,
-  response: {...draft, createdAt: draft.createdAt.toISOString(), updatedAt: draft.updatedAt.toISOString(), deletedAt: null, archivedAt: null},
+  response: {...draft, protocolVersion: 1, datasetId, mainCharacter: null, assetSlots: {cover: null, opening: null, character: null}, assets: [], createdAt: draft.createdAt.toISOString(), updatedAt: draft.updatedAt.toISOString(), deletedAt: null, archivedAt: null},
   createdAt: draft.updatedAt,
 });
 
@@ -247,8 +253,8 @@ describe('owner-scoped story store contract on the shared real SQLite fixture', 
       await scope.insertDraft({...own, ownerId: another} as StoryDraftInsert);
       await scope.insertReceipt({...ownReceipt, ownerId: another} as StoryReceiptInsert);
       expect(await scope.findDraft(foreign.id, true)).toBeNull();
-      expect(await scope.listDrafts({deleted: 'exclude', take: 10})).toEqual([own]);
-      expect(await scope.findReceipt(ownReceipt.commandId)).toEqual({commandType: ownReceipt.commandType,
+      expect(await scope.listDrafts({q: '', deleted: 'exclude', take: 10})).toEqual([summaryRecord(own)]);
+      expect(await scope.findReceipt(ownReceipt.commandId)).toEqual({id: ownReceipt.id, commandType: ownReceipt.commandType,
         payloadHash: ownReceipt.payloadHash, schemaVersion: 1, response: ownReceipt.response});
       expect(await scope.compareAndSwapDraft({id: foreign.id, expectedRevision: 1, deleted: 'exclude',
         patch: {title: '越权'}, updatedAt: now})).toBe(0);
@@ -258,7 +264,7 @@ describe('owner-scoped story store contract on the shared real SQLite fixture', 
     });
     await store.read(owner.ownerId, async scope => {
       expect(await scope.findDraft(foreign.id, true)).toBeNull();
-      expect((await scope.listDrafts({deleted: 'exclude', take: 10})).map(row => row.id)).toEqual([own.id]);
+      expect((await scope.listDrafts({q: '', deleted: 'exclude', take: 10})).map(row => row.id)).toEqual([own.id]);
       expect(scope).not.toHaveProperty('insertDraft'); expect(scope).not.toHaveProperty('insertReceipt');
     });
     expect((await db.storyDraft.findUniqueOrThrow({where: {id: own.id}})).ownerId).toBe(owner.ownerId);
@@ -338,7 +344,7 @@ describe('owner-scoped story store contract on the shared real SQLite fixture', 
         await tx.storyDraft.update({where: {id: draft.id}, data: {title: '在另一连接已提交', revision: 2}});
       });
       expect(await scope.findDraft(draft.id)).toEqual(draft);
-      expect(await scope.listDrafts({deleted: 'exclude', take: 10})).toEqual([draft]);
+      expect(await scope.listDrafts({q: '', deleted: 'exclude', take: 10})).toEqual([summaryRecord(draft)]);
     });
     expect((await second.storyDraft.findUniqueOrThrow({where: {id: draft.id}})).revision).toBe(2);
     await expect(store.read(owner.ownerId, scope => scope.findDraft(draft.id))).rejects.toThrow('OWNER_UNAVAILABLE');
@@ -353,9 +359,9 @@ describe('owner-scoped story store contract on the shared real SQLite fixture', 
       for (const draft of [...drafts, deleted]) await scope.insertDraft(draft);
     });
     await store.read(owner.ownerId, async scope => {
-      expect(await scope.listDrafts({deleted: 'exclude', take: 2})).toEqual(drafts.slice(0, 2));
-      expect(await scope.listDrafts({deleted: 'exclude', take: 2, before: {updatedAt: time, id: drafts[1]!.id}})).toEqual(drafts.slice(2));
-      expect(await scope.listDrafts({deleted: 'only', take: 2})).toEqual([deleted]);
+      expect(await scope.listDrafts({q: '', deleted: 'exclude', take: 2})).toEqual(drafts.slice(0, 2).map(summaryRecord));
+      expect(await scope.listDrafts({q: '', deleted: 'exclude', take: 2, before: {updatedAt: time, id: drafts[1]!.id}})).toEqual(drafts.slice(2).map(summaryRecord));
+      expect(await scope.listDrafts({q: '', deleted: 'only', take: 2})).toEqual([summaryRecord(deleted)]);
     });
   });
 
@@ -366,7 +372,7 @@ describe('owner-scoped story store contract on the shared real SQLite fixture', 
     await db.commandReceipt.update({where: {id: receipt.id}, data: {response: ['broken']}});
     expect((await store.read(owner.ownerId, scope => scope.findDraft(draft.id)))?.settings).toEqual({future: true});
     expect(await store.write(owner.ownerId, scope => scope.findReceipt(receipt.commandId))).toMatchObject({response: ['broken']});
-    await expect(createStoryDraftService(db).get(owner, draft.id)).rejects.toThrow('STORED_STORY_INVALID');
+    await expect(createStoryDraftService(db).get(owner, {protocolVersion: 1, datasetId, id: draft.id})).rejects.toThrow('STORED_STORY_INVALID');
   });
 
   it('composes all six operations with the real adapter and injected runtime services', async () => {
@@ -374,14 +380,14 @@ describe('owner-scoped story store contract on the shared real SQLite fixture', 
     const service = createStoryDraftService(db, {clock: {now: () => time}, ids: {next: () => v7()}});
     const input = command(), created = await service.create(owner, input);
     expect(created.data.createdAt).toBe(time.toISOString());
-    expect(await service.get(owner, created.data.id)).toEqual(created.data);
-    expect((await service.list(owner)).items).toEqual([created.data]);
-    const changed = await service.update(owner, {datasetId, commandId: v7(), id: created.data.id, expectedRevision: 1, patch: {title: '组合更新'}});
+    expect(await service.get(owner, {protocolVersion: 1, datasetId, id: created.data.id})).toEqual(created.data);
+    expect((await service.list(owner, {protocolVersion: 1, datasetId})).items).toEqual([summary(created.data)]);
+    const changed = await service.update(owner, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: created.data.id, expectedRevision: 1, patch: {title: '组合更新'}});
     expect(changed.data.revision).toBe(2);
-    const deleted = await service.delete(owner, {datasetId, commandId: v7(), id: created.data.id, expectedRevision: 2});
-    expect((await service.list(owner, {deleted: 'only'})).items).toEqual([deleted.data]);
-    expect(await service.get(owner, created.data.id, true)).toEqual(deleted.data);
-    const restored = await service.restore(owner, {datasetId, commandId: v7(), id: created.data.id, expectedRevision: 3});
+    const deleted = await service.delete(owner, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: created.data.id, expectedRevision: 2});
+    expect((await service.list(owner, {protocolVersion: 1, datasetId, deleted: 'only'})).items).toEqual([summary(deleted.data)]);
+    expect(await service.get(owner, {protocolVersion: 1, datasetId, id: created.data.id, includeDeleted: true})).toEqual(deleted.data);
+    const restored = await service.restore(owner, {protocolVersion: 1 as const, datasetId, commandId: v7(), id: created.data.id, expectedRevision: 3});
     expect(restored.data.revision).toBe(4); expect(restored.data.deletedAt).toBeNull();
     expect(await service.create(owner, input)).toEqual({...created, replayed: true});
     expect(await db.commandReceipt.count()).toBe(4);

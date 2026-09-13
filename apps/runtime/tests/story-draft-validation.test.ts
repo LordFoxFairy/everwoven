@@ -25,11 +25,11 @@ describe('single StorySettings contract', () => {
 
   it('canonicalizes create and update payloads using the same settings parser', () => {
     const settings = {tone: '', worldRules: [], playerRole: '', genre: '', opening: '', world: ''};
-    const create = parseCreate({settings, title: '草稿', datasetId, commandId: id});
-    const update = parseUpdate({patch: {settings, title: '草稿'}, expectedRevision: 1, id, datasetId, commandId: id});
-    expect(Object.keys(create)).toEqual(['datasetId', 'commandId', 'title', 'settings']);
+    const create = parseCreate({protocolVersion: 1, settings, title: '草稿', datasetId, commandId: id, mainCharacter: null, assetSlots: {cover: null, opening: null, character: null}});
+    const update = parseUpdate({protocolVersion: 1, patch: {settings, title: '草稿'}, expectedRevision: 1, id, datasetId, commandId: id});
+    expect(Object.keys(create)).toEqual(['protocolVersion', 'datasetId', 'commandId', 'title', 'settings', 'mainCharacter', 'assetSlots']);
     expect(Object.keys(create.settings)).toEqual(keys);
-    expect(Object.keys(update)).toEqual(['datasetId', 'commandId', 'id', 'expectedRevision', 'patch']);
+    expect(Object.keys(update)).toEqual(['protocolVersion', 'datasetId', 'commandId', 'id', 'expectedRevision', 'patch']);
     expect(Object.keys(update.patch)).toEqual(['title', 'settings']);
     expect(update.patch.settings).toEqual(create.settings);
     expect(Object.keys(update.patch.settings!)).toEqual(keys);

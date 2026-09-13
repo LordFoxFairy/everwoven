@@ -1,3 +1,5 @@
+> 历史阶段记录：故事根请求/响应及旧DatabaseDrafts端口已被[当前聚合契约](STORY-AGGREGATE-M1.md)直接替换，不再可调用。以下保留为设计演进证据，不是兼容协议。共享宿主身份的当前说明见部署文档。
+
 # 内部剧本草稿根契约 · M0-B
 
 2026-09-10 · 实现入口：`apps/runtime/src/application/story-drafts.ts`。

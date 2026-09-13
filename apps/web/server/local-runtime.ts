@@ -1,6 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import type {
   DraftCreate,
+  DraftGet,
   DraftUpdate,
   DraftLifecycle,
   DraftListInput,
@@ -10,10 +11,11 @@ import type {
   InternalOwnerContext,
 } from 'runtime/contracts/story-draft';
 import { guardLocalRequest, localRuntimeConfig, sessionToken } from './local-boundary';
+import {storyErrorHTTPStatus, storyErrorTRPCCode} from '../contracts/story-http';
 export type StoryService = {
   create(owner: InternalOwnerContext, input: DraftCreate): Promise<DraftCommandResult>;
-  get(owner: InternalOwnerContext, id: string, includeDeleted?: boolean): Promise<DraftDTO>;
-  list(owner: InternalOwnerContext, input?: DraftListInput): Promise<DraftPage>;
+  get(owner: InternalOwnerContext, input: DraftGet): Promise<DraftDTO>;
+  list(owner: InternalOwnerContext, input: DraftListInput): Promise<DraftPage>;
   update(owner: InternalOwnerContext, input: DraftUpdate): Promise<DraftCommandResult>;
   delete(owner: InternalOwnerContext, input: DraftLifecycle): Promise<DraftCommandResult>;
   restore(owner: InternalOwnerContext, input: DraftLifecycle): Promise<DraftCommandResult>;
@@ -21,6 +23,20 @@ export type StoryService = {
 export type WithStories = <T>(
   work: (stories: StoryService, owner: InternalOwnerContext) => Promise<T>,
 ) => Promise<T>;
+const issuedStoryErrors = new WeakSet<TRPCError>();
+/** Only exact domain identifiers or errors issued by this story boundary are public. */
+export function localStoryError(error: unknown): TRPCError {
+  if (error instanceof TRPCError) {
+    if (issuedStoryErrors.has(error)) return error;
+    if (error.cause instanceof TRPCError && issuedStoryErrors.has(error.cause)) return error.cause;
+  }
+  const identifier = error instanceof Error && !(error instanceof TRPCError) ? error.message : '';
+  const status = storyErrorHTTPStatus(identifier);
+  const result = new TRPCError({code: storyErrorTRPCCode(status ?? 500), message: status ? identifier : 'STORY_INTERNAL_ERROR'});
+  issuedStoryErrors.add(result);
+  return result;
+}
+// Character boundary retains its existing protocol while its writer migrates independently.
 export function localError(error: unknown): TRPCError {
   if (error instanceof TRPCError) return error;
   const code = error instanceof Error ? error.message : '';
@@ -39,18 +55,18 @@ export function localStoryAccess(request: Request, env: Record<string, string | 
   return async (work) => {
     const config = localRuntimeConfig(env),
       token = sessionToken(request);
-    if (!config || !token) throw new TRPCError({ code: 'UNAUTHORIZED', message: '请先连接本机数据库' });
+    if (!config || !token) throw localStoryError(Error('LOCAL_SESSION_INVALID'));
     try {
       guardLocalRequest(request, config);
     } catch (error) {
-      throw localError(error);
+      throw localStoryError(error);
     }
     try {
       // Host authenticates before opening the database and rechecks before work.
       const host = await import('runtime/host');
       return await host.withLocalStories(config.directory, config.environment, token, work);
     } catch (error) {
-      throw localError(error);
+      throw localStoryError(error);
     }
   };
 }

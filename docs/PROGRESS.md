@@ -340,3 +340,43 @@ Hegel维护已停写，完整15文件清单保存/tmp/everwoven-maintenance-path
 维护P2修订已停写，新增第16文件asset-maintenance-position.test.ts；非法业务UUID但有界无损分页键逐行error/计数/cursor，不cleanup；UTF8 BINARY排序及原始hex/时间核对避免有损重绑定。真正超界/控制/非法编码/非规范时间键fail-closed，非任意坏库修复工具。Dewey独立69/69规格PASS、当前P1/P2=0；主会话最后9文件157/157 exit0，隔离最后全量/类型/build/5Chrome仍运行。已交Cicero全片质量，Hostindex以冻结副本限定维护范围，未把在途故事白名单混入。
 
 维护最终主会话157聚焦、冻结隔离88文件1401/1401/双端types/build/五Chrome已全部实际exit0；Dewey规格69/69、Cicero质量69/69 PASS，当前P1/P2均0。准备仅提交维护16文件及主会话文档。Hostindex在工作树已有Feynman故事白名单增量，将从已验收冻结副本仅暂存维护版本，保留工作树故事变更不覆盖；其余维护15文件已逐字节核对与冻结副本一致。未将并行原UI/聚合或新RED smoke混入该提交。
+
+维护已commit0481b8e（24文件含16实现与主会话文档），push实际exit0。仅Hostindex暂存冻结维护版本，工作树故事白名单增量完整保留；其余未完聚合/UI均未被提交。
+
+M1-D原UI Einstein已停写：33文件403tests+Webtypes报告，单一Story端口/完整form、原库/原Editor/三槽、移除临时DatabaseDrafts及旧database-client/ports，session类型直接迁移无旧别名。Pascal传输也停写，最后报告被消息覆盖正补回；Feynmanruntime仍在收尾。Dewey开始Web+UI规格审查；主会话更新原smoke实际labels（打开剧本、叙事语气），尚未声称新生产通过。
+
+主会话定位M1-D真实Web集成遗留fixture：apps/web/server/local-runtime.integration.test.ts仍为旧协议，实际RED5fail/3pass，已授权Pascal直接更新当前协议正例与旧协议412/当前协议缺dataset400/错dataset412分离反例；不在请求helper自动补旧payload、不删除原认证/重启/净化证据。Dewey已获告知stub传输161与真实SQLite并非同一证明，另核对正式准备modal键盘边界。
+
+Feynman runtime已停写，报告15文件361/361及runtimebuild/源码与测试types通过；全部runtime未提交变更归本片，Host只故事白名单。Hegel开始独立runtime规格，Dewey继续Web/UI规格。实际EXPLAIN仍有临时排序B-tree，未声称所有查询免排序。要求Feynman把native wait不可见的RED/路径工具历史补进最终报告，不仅引用旧输出。主会话等Pascal真实集成fixture修订停写后整仓与新生产验收。
+
+Pascal真实Web集成已停写：原5fail/3pass→12/12，正例显式新DTO、六操作旧协议412/当前缺dataset400/foreign412分离；真实SQLite完整inline/get/list/history、独立Node重开同会话、固定500净化，累计8文件173+Webtypes通过（其中仅12为实库，不混称161stub）。三writer现均停写，主会话开始主仓runtimebuild→完整vitest→types；隔离树以0481b8e归档+全部明确apps改动/新增/6个删除同步，删除旧面板路径而非仅覆盖文件，生产build→新原Studio/原图UI/图HTTP/演练/原角色五Chrome。旧根smoke待新完整原Studio通过后移除并替换CI，未提前取消CI门槛。
+
+原Studio脚本现含create提交丢响应→精确400→原确认/新标题不覆盖，update丢响应→原确认/新世界文字保留、固定源修改独立、四图/重启/根删恢复/跨dataset；语法检查通过，实际生产结果待取回。
+
+M1-D初轮主会话完整97文件1503/1503及双端types exit0。真正production build已RED：Web runtime/src值导入使Webpack找不到Node ESM规范的.js目标（output→validation/asset-validation/primitives）；已派Pascal改回public runtime/contracts compiled exports，不用解析alias或改Node后缀掩盖。生产浏览器尚未运行，不称1503代表可用。
+
+Hegel runtime spec独立306聚焦及types后确认create回执资产动作不变量P2：创建时所有新引用必须ready未删，但篡改历史asset view为missing/unavailable/deleted仍过重放。已派Feynman只强化create动作签发/重放检查并真实DB3RED+原Asset后来失效仍可重放原ready快照正例，不收紧通用读取或update/delete/restore历史。未提交聚合源码。
+
+Dewey Web/UI规格确认P1（同生产Webpack导入失败，Pascal已修中）及两个P2：完成列表删除残留editing状态→401回首页/跨库重连后导航死路；正式准备原生modal缺初始焦点/Tab约束/ESC/焦点恢复。已派Einstein原UI切片TDD修复，保持真正unknown保护，使用成熟模态原语而非自写陷阱，并轻量去除新面板工程术语。不把初轮1503+types冒充UI达标。原Studio完整smoke仍未生产通过。
+
+远端维护提交0481b8e的CI34727374385实际失败：原图片UI smoke第144行从Studio→我的剧本→角色库后等待原角色编辑按钮超时，页面留在我的剧本。此前本地主仓/冻结生产通过不等于CI通过，未声称该远端成功。Cicero正只读核查导航时序与产品状态，主会话负责smoke，不用增加timeout或跳过门禁掩盖。
+
+三项规格修复已停写：runtime create-only receipt真实DB RED3→GREEN65；Web public compiled parser包边界RED4→183聚焦含12实库；原UI列表操作状态及Radix Dialog RED4→408组件/lib。Hegel/Dewey复审中。session-client剩余isBusinessId源码值导入再交原writer处理。主会话下一轮生产验收尚待此包边界修订稳定，不把局部GREEN冒充M1闭环。
+
+最终规格复审：Hegel runtime PASS，独立15文件313/313及真实SQLite原3反例复现已拒绝，正常历史失效正例仍重放；Dewey Web/UI全部P1/P2关闭，另session包装16/16。Cicero进入全聚合质量审查，尚无最终质量结论。
+
+主会话第二轮实际主仓runtimebuild→99文件1533/1533→双端types exit0。隔离生产build已通过；原Studio首次Chrome完整链路直到准备modal关闭的即时focus断言失败，Radix卸载后焦点恢复异步，改为Playwright toBeFocused有界自动等待后整条原Studio实际exit0（无产品跳过/固定sleep）。涵盖4张真实PNG→WebP、完整世界/角色覆盖/固定来源、create丢响应+精确400、update丢响应与新文字、真实Next进程重启、列表删除/恢复、foreign dataset拒绝、准备modal初始焦点/Tab/Shift+Tab/Escape/焦点返回。无模型请求。
+
+同一冻结生产后续原图片UI、图片HTTP、原角色UI、insecure HTTP demo四Chrome也全部exit0。旧CI的DatabaseDrafts挂载busy导致可点击导航被丢弃，Cicero用0481b8e真实导航函数确定性复现；旧面板现随单一聚合直接删除，不另建兼容。新原Studio已有完整生产GREEN后，主会话移除obsolete local-authoring.mjs，将CI门禁换成local-story-ui.mjs。这些更改尚未提交或获得新CI，不把0481b8e失败改写为通过。当前3100仍未切正式宿主，M1未整体通知。
+
+为独立覆盖旧CI暴露的“可点击但无导航”时序，主会话在新原图smoke增加真实storyDrafts.list响应暂缓：实际点刷新→读中→点角色库→断言aria-current确已切换，再释放真实响应。未伪造列表、未API seed、未加sleep或延长timeout；同冻结生产再次实际exit0。这证明新聚合导航在慢列表读期间可用，不声称旧提交CI重跑通过。
+
+Cicero全M1-D质量复审独立22文件426/426后发现新P2（P1=0、P2=1）：原Editor保存A请求长期pending，session epoch失效/同dataset重连，Controller已允许unknown确认但Editor自己的saveLock/storySaving仍等旧finally，确认按钮被禁用。已派Einstein只修Editor锁的session/attempt世代及真实controller deferred DOM反例，同时证明旧finally不能解锁新确认。不把此前1533/五Chrome视作该恢复场景通过，暂不提交/切用户3100。
+
+单入口启用准备：只读取现3100监听PID/父PID/cwd及公开app-environment元信息，确认仍是本仓demo，未读整份环境/密钥。此前不存在$HOME/.everwoven，已新建并核验当前用户0700父目录；通过现有正式CLI初始化全新$HOME/.everwoven/local-dev，实际exit0。未覆盖旧库/清浏览器数据，未写验收角色/剧情到用户库。因Editor会话锁P2仍修订中，未停止原3100或切正式启动，初始化不等于当前应用已启用。
+
+Editor会话锁P2复审已关闭：Cicero独立3文件30/30，当前全M1-D P1/P2=0；保留前轮22文件426及纯compiled依赖核验。主会话最终runtimebuild、99文件1536/1536、双端types实际exit0；包含最后锁修复的隔离production重新build与五Chrome均实际exit0。
+
+当前单入口已实际启用，不再只是/tmp：再次核验83312为本仓Next demo父进程、83321为唯一3100监听后，仅向该父进程SIGTERM，确认端口释放。使用APP_ENV=dev、RUNTIME_DATA_DIR=$HOME/.everwoven/local-dev通过pnpm local启动同一应用，仍仅127.0.0.1:3100。真实Chrome在这个用户入口取得当前Host一次性码（仅进程内存，不写日志/聊天），经原连接表单兑换，禁用浏览器业务存储后实际打开原角色Editor与原剧本Editor全部世界字段，dev元信息与JS无错误通过。验证未向用户库写测试角色/剧本/图片，结束撤销测试会话；用户首次进入仍须用终端一次性码连接，不隐式登录或伪造空库。
+
+全片源码/文档准备提交；精确新GitHub CI仍待触发与核验，尚不发送M1完成通知。不打tag，不称旧v0.1.0镜像已更新，也不称模型生成已接通。

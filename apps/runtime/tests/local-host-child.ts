@@ -9,7 +9,7 @@ try {
   } else if (action === 'authenticate') {
     const owner = await authenticateSession(directory, 'dev', token); process.send?.({ok: true, ...owner});
   } else if (action === 'get') {
-    const story = await withLocalStories(directory, 'dev', token, (s, o) => s.get(o, id)); process.send?.({ok: true, title: story.title});
+    const story = await withLocalStories(directory, 'dev', token, (s, o) => s.get(o, {protocolVersion: 1, datasetId: o.datasetId, id})); process.send?.({ok: true, title: story.title});
   } else {process.send?.({ok: false});}
 } catch {process.send?.({ok: false});}
 process.disconnect?.();

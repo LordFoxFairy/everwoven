@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
+import {expect} from '@playwright/test';
 import {withLocalBrowser} from './local-browser-harness.mjs';
 
 // Actual original-page interaction, not an API-seeded portrait demonstration.
@@ -140,7 +141,22 @@ await withLocalBrowser(async ({page, origin, datasetId, connectionCode, restart}
   const originalResponse = await page.request.get(`${origin}/api/trpc/characters.get?input=${encodeURIComponent(JSON.stringify({id: created.data.id}))}`);
   assert.equal((await result(originalResponse)).portraitAssetId, two.id, 'Saving a Studio copy must not mutate its source template');
   await page.getByRole('button', {name: '我的剧本', exact: true}).click();
-  await page.getByRole('button', {name: '角色库', exact: true}).click();
+  await expect(page.getByRole('button', {name: '我的剧本', exact: true})).toHaveAttribute('aria-current', 'page');
+  // Hold an actual server response, not a mocked list. A background story list
+  // read must not silently consume the user's request to return to characters.
+  let releaseList;
+  const listReleased = new Promise(resolve => {releaseList = resolve;});
+  await page.route('**/api/trpc/storyDrafts.list*', async route => {
+    const response = await route.fetch();
+    await listReleased;
+    await route.fulfill({response});
+  }, {times: 1});
+  try {
+    await page.getByRole('button', {name: '刷新剧本', exact: true}).click();
+    await expect(page.getByRole('status').filter({hasText: '正在读取剧本列表'})).toBeVisible();
+    await page.getByRole('button', {name: '角色库', exact: true}).click();
+    await expect(page.getByRole('button', {name: '角色库', exact: true})).toHaveAttribute('aria-current', 'page');
+  } finally {releaseList();}
   await page.getByRole('button', {name: `编辑 ${name}`, exact: true}).click();
   await editor.getByRole('button', {name: '清除选择', exact: true}).click();
   const cleared = await mutation(editor.getByRole('button', {name: '保存角色模板', exact: true}), 'characters.update');

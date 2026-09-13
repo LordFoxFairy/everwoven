@@ -2,7 +2,7 @@
 
 # 本机数据库启动与验收
 
-这是同一个 Web 应用的显式本机存储模式，不是第二套站点。当前已接通原角色库六操作、真实图片上传/读取、Editor另存角色；原剧本完整聚合仍待接入。剧本根测试面板不是完整产品验收。分支与模型生成任务属于后续M2，不将静态画面或草稿保存称为视频已生成。
+这是同一个 Web 应用的显式本机存储模式，不是第二套站点。当前源码已接通原角色库六操作、真实图片上传/读取、Editor完整世界/角色/图片聚合和原剧本列表，旧根测试面板已删除。最终验收状态见PROGRESS，源码接线不表示已发布镜像具备功能。分支与模型生成任务属于后续M2，不将静态画面或草稿保存称为视频已生成。
 
 ## 1. 启动前提
 
@@ -65,7 +65,7 @@ pnpm test
 pnpm typecheck
 pnpm build
 pnpm exec playwright install chromium
-node scripts/smoke/local-authoring.mjs
+node scripts/smoke/local-story-ui.mjs
 node scripts/smoke/local-characters.mjs
 node scripts/smoke/local-assets.mjs
 node scripts/smoke/local-asset-ui.mjs

@@ -97,3 +97,8 @@ export function ImageAssetPicker({role,assetRef,upload,onChange,disabled=false,o
  {state.datasetChanged&&<p role="alert">数据已重置，原图片命令停止重放。请从保留文本新建并重新选择图片。</p>}
  </section>;
 }
+/** Formal list art uses the existing bounded asset read queue; never substitutes demo art. */
+export function FormalStoryCover({datasetId,assetId,children,...props}:React.ButtonHTMLAttributes<HTMLButtonElement>&{datasetId:string;assetId:string|null}){
+ const binding=useAssetBinding(),preview=useAssetPreview(assetId?{kind:'formal',datasetId,id:assetId}:null,binding);
+ return <div><button {...props} style={{backgroundImage:preview.url?`url(${preview.url})`:undefined}}>{children}{!assetId&&<small>尚未设置封面</small>}</button><PreviewStatus preview={preview}/></div>;
+}

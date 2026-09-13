@@ -1,5 +1,5 @@
-import type {AuthoringSession} from './ports';
-import {isBusinessId} from '../../../runtime/src/contracts/primitives';
+export type AuthoringSession = {authenticated: true; datasetId: string} | {authenticated: false};
+import {parseId} from 'runtime/contracts/story-draft-validation';
 
 /** Shared transport for the single host connection; never expose cookies to UI. */
 export function createAuthoringSessionClient() {
@@ -14,8 +14,8 @@ export function createAuthoringSessionClient() {
    const data:unknown=await response.json();
    if(!data||typeof data!=='object'||Array.isArray(data)||!('authenticated' in data)||typeof data.authenticated!=='boolean'||(method!=='GET'&&data.authenticated!==(method==='POST')))throw Error();
    if(!data.authenticated)return {authenticated:false};
-   if(!('datasetId' in data)||!isBusinessId(data.datasetId))throw Error();
-   return {authenticated:true,datasetId:data.datasetId};
+   if(!('datasetId' in data))throw Error();
+   return {authenticated:true,datasetId:parseId(data.datasetId)};
   }catch{throw Error('本机连接失败，请重试');}
  }
  return {

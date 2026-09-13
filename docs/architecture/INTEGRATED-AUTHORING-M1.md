@@ -1,10 +1,10 @@
 # M1 · 原创作页面前后端贯通技术方案
 
-**版本：0.2 / 2026-09-12 / 可分批实施的设计基线，非整体验收。**
+**版本：0.3 / 2026-09-13 / 聚合源码已接线，生产与主入口验收中，非整体验收。**
 
-实施增量：M1-A1/A2新基线与dataset协议、M1-B原角色六操作已落地；C1a/b/c图片契约、私有文件、生命周期、真实Host/HTTP已提交并CI通过。C2原图片控件已完成本地主仓1340/1340、类型、生产五Chrome与独立规格/质量审查，见[实施记录](../implementation/M1-C2-ORIGINAL-IMAGES-2026-09-12.md)。显式有界资产维护已通过本地157聚焦/隔离1401全量与两阶段审查。剧本聚合、临时面板移除及当前3100正式启用仍待完成，不标总体M1验收。
+实施增量：M1-A1/A2新基线与dataset协议、M1-B原角色六操作已落地；C1a/b/c图片契约、私有文件、生命周期、真实Host/HTTP已提交并CI通过。C2原图片控件已完成本地主仓1340/1340、类型、生产五Chrome与独立规格/质量审查，见[实施记录](../implementation/M1-C2-ORIGINAL-IMAGES-2026-09-12.md)。显式有界资产维护已通过本地157聚焦/隔离1401全量与两阶段审查。原剧本聚合源码已接线、临时DatabaseDrafts与旧传输已删除；runtime和Web规格复审通过，主会话最终生产/质量/CI及当前3100正式启用仍待完成。维护提交0481b8e远端CI因旧面板导航时序失败，见PROGRESS；本地通过不替代远端结论。
 
-用户已确认继续推进前端、后端、端到端及文档，随后明确：**不要旧协议/旧数据兼容，允许清空本项目业务数据重建。** 本文据此采用全新基线，不建设迁移兼容层。本方案承接[范围设计](../superpowers/specs/2026-09-12-integrated-authoring-design.md)，不是再创建一套原型。当前实现与测试证据只在 [PROGRESS](../PROGRESS.md) 登记。本文标为“拟增”的契约/SQL尚未上线，不应据此直接调用接口或迁移用户库。
+用户已确认继续推进前端、后端、端到端及文档，随后明确：**不要旧协议/旧数据兼容，允许清空本项目业务数据重建。** 本文据此采用全新基线，不建设迁移兼容层。本方案承接[范围设计](../superpowers/specs/2026-09-12-integrated-authoring-design.md)，不是再创建一套原型。当前实现与测试证据只在 [PROGRESS](../PROGRESS.md) 登记。精确当前剧本请求/响应/错误以[聚合API](../api/STORY-AGGREGATE-M1.md)及runtime契约为准；下文SQL展示结构，实际基线以生成DDL及schema gate为准，不对用户旧库执行迁移。
 
 ## 1. 交付边界和真正的完成条件
 
@@ -20,9 +20,9 @@
 
 | 层 | 已有且需复用 | 本批缺口 |
 |---|---|---|
-| 前端 | 原角色库异步六操作、共享会话、Editor另存角色；原图片控件及Editor另存角色已接 | 原剧本聚合控制器，删除临时DatabaseDrafts |
-| HTTP | 受保护 storyDrafts/characters、assets三操作与二进制路由、一次性本机会话、来源校验 | 剧本聚合契约 |
-| 应用 | 根/角色CRUD、资产显式生命周期/文件恢复、owner+dataset、WriteGate、CAS/绑定回执 | 固定角色版本及剧本聚合 |
+| 前端 | 原角色库、原Editor完整表单、StoryController、原StoryLibrary及图片端口已接；临时面板已删除 | 最终生产回归与当前3100启用 |
+| HTTP | 受保护六操作聚合协议、characters、assets及二进制路由、共享本机会话 | 最终集成与发布验证 |
+| 应用 | 固定角色版本、完整聚合事务/历史回执、资产生命周期、owner+dataset、WriteGate及CAS | 全片质量复审 |
 | 数据 | 新baseline16表、零FK、固定DDL指纹/checksum门禁；作用域/图片元数据/上传意图结构 | 引用用例/上传协议与受限重置流程 |
 | 验收 | 原角色与原root真实生产Chrome CRUD/重启、unknown/跨库回归 | 图片/剧本聚合完整原页面链路、异常与隔离 |
 
@@ -64,9 +64,9 @@ flowchart TB
 | 文件/模块 | 责任与变更 |
 |---|---|
 | `components/platform.tsx` | 保留导航和布局；组合一次数据源；不再自己承担正式CRUD、存储回退和字段转换 |
-| `lib/authoring/ports.ts` | 无React依赖的异步端口类型；先提取已有端口并直接修改全部引用，不保留兼容re-export；后分Story/Character/Asset/Session |
-| `lib/authoring/database-client.ts` | 现有tRPC及会话传输；校验未知HTTP响应；不定义UI类型、不重试mutation |
-| `lib/authoring/*-controller.ts`（拟增） | 各自管理加载、表单基线、提交快照、CAS、unknown；共享小型PendingCommand规则而非巨型控制器 |
+| `lib/authoring/story-ports.ts`、`asset-ports.ts` 与角色模块契约 | 业务异步端口，与React和Prisma解耦；旧ports.ts删除，无兼容re-export |
+| `lib/authoring/story-client.ts`、`session-client.ts` | 非batch故事传输与单一本机会话；公开runtime compiled契约解析未知响应；旧database-client.ts删除 |
+| `lib/authoring/*-controller.ts` | 各自管理加载、表单基线、提交快照、CAS、unknown；共享小型PendingCommand规则而非巨型控制器 |
 | `components/story-editor.tsx` | 只操作编辑态、提交与渲染；保存等待Promise，成功才更新基线；进入准备页前等待确认 |
 | `components/character-library.tsx` | 同上，新增读取/分页/删除恢复状态；不把Promise当同步boolean |
 | `components/story-assets.tsx` | 注入素材端口；loading/error/missing明确区分；不直接固定IndexedDB |
@@ -118,7 +118,7 @@ type WriteState<C, R> =
 - 更新是CAS，所有修改/删除/恢复带expectedRevision。删除/恢复也是命令；重复同命令重放，新的重复删除按状态返回明确拒绝。
 - 主表保留id/ownerId/createdAt/updatedAt/deletedAt/revision；快照/回执是不可变实体，只记录创建时间，不机械添加可变字段。
 
-### 4.2 统一创作契约（拟增，替换M0契约）
+### 4.2 统一创作契约（当前源码，直接替换M0契约）
 
 ```ts
 type StorySettings = {
@@ -160,13 +160,13 @@ Story.title（1–120）与Character.name（1–120）只在顶层存一份。�
 
 ## 5. 后端用例与事务
 
-### 5.1 tRPC与媒体契约（拟增，M0当前接口另见现有契约）
+### 5.1 tRPC与媒体契约（精确结构见各模块当前API文档）
 
-继续使用同一AppRouter；不再补第二套同义REST CRUD。下表每个命令共同必填datasetId；二进制PUT通过专属header携带同一datasetId。上传意图及游标绑定datasetId；不可跨重置复用。未认证的session响应只返回authenticated:false，认证成功才返回datasetId和当前协议标识。
+继续使用同一AppRouter；不再补第二套同义REST CRUD。下表每个命令共同必填datasetId；二进制PUT通过专属header携带同一datasetId。上传意图及游标绑定datasetId；不可跨重置复用。未认证的session响应只返回authenticated:false，认证成功返回authenticated:true与datasetId；protocolVersion由每个故事请求显式携带，不伪称session响应包含协议版本。
 
 | 操作 | 请求关键字段 | 输出/规则 |
 |---|---|---|
-| storyDrafts.create | commandId、protocolVersion:1、title、settings、mainCharacter?、assetSlots | 返回聚合详情+replayed；缺角色仍可草稿保存 |
+| storyDrafts.create | commandId、protocolVersion:1、title、settings、mainCharacter（必填，可null）、assetSlots | 返回聚合详情+replayed；缺角色仍可草稿保存 |
 | storyDrafts.update | id、expectedRevision、patch | patch中未出现的聚合部分保持原样；出现的settings为完整当前对象 |
 | storyDrafts.get/list | id；分页/过滤 | get聚合读取root/cast/有效人物/槽；list轻量摘要+totalMatching |
 | storyDrafts.delete/restore | commandId、id、expectedRevision | 软删除/恢复根；不篡改历史快照，不物理删除引用文件 |
@@ -182,22 +182,20 @@ Story.title（1–120）与Character.name（1–120）只在顶层存一份。�
 
 正式详情返回有效角色及来源versionId、overrides与素材DTO；不让前端为一个编辑器自己拼接三次非一致读取。聚合get使用读事务。删除对象的详情仅在显式includeDeleted且同owner时返回。
 
-**错误契约（拟增领域原因映射到tRPC code）：**
+**错误契约：** 故事错误只用 `apps/web/contracts/story-http.ts` 精确枚举映射，禁止 `INVALID_*` 前缀推断未知写入失败。
 
-| 原因 | transport | 前端动作 |
+| 当前故事原因 | HTTP | 前端含义 |
 |---|---|---|
-| INVALID_* /不支持字段 | BAD_REQUEST | 字段提示，保留输入 |
-| UNAUTHORIZED | UNAUTHORIZED | 重连；unknown命令仍保留 |
-| 未授权ID/不存在 | NOT_FOUND | 一致错误，不泄露别人的实体存在性 |
-| REVISION_CONFLICT | CONFLICT | 重新读并人工合并，不覆盖 |
-| COMMAND_PAYLOAD_MISMATCH | CONFLICT | 保留原命令，禁止拿同ID发送新payload |
-| DATASET_CHANGED | PRECONDITION_FAILED | 停止原命令，明确数据已重置；文本可另存新命令，但不自动重发 |
-| CLIENT_RELOAD_REQUIRED | PRECONDITION_FAILED | 提示重新加载当前应用，不做旧协议降级 |
-| ASSET_NOT_READY / INVALID_BINDING | PRECONDITION_FAILED | 等待/修正引用，再产生新命令 |
-| DB_BUSY / HOST_UNAVAILABLE | SERVICE_UNAVAILABLE | 读取可重试，写入先确认原命令 |
-| 网络断连、非协议错误体 | transport error | 不解释为业务回滚，结果未知 |
+| INVALID_STORY_COMMAND / INVALID_STORY_QUERY / INVALID_CURSOR | 400 | 当前请求拒绝；不因此抹掉此前unknown |
+| LOCAL_SESSION_INVALID / LOCAL_ORIGIN_DENIED | 401 / 403 | 重连或修正来源；不回退demo |
+| STORY_NOT_FOUND / CHARACTER_NOT_FOUND / ASSET_NOT_FOUND | 404 | 不泄漏其他owner资源 |
+| REVISION_CONFLICT / TEMPLATE_REVISION_CONFLICT / IDEMPOTENCY_CONFLICT | 409 | 保留原输入与原命令，不自动覆盖或改ID |
+| STORY_NOT_DELETED / REVISION_EXHAUSTED / STORY_ASSET_NOT_READY | 409 | 当前生命周期、修订或新素材绑定不成立 |
+| DATASET_CHANGED / CLIENT_RELOAD_REQUIRED | 412 | 世代/部署错配，显式恢复；不兼容重放 |
+| STORY_REQUEST_TOO_LARGE | 413 | 不超过实际2MiB流上限 |
+| STORY_INTERNAL_ERROR / 断连 / 非协议错误体 | 500 / 网络错误 | 写结果未确定，先确认原命令；不显示数据库诊断 |
 
-日志包含requestId/commandId/操作/耗时/结果码；不记录连接码、会话token、模型密钥、图片原文及完整私人剧情。
+其他角色/图片错误由各自纯契约表负责，不共用猜测式映射。原命令曾unknown时，即使后续确认在receipt之前被精确400拒绝，也不能证明最初提交回滚。连接码、会话token、密钥、图片与私人剧情不输出诊断日志；尚未声称已交付完整观测平台。
 
 ### 5.2 剧本聚合写入
 
@@ -408,6 +406,6 @@ M1-A端口/新契约/dataset与M1-B原角色页已完成本地验收；角色切
 
 2026-09-12独立复审通过，批准作为分批实施基线。修复2个P1（complete与清理竞争、reset跨世代重放）及1个P2（已有角色绑定输入歧义）；增加相应事务规则、datasetId与验收场景。批准不代表M1代码已实现；实际端口小批次与测试结果见PROGRESS。
 
-资产begin回执身份增量：[ADR0010](adr/0010-asset-begin-identity.md)。仅begin共享server uploadId/receipt主键作为独立于响应JSON的创建绑定；complete独立回执ID，首次签发与重放均核对不可变字段。无schema/FK/旧兼容修改，已通过本地主仓与独立复核；HTTP已接线，显式有界维护入口待后续。
+资产begin回执身份增量：[ADR0010](adr/0010-asset-begin-identity.md)。仅begin共享server uploadId/receipt主键作为独立于响应JSON的创建绑定；complete独立回执ID，首次签发与重放均核对不可变字段。无schema/FK/旧兼容修改，已通过本地主仓与独立复核；HTTP已接线；显式有界维护入口见部署文档，默认预览、无自动后台清扫。
 
 聚合协议实施冻结见[原剧本聚合计划](../superpowers/plans/2026-09-12-story-aggregate.md)：新六操作请求统一protocolVersion:1+datasetId；持久DTO schemaVersion保留存储结构含义，不承担握手。此项尚未切换当前root接口；C2图片切片不修改它。

@@ -1,3 +1,4 @@
+import {emptyRead} from './fixtures/story-aggregate/empty-port.js';
 import {readFile} from 'node:fs/promises';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -53,21 +54,21 @@ describe('application accepts the port without database types', () => {
     const store: StoryDraftStore = {
       read: async (ownerId, work) => {
         expect(ownerId).toBe(owner.ownerId);
-        return work({findDraft: async (storyId, includeDeleted) => {
+        return work({...emptyRead, findDraft: async (storyId, includeDeleted) => {
           expect(storyId).toBe(id); expect(includeDeleted).toBe(false); return record;
         }, listDrafts: async () => {throw new Error('unexpected list');}});
       },
       write: async () => {throw new Error('unexpected write');},
     };
-    expect(await getDraft(store, owner, id)).toEqual({...record, createdAt: now.toISOString(), updatedAt: now.toISOString()});
+    expect(await getDraft(store, owner, {protocolVersion: 1, datasetId, id: id})).toEqual({...record, protocolVersion: 1, datasetId, mainCharacter: null, assetSlots: {cover: null, opening: null, character: null}, assets: [], createdAt: now.toISOString(), updatedAt: now.toISOString()});
   });
 
   it('rejects invalid commands before opening a store transaction', async () => {
     let calls = 0;
     const unexpected = async () => {calls++; throw new Error('unexpected transaction');};
     const store: StoryDraftStore = {read: unexpected, write: unexpected};
-    await expect(createDraft(store, owner, {datasetId, commandId: id, title: ' ', settings})).rejects.toThrow('INVALID_STORY_COMMAND');
-    await expect(updateDraft(store, owner, {datasetId, commandId: id, id, expectedRevision: 1, patch: {}})).rejects.toThrow('INVALID_STORY_COMMAND');
+    await expect(createDraft(store, owner, {protocolVersion: 1 as const, datasetId, commandId: id, title: ' ', mainCharacter: null, assetSlots: {cover: null, opening: null, character: null}, settings})).rejects.toThrow('INVALID_STORY_COMMAND');
+    await expect(updateDraft(store, owner, {protocolVersion: 1 as const, datasetId, commandId: id, id, expectedRevision: 1, patch: {}})).rejects.toThrow('INVALID_STORY_COMMAND');
     expect(calls).toBe(0);
   });
 });

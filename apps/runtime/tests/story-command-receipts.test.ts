@@ -1,3 +1,4 @@
+import {emptyRead, emptyWrite} from './fixtures/story-aggregate/empty-port.js';
 import {describe, expect, it} from 'vitest';
 import {createDraft, deleteDraft, getDraft, restoreDraft, updateDraft} from '../src/application/story-drafts.js';
 import type {StoryDraftRecord, StoryDraftStore, StoryReceiptInsert} from '../src/ports/story-draft-store.js';
@@ -15,14 +16,14 @@ function memoryPort(deleted = false) {
     createdAt: now, updatedAt: now, deletedAt: deleted ? now : null, archivedAt: null};
   let receipt: StoryReceiptInsert | null = null;
   let writes = 0;
-  const read = {
+  const read = {...emptyRead,
     findDraft: async () => record,
-    listDrafts: async () => [record],
+    listDrafts: async () => {throw Error("unexpected list");},
   };
   const store: StoryDraftStore = {
     read: async (_ownerId, work) => work(read),
     write: async (_ownerId, work) => work({
-      ...read,
+      ...emptyWrite, ...read,
       findReceipt: async () => receipt,
       insertDraft: async input => {writes++; record = input; return record;},
       compareAndSwapDraft: async change => {
@@ -41,9 +42,9 @@ function memoryPort(deleted = false) {
 describe('single authoring command namespace and receipt settings', () => {
   it.each(['create', 'update', 'delete', 'restore'] as const)('%s uses authoring.story and canonicalizes both new and replayed receipt settings', async action => {
     const port = memoryPort(action === 'restore');
-    const lifecycle = {datasetId, commandId, id, expectedRevision: 1};
+    const lifecycle = {protocolVersion: 1 as const, datasetId, commandId, id, expectedRevision: 1};
     const invoke = (content = settings) => action === 'create'
-      ? createDraft(port.store, owner, {datasetId, commandId, title: '草稿', settings: content})
+      ? createDraft(port.store, owner, {protocolVersion: 1 as const, datasetId, commandId, title: '草稿', mainCharacter: null, assetSlots: {cover: null, opening: null, character: null}, settings: content})
       : action === 'update'
       ? updateDraft(port.store, owner, {...lifecycle, patch: {settings: content}})
       : action === 'delete' ? deleteDraft(port.store, owner, lifecycle) : restoreDraft(port.store, owner, lifecycle);
@@ -65,12 +66,12 @@ describe('single authoring command namespace and receipt settings', () => {
   it('rejects stored premise settings instead of converting a record', async () => {
     const port = memoryPort();
     port.replaceSettings({premise: '旧前提', playerRole: '', worldRules: [], tone: ''});
-    await expect(getDraft(port.store, owner, id)).rejects.toThrow('STORED_STORY_INVALID');
+    await expect(getDraft(port.store, owner, {protocolVersion: 1, datasetId, id: id})).rejects.toThrow('STORED_STORY_INVALID');
   });
 
   it('rejects premise settings in a receipt instead of replaying converted content', async () => {
     const port = memoryPort();
-    const input = {datasetId, commandId, title: '草稿', settings};
+    const input = {protocolVersion: 1 as const, datasetId, commandId, title: '草稿', mainCharacter: null, assetSlots: {cover: null, opening: null, character: null}, settings};
     await createDraft(port.store, owner, input);
     Object.assign(port.receipt().response, {settings: {premise: '旧前提', playerRole: '', worldRules: [], tone: ''}});
     await expect(createDraft(port.store, owner, input)).rejects.toThrow('COMMAND_RECEIPT_INVALID');
