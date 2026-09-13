@@ -199,3 +199,7 @@ P05的StoryVersion、ProviderBindingVersion和初始budgetLimit由CreateExperien
 ## M1 维护查询索引
 
 当前单一fresh baseline新增普通索引`ix_asset_uploads_asset(asset_id)`，用于跨意图的资产身份/别名保护查询；真实SQLite EXPLAIN由SCAN变SEARCH。分页仍用现有owner/createdAt/id索引，tuple keyset支持相同时间戳。没有新增业务唯一、外键或触发器；16表/13业务真唯一不变。schema、迁移、生成DDL和已审结构指纹同步，不迁移用户旧库。
+
+## 2026-09-13实施补记：M2-A封存原语
+
+StoryVersion/StoryVersionCast/StoryVersionAsset已增加内部单事务封存实现，使用既有DDL而非迁移用户数据库。首次未封口header→引用→封口CAS→回读，复用校验内容hash与源修订，封口后的孩子追加在存储端口拒绝；完整[内部契约与时序](../api/STORY-VERSION-SEAL-M2-A.md)。这尚不是CreateExperience公开命令或任务链，具体测试/质量状态见PROGRESS，不改变后续绑定、Quote与预算责任设计。

@@ -37,7 +37,7 @@ export function storyListSQL(ownerId: string, query: StoryDraftListQuery) {
  WHERE ${storyFilterSQL(ownerId, query)} ${query.before ? Prisma.sql`AND (s.updated_at<${query.before.updatedAt} OR (s.updated_at=${query.before.updatedAt} AND s.id<${query.before.id}))` : Prisma.empty}
  ORDER BY s.updated_at DESC,s.id DESC LIMIT ${query.take}`;
 }
-function readScope(tx: Prisma.TransactionClient, ownerId: string): StoryDraftReadScope {
+export function createStoryDraftReadScope(tx: Prisma.TransactionClient, ownerId: string): StoryDraftReadScope {
   return {
     findDraft: (id, includeDeleted = false) =>
       tx.storyDraft.findFirst({
@@ -117,7 +117,7 @@ function readScope(tx: Prisma.TransactionClient, ownerId: string): StoryDraftRea
 }
 function writeScope(tx: Prisma.TransactionClient, ownerId: string): StoryDraftWriteScope {
   return {
-    ...readScope(tx, ownerId),
+    ...createStoryDraftReadScope(tx, ownerId),
     findReceipt: (commandId) =>
       tx.commandReceipt.findUnique({
         where: {ownerId_commandId: {ownerId, commandId}},
@@ -198,7 +198,7 @@ export class PrismaStoryDraftStore implements StoryDraftStore {
     return this.db.$transaction(async (tx) => {
       if (!(await tx.localProfile.findFirst({where: {id: ownerId, deletedAt: null}, select: {id: true}})))
         throw Error('OWNER_UNAVAILABLE');
-      return work(readScope(tx, ownerId));
+      return work(createStoryDraftReadScope(tx, ownerId));
     });
   }
   write<T>(ownerId: string, work: (scope: StoryDraftWriteScope) => Promise<T>): Promise<T> {
