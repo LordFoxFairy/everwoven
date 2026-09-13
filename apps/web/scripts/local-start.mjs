@@ -1,6 +1,7 @@
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {createRequire} from 'node:module';
 import next from 'next';
 import {createLocalShutdown} from './local-shutdown.mjs';
 
@@ -23,6 +24,10 @@ if (!['dev', 'prod'].includes(process.env.APP_ENV))
 process.env.NODE_ENV = production ? 'production' : 'development';
 process.env.APP_ORIGIN = origin;
 process.env.EVERWOVEN_LOCAL_LAUNCH = 'loopback-v1';
+// Use the exact compiled external consumed by Next routes. Configuration failure
+// stays provider-local; this never initializes data, reads API keys or starts jobs.
+const host = createRequire(import.meta.url)('runtime/host');
+await host.initializeLocalVideoProviders(process.env.RUNTIME_DATA_DIR, process.env.APP_ENV);
 const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const app = next({ dev: !production, webpack: true, dir, hostname: '127.0.0.1', port });
 await app.prepare();

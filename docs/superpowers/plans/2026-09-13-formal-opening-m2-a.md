@@ -60,12 +60,12 @@ RED重点：max预算精度、任意额外URL/owner字段、resolver错绑/同�
 
 新文件以`apps/runtime/src/{contracts/video-deployments.ts,providers/minimax-request.ts,providers/minimax-constraints.ts,providers/minimax-capabilities.ts,application/video-binding-registry.ts,contracts/video-binding-registry.ts}`为边界；tests按纯registry/能力/request分组。本片无schema变更、无账户API/报价费用调用。
 
-### Chunk2-C 原Host/tRPC/准备入口（下一实现，尚未开始代码）
+### Chunk2-C 原Host/tRPC/准备入口（Host/HTTP已验收，原准备UI继续实现）
 
-- [ ] 增加浏览器纯`parseExperienceOpeningDTO/Result`及binding选择目录契约，严格字段/UUID/时间/来源关系；不给原始binding私密字段进入wire。
-- [ ] 复用Host认证/目录身份及DB生命周期，固定startup加载非秘密provider配置，缺失为空、坏配置只阻断新provider选择而不阻断角色/剧本或历史经历读回；resolver在新开局才解析，回执仍优先。
-- [ ] 增加窄`withLocalExperienceOpenings`和公开错误白名单，不由Web打开Prisma。统一服务端binding列表、create、getPreparing，runtime包新增纯契约出口。
-- [ ] 同步tRPC router/context/http的来源、标记、非batch、大小和错误脱敏；真实HTTP未认证/跨源/未知字段/混batch/超限/数据库断开重启验证。不是仅root挂三个函数。
+- [x] 增加浏览器纯`parseExperienceOpeningDTO/Result`及binding选择目录契约，严格字段/UUID/时间/来源关系；不给原始binding私密字段进入wire。
+- [x] 复用Host认证/目录身份及DB生命周期，固定startup加载非秘密provider配置，缺失为空、坏配置只阻断新provider选择而不阻断角色/剧本或历史经历读回；resolver在新开局才解析，回执仍优先。
+- [x] 增加窄`withLocalExperienceOpenings`和公开错误白名单，不由Web打开Prisma。统一服务端binding列表、create、getPreparing，runtime包新增纯契约出口。
+- [x] 同步tRPC router/context/http的来源、标记、非batch、大小和错误脱敏；真实HTTP未认证/跨源/未知字段/混batch/超限/数据库断开重启验证。不是仅root挂三个函数。
 - [ ] 原保存后的准备浮层消费目录与explicit预算，明确零调用固定确认；unknown保留原command/payload、dataset/epoch挡迟到，目录/弹窗/自动会话不创建经历。公开API实际验证后再接UI，最后原3100Chrome。
 
 固定启动对象必须跨Node launcher与Next route模块可见并绑定directory/environment/owner/dataset，热加载不重复重读可变配置；实际同进程桥接以production+dev HTTP验证，不仅单元测试假设。私密配置字段不返回前端、不建密钥输入框；缺密钥只在后续真实付费测试阶段由用户本地提供，当前代码仍可实施。

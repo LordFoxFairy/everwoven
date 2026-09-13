@@ -22,7 +22,7 @@ export async function withLocalBrowser(work){
  let server,browser,page,output='';
  function cli(command){return execFileSync('pnpm',['--filter','runtime','exec','tsx','src/host/cli.ts',command,'--directory',directory,'--environment','dev'],{cwd:root,env,encoding:'utf8',timeout:90000}).trim();}
  async function start(){
-  output='';server=spawn(process.execPath,['apps/web/scripts/local-start.mjs','--production'],{cwd:root,env,stdio:['ignore','pipe','pipe']});
+  output='';server=spawn(process.execPath,['apps/web/scripts/local-start.mjs',...(process.env.SMOKE_DEV==='true'?[]:['--production'])],{cwd:root,env,stdio:['ignore','pipe','pipe']});
   server.stdout.on('data',data=>{output+=data.toString();});server.stderr.on('data',data=>{output+=data.toString();});
   for(let i=0;i<120;i++){
    if(server.exitCode!==null)throw Error(`Local launcher exited: ${output}`);
@@ -46,7 +46,7 @@ export async function withLocalBrowser(work){
   browser=await chromium.launch({...process.env.PLAYWRIGHT_CHANNEL?{channel:process.env.PLAYWRIGHT_CHANNEL}:{}});
   page=await browser.newPage({viewport:{width:1440,height:1000}});
   const errors=[];page.on('pageerror',error=>errors.push(error.message));page.on('dialog',dialog=>dialog.accept());
-  await work({page,origin,datasetId:manifest.datasetId,
+  await work({page,origin,directory,datasetId:manifest.datasetId,
    async restart(){await stop();await start();assert.equal(JSON.parse(await readFile(path.join(directory,'manifest.json'),'utf8')).datasetId,manifest.datasetId);},
   });
   assert.deepEqual(errors,[],'Browser JavaScript errors');

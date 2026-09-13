@@ -1,5 +1,8 @@
 # 产品闭环与架构实施审计
 
+> **M2-A4更新：** 固定启动provider快照与认证opening tRPC已通过真实dev/production开局恢复；原准备UI、Quote/Worker、视频媒体及两幕尚待实施。见[HTTP契约](../api/OPENINGS-HTTP-M2-A.md)。
+
+
 > **2026-09-13 M2-A2更新：** 内部开局事务已落地完整剧本封存、固定Binding/预算、preparing/setup/空稿/原子回执，详见[实施契约](../api/EXPERIENCE-OPENING-M2-A.md)。公开tRPC和原页面正式开始仍待接入，费用/持久视频任务/两幕验收尚未完成，不将该内部切片当产品闭环。
 
 

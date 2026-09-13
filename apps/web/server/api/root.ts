@@ -1,4 +1,5 @@
 import {assetRouter} from './assets';
+import {openingRouter} from './openings';
 import {characterRouter} from './characters';
 import {storyDraftRouter} from './story-drafts';
 import {createTRPCRouter, publicMetadataProcedure} from './trpc';
@@ -6,6 +7,7 @@ import {readVideoConfiguration} from '../services/video-configuration';
 import {videoConfigurationSchema} from '../../contracts/video';
 
 export const appRouter = createTRPCRouter({
+  openings: openingRouter,
   assets: assetRouter,
   storyDrafts: storyDraftRouter,
   characters: characterRouter,

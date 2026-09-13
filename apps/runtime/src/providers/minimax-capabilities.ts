@@ -1,5 +1,5 @@
-import {miniMaxRatios, miniMaxModelLimits, validateMiniMaxGeneration} from './minimax-constraints.js';
-export {validateMiniMaxGeneration} from './minimax-constraints.js';
+import {miniMaxRatios, miniMaxModelLimits, validateMiniMaxGeneration, miniMaxRegion, type MiniMaxRegion} from './minimax-constraints.js';
+export {validateMiniMaxGeneration, miniMaxRegion} from './minimax-constraints.js';
 import {isDeepStrictEqual} from 'node:util';
 import type {BindingSpec, BindingJson} from '../contracts/provider-binding.js';
 import {parseBindingSpec, canonicalBindingJson} from '../contracts/provider-binding-validation.js';
@@ -12,11 +12,6 @@ export const minimaxEndpoints = {
   cn: {profileId: 'minimax-cn-v2', origin: 'https://api.minimax.cn', documentation: 'https://platform.minimax.cn/docs/api-reference/video-generation-v2-create'},
   international: {profileId: 'minimax-international-v2', origin: 'https://api.minimax.io', documentation: 'https://platform.minimax.io/docs/api-reference/video-generation-v2-create'},
 } as const;
-export type MiniMaxRegion = keyof typeof minimaxEndpoints;
-export function miniMaxRegion(value: unknown): MiniMaxRegion {
-  if (value !== 'cn' && value !== 'international') throw Error('INVALID_MINIMAX_REGION');
-  return value;
-}
 /** Document evidence plus actual implemented subset, never invented account verification. */
 export function miniMaxCapabilities(modelId: string, region: MiniMaxRegion): BindingSpec['capabilities'] {
   if (!Object.hasOwn(miniMaxModelLimits, modelId)) throw Error('INVALID_MINIMAX_GENERATION');

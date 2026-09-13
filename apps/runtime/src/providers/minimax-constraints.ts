@@ -15,3 +15,9 @@ export function validateMiniMaxGeneration(modelId: string, operation: string, in
       operation !== 'image-to-video' || input.ratio !== 'adaptive')) throw Error('INVALID_MINIMAX_GENERATION');
   return {duration: input.duration, resolution: input.resolution as string, ratio: input.ratio as string};
 }
+
+export type MiniMaxRegion = 'cn' | 'international';
+export function miniMaxRegion(value: unknown): MiniMaxRegion {
+  if (value !== 'cn' && value !== 'international') throw Error('INVALID_MINIMAX_REGION');
+  return value;
+}

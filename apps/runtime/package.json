@@ -65,6 +65,22 @@
     "./providers/minimax-request": {
       "types": "./src/providers/minimax-request.ts",
       "default": "./dist/providers/minimax-request.js"
+    },
+    "./contracts/experience-opening": {
+      "types": "./src/contracts/experience-opening.ts",
+      "default": "./dist/contracts/experience-opening.js"
+    },
+    "./contracts/experience-opening-validation": {
+      "types": "./src/contracts/experience-opening-validation.ts",
+      "default": "./dist/contracts/experience-opening-validation.js"
+    },
+    "./contracts/experience-opening-output": {
+      "types": "./src/contracts/experience-opening-output.ts",
+      "default": "./dist/contracts/experience-opening-output.js"
+    },
+    "./contracts/video-binding-registry": {
+      "types": "./src/contracts/video-binding-registry.ts",
+      "default": "./dist/contracts/video-binding-registry.js"
     }
   }
 }

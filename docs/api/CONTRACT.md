@@ -1,5 +1,8 @@
 # 未完 · V1 API 契约
 
+> **2026-09-13 M2-A4：** 同一应用已新增受认证openings.bindings/create/getPreparing tRPC，并通过真实compiled dev/production＋SQLite开局恢复验证；见[HTTP契约](OPENINGS-HTTP-M2-A.md)。原准备浮层仍待接入，视频任务尚未打通。
+
+
 > **2026-09-13 内部开局更新：** [M2-A2正式开局持久契约](EXPERIENCE-OPENING-M2-A.md)实现同一事务封存剧本、固定Binding/预算、preparing经历/setup/空草稿与回执；目前是内部runtime用例，尚未开放原页面/tRPC开始动作，不代表模型任务已打通。当前本机入口已自动建会话，不再要求用户填写连接码。
 
 > **2026-09-12 实施更新：** M0-C2/C3 已接入显式本机初始化、会话和同一页面的 SQLite 世界设定 CRUD；当前契约/验收以[实施记录](../implementation/M0-C2-C3-LOCAL-AUTHORING-2026-09-12.md)为准。下方此前状态保留为阶段记录，不代表新增能力仍未接入，也不代表角色、素材、模型和分支已完成。

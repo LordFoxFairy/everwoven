@@ -460,3 +460,15 @@ M2-A3独立Cicero发现P2：合法HTTPS超长query能通过原请求构造并超
 M2-A3最终独立复核PASS（Cicero4文件111/111及超长URL/UTF-8/body边界独立反例），原P2关闭、确认P1/P2=0；主仓最终106文件1692/1692及runtime/Web types实际exit0（/tmp/everwoven-registry-final-main.log）。最终请求边界源码复制到隔离树后production build+原Studio完整四图/unknown/重启/冷浏览器exit0（/tmp/everwoven-registry-final-production.log），当前唯一3100自动会话/原角色剧本编辑器/无连接码/刷新复用亦exit0且无业务seed（/tmp/everwoven-registry-current-entry.log）。纯请求包出口未引入Node/Prisma，旧Web请求实现已删除，runtime和Web现共同使用单一约束目录。
 
 本片新增纯registry和兼容策略、公开投影、40个净新增反例并落实际SQLite绑定漂移验证，非模型付费或UI开局验收。官方CN/io任务原语仍未与新Host binding/持久Worker接上；原状态码分类等已知任务准入待M2后续修订，不作为现有registry可派发宣称。下一Chunk2-C计划已列output parser、固定启动登记、Host+tRPC全HTTP边界及原准备浮层；Cicero只读查启动模块桥接最少hook，主会话继续唯一写入。goal保持active。
+
+M2-A3已commit c8f711a并push开发分支成功；精确CI34743836566，headSha=c8f711a89b2549a0464d6d891aad516e112e0a53，当前in_progress；下一轮查询同作业，上一80c2632 CI已success。不改main/tag/镜像、不纳入根目录私有研究。
+
+Cicero完成下一Host启动只读方案：runtime/host编译模块内保持单次配置快照，launcher按现有external入口createRequire读取同一模块，不用Web模块或重复src实例；固定providers.json缺失为空、坏格式/权限为provider配置不可用（不禁用角色剧本/旧经历读回），每请求禁止重读。读取用同FD类型/owner/0600/NOFOLLOW/有界严格UTF-8，文件缺失才empty，不chmod/修复用户文件。resolver惰性抛固定错误，create回执仍优先、getPreparing不访问配置；真实dev/production HTTP必须验证共享实例与重启才更新，不能仅靠单元测试。Chunk2-C仍未写代码，下一goal轮直接沿已记录方案推进原Host/tRPC/准备入口。本轮为实码+测试+生产证据+提交progress，goal active。
+
+上一goal轮为progress：c8f711a统一模型部署/请求及非秘密registry，主仓1692+生产/原页面验证并提交；本轮原CI34743836566仍live，继续原作业。开始Chunk2-C：严格公开output parser与一次Host配置快照/认证opening wrapper，随后按同一计划接完整HTTP和原浮层。主会话唯一写入，Cicero继续独立只读验证，不因没有付费凭据停下可完成的实现。
+
+M2-A3精确CI34743836566已completed/success（c8f711a）。M2-A4实码新增纯output/目录parser、同FD只读一次providers启动快照、复用双认证/DB gate的opening Host wrapper、三条受认证tRPC与完整来源/标记/非batch/字节/错误/输出关联边界，launcher使用compiled external共享实例。HTTP初始真实RED18fail/2pass→GREEN20；补来源响应错配RED，已加create请求来源/revision/binding/预算及getid核对。独立Cicero P2目录假地区/规格反例RED后复用纯constraints修复，不影响历史binding读取。
+
+当前聚焦72及双端typesGREEN；独立56/56+额外非法预算零service调用PASS、确认P1/P2=0。启动配置替换/增长确定性race两个新增测试通过，FD均关闭。最关键compiled边界已实际验收：隔离production build+local-openings完整HTTP/SQLite/重启，及同脚本SMOKE_DEV=true均exit0；同一launcher/Next确实共享startup实例。文件后来删除/坏格式/换账号时历史回放/getPreparing仍可用，新命令拒绝，原剧本可读且零模型调用。主仓全量正在跑，原准备UI尚未改，不把新路由当产品完成。
+
+M2-A4最终证据：主仓109文件1750/1750与runtime/Web源码及测试类型实际exit0；稳定源码production build已exit0，最终增强断言的production/dev opening HTTP以及原Studio完整聚合/四图/unknown/重启Chrome均exit0。新增明确empty新create=404/PROVIDER_BINDING_NOT_REGISTERED，换account新create=409/PROVIDER_BINDING_CONFLICT；非仅检查泛错误。配置文件替换/增长race注入位于打开FD后首次fstat返回前，不宣称已覆盖两次metadata检查之间的所有竞态。独立Cicero当前P1/P2=0。用户原3100使用同目录温和停机exit0后重新启动以加载compiled Host，自动会话/无取码框/原编辑器/刷新复用及受认证provider目录非not_initialized全部实测通过；不打印配置、不写用户业务数据、不触发模型。Chunk2-C Host/HTTP完成，准备UI与正式任务链仍待实码，不将1750测试当作整个产品完成。

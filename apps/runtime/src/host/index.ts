@@ -1,6 +1,8 @@
 import {createCharacterService} from '../composition/character-service.js';
 import type {PrismaClient} from '../generated/prisma/client.js';
 import {createStoryDraftService} from '../composition/story-draft-service.js';
+import {createExperienceOpeningService} from '../composition/experience-opening-service.js';
+import {localProviderStartup} from './provider-startup.js';
 import type {InternalOwnerContext} from '../contracts/story-draft.js';
 import {openRuntimeDatabase} from '../infrastructure/db/client.js';
 import {join} from 'node:path';
@@ -18,6 +20,8 @@ export type {ImageBodySource} from '../ports/image-body-receiver.js';
 export {initializeLocalHost, readLocalHost} from './storage.js';
 export type {HostManifest, LocalEnvironment} from './storage.js';
 export const {issueConnectionCode, exchangeConnectionCode, authenticateSession, revokeSession} = createSessionOperations();
+/** Explicit launcher-only loading. Request paths never initialize or reload provider configuration. */
+export const initializeLocalVideoProviders = localProviderStartup.initialize;
 
 // Public application errors are fixed identifiers, never SQLite paths, queries or callback details.
 const storyErrors = new Set(['CLIENT_RELOAD_REQUIRED', 'TEMPLATE_REVISION_CONFLICT', 'CHARACTER_NOT_FOUND', 'ASSET_NOT_FOUND', 'STORY_ASSET_NOT_READY', 'DATASET_CHANGED', 'REVISION_CONFLICT', 'IDEMPOTENCY_CONFLICT', 'STORY_NOT_FOUND', 'STORY_NOT_DELETED', 'REVISION_EXHAUSTED',
@@ -25,6 +29,12 @@ const storyErrors = new Set(['CLIENT_RELOAD_REQUIRED', 'TEMPLATE_REVISION_CONFLI
 const characterErrors = new Set(['DATASET_CHANGED', 'OWNER_UNAVAILABLE', 'REVISION_CONFLICT', 'IDEMPOTENCY_CONFLICT', 'REVISION_EXHAUSTED',
   'CHARACTER_NOT_FOUND', 'CHARACTER_NOT_DELETED', 'INVALID_CHARACTER_COMMAND', 'INVALID_CHARACTER_QUERY', 'INVALID_CHARACTER_PORTRAIT',
   'INVALID_CURSOR', 'STORED_CHARACTER_INVALID', 'COMMAND_RECEIPT_INVALID']);
+const openingErrors = new Set(['CLIENT_RELOAD_REQUIRED', 'DATASET_CHANGED', 'OWNER_UNAVAILABLE', 'REVISION_CONFLICT',
+  'IDEMPOTENCY_CONFLICT', 'REVISION_EXHAUSTED', 'INVALID_EXPERIENCE_COMMAND', 'INVALID_EXPERIENCE_QUERY',
+  'INVALID_EXPERIENCE_DTO', 'STORY_NOT_FOUND', 'STORY_ARCHIVED', 'STORY_ASSET_NOT_READY', 'EXPERIENCE_NOT_FOUND',
+  'PREPARATION_NO_LONGER_CURRENT', 'STORED_EXPERIENCE_INVALID', 'STORED_STORY_VERSION_INVALID', 'COMMAND_RECEIPT_INVALID',
+  'INVALID_PROVIDER_BINDING', 'PROVIDER_BINDING_MISMATCH', 'PROVIDER_BINDING_CONFLICT', 'STORED_PROVIDER_BINDING_INVALID',
+  'PROVIDER_BINDING_NOT_REGISTERED', 'PROVIDER_CONFIGURATION_UNAVAILABLE', 'PROVIDER_NOT_INITIALIZED', 'EXPERIENCE_PARENT_INVALID']);
 
 type DatabaseBinding = {host: ValidatedHost; revalidate: () => Promise<void>};
 // Shared host resource/authentication boundary only, not a generic business service.
@@ -79,6 +89,15 @@ export function withLocalStories<T>(directory: string, environment: LocalEnviron
 export function withLocalCharacters<T>(directory: string, environment: LocalEnvironment, token: string,
   work: (service: ReturnType<typeof createCharacterService>, owner: InternalOwnerContext) => Promise<T>): Promise<T> {
   return withLocalDatabase(directory, environment, token, characterErrors, 'LOCAL_CHARACTERS_FAILED', (db, owner) => work(createCharacterService(db), owner));
+}
+
+export function withLocalExperienceOpenings<T>(directory: string, environment: LocalEnvironment, token: string,
+  work: (service: ReturnType<typeof createExperienceOpeningService> & {bindings: () => import('../contracts/video-binding-registry.js').BindingDirectory}, owner: InternalOwnerContext) => Promise<T>): Promise<T> {
+  return withLocalDatabase(directory, environment, token, openingErrors, 'LOCAL_EXPERIENCES_FAILED', (db, owner) => {
+    const providers = localProviderStartup.access(directory, environment, owner);
+    // Failure is lazy: historical CREATE replay/get never depend on today's registry health.
+    return work({...createExperienceOpeningService(db, providers.resolver), bindings: providers.directory}, owner);
+  });
 }
 
 /** Fixed trusted owner/dataset; no request-supplied scope or file factory injection.

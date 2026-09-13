@@ -1,4 +1,5 @@
 import {localAssetAccess} from '../local-assets';
+import {handleOpeningHTTP} from './openings-http';
 import {localCharacterAccess} from '../local-characters';
 import { localStoryAccess } from '../local-runtime';
 import { boundedJSONRequest } from '../local-boundary';
@@ -24,6 +25,7 @@ export async function handleTRPCRequest(
   let paths: string[];
   try {paths = decodeURIComponent(url.pathname.slice('/api/trpc/'.length)).split(',');}
   catch {return storyFailure('INVALID_STORY_QUERY');}
+  if (paths.some(path => path.startsWith('openings.'))) return handleOpeningHTTP(request, env, paths);
   const story = paths.some(path => path.startsWith('storyDrafts.'));
   const storyMutation = story && paths.length === 1 && ['create', 'update', 'delete', 'restore'].some(method => paths[0] === `storyDrafts.${method}`);
   const invalid = request.method === 'GET' ? 'INVALID_STORY_QUERY' : 'INVALID_STORY_COMMAND';
