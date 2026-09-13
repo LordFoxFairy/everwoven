@@ -57,6 +57,14 @@
     "./contracts/story-draft-output": {
       "types": "./src/contracts/story-draft-output.ts",
       "default": "./dist/contracts/story-draft-output.js"
+    },
+    "./contracts/video-deployments": {
+      "types": "./src/contracts/video-deployments.ts",
+      "default": "./dist/contracts/video-deployments.js"
+    },
+    "./providers/minimax-request": {
+      "types": "./src/providers/minimax-request.ts",
+      "default": "./dist/providers/minimax-request.js"
     }
   }
 }

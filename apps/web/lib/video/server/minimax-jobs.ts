@@ -1,5 +1,5 @@
 import {getDeployment,type ModelSelection} from '../catalog';
-import {buildMiniMaxRequest,type MiniMaxModel,type MiniMaxRequestInput,type MiniMaxRatio} from '../minimax-request';
+import {buildMiniMaxRequest,type MiniMaxModel,type MiniMaxRequestInput,type MiniMaxRatio} from 'runtime/providers/minimax-request';
 
 export type OfficialJobSnapshot={
  taskId:string;status:'queued'|'running'|'succeeded'|'failed'|'cancelled';

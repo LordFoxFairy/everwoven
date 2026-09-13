@@ -29,6 +29,11 @@ describe('official task adapter: not a realtime session',()=>{
  it('validates inputs without issuing a paid request',async()=>{
   const {jobs,fetchImpl}=setup();await expect(jobs.submit({...input,duration:60})).rejects.toThrow();expect(fetchImpl).not.toHaveBeenCalled();
  });
+ it('does not hand an oversized frame URL to the transport',async()=>{
+  const {jobs,fetchImpl}=setup();
+  await expect(jobs.submit({...input,frames:{first:'https://media.example/?x='+'a'.repeat(65536)}})).rejects.toThrow();
+  expect(fetchImpl).not.toHaveBeenCalled();
+ });
  it('does not send an already-aborted action',async()=>{
   const {jobs,fetchImpl}=setup();const c=new AbortController();c.abort();
   await expect(jobs.submit(input,c.signal)).rejects.toMatchObject({code:'not-submitted',submission:'not-submitted'});

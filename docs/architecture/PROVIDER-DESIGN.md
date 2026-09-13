@@ -162,3 +162,7 @@ M2测试清单（每项记录输入证据、结果、版本，不只写pass）�
 上述仍待正式预算、任务和分支用例落地验证；现有M0-B根CRUD没有收费能力。
 
 多分支派发须执行[scope门锁协议](BRANCH-SAVEPOINTS-DESIGN.md#61-scope级派发串行化)：同scope未知状态提交与其他分支最终准入/开始发送互斥；scope→Experience→WriteGate固定锁序。仅做一次余额检查或各进程独立mutex不足以保证门禁。已开始请求继续核对，新的付费阶段等待核对结束；模型网络等待不持SQL事务或派发门锁。
+
+## M2-A3实施补记 · 2026-09-13
+
+已将供应商—型号—精确部署映射及纯MiniMax请求构造迁入runtime，Web不再保留重复实现。非秘密connection/binding登记和输入兼容策略已实码：显式cn/international、稳定账号scope/credentialRef、严格版本和参数、三层能力证据；已存同版本漂移继续由开局事务拒绝。详见[登记/策略实施说明](VIDEO-BINDING-REGISTRY-M2-A.md)。这不是启动配置加载、完整Capability/Quote准入或公开原页面接通的完成声明，compatible不授予派发。

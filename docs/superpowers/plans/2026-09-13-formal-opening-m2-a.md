@@ -48,3 +48,24 @@ M2-A内部原语或创建经历通过≠两幕视频通过。最终仍需预算�
 Create输入：协议/dataset/commandId/storyDraftId/expectedStoryRevision/bindingKey/expectedBindingVersion/budget(limitMicros规范字符串,currency CNY或USD)。同一Gate先回执，再封存、绑定、经历、setup、空草稿、回执。回执ID=经历ID（不是commandId）；回放核对真实经历固定引用/预算、封存来源、绑定版本、setup及草稿身份，不重新读当前草稿/默认registry。公开binding仅白名单summary和摘要，不返回credentialRef/账户scope/原始参数。创建返回历史初始快照；getPreparing仅允许仍保持初始preparing的聚合，否则明确状态错误，后续另增完整状态查询。
 
 RED重点：max预算精度、任意额外URL/owner字段、resolver错绑/同版本漂移、历史回执整体互换/预算/绑定替换、各写点故障回滚、同配置新command可独立创建、并发同command只一次、真实SQLite重新连接恢复；回放时当前draft/registry零访问。保存上限不构成任何付费授权，setup不显示假选项或响应入口。
+
+### Chunk2-B 统一部署登记与输入能力策略
+
+- [x] 将现有Web的纯部署数组/供应商型号身份迁入runtime唯一`contracts/video-deployments.ts`；Web只消费公开目录，live构造器仍独立，不拿live available判定正式job。
+- [x] 将纯MiniMax请求构造迁入runtime providers，消除后端未来复制Web协议。既有调用方直接新import，删除旧实现；共用模型/规格约束。
+- [x] `createVideoBindingRegistry(config)`有界解码非秘密connection/bindings，显式CN/international由代码endpointProfile映射；拒绝重复真实身份、伪型号/地区/账号错配、任意URL、原始key字段。冻结配置，resolver只同步内存解析，返回按受信owner组装的BindingSpec；当前未知account证据如实unknown，不读取秘密。
+- [x] 固定capability版本/文档来源/日期/组合矩阵，检查t2v/i2v、时长/分辨率/比例、图片用途/个数/元信息和body边界；H3参考输入文档支持但本adapter未实现，不能仅凭image=true放行。结果只表示输入兼容，绝不自动授予Quote/派发。
+- [x] RED→GREEN：地区映射、重复/错绑、JSON漂移、无配置、配置对象后改不影响、返值后改不污染、能力opaque/伪造/未知版本、组合/素材边界、零网络。原已封存Experience仍不读当前registry恢复。
+- [x] 主仓全量/types、独立review及原页面production回归后提交（最终证据以PROGRESS为准）；下一接Host startup固定加载与原tRPC/准备入口，不在每个HTTP内反复重读变动配置。
+
+新文件以`apps/runtime/src/{contracts/video-deployments.ts,providers/minimax-request.ts,providers/minimax-constraints.ts,providers/minimax-capabilities.ts,application/video-binding-registry.ts,contracts/video-binding-registry.ts}`为边界；tests按纯registry/能力/request分组。本片无schema变更、无账户API/报价费用调用。
+
+### Chunk2-C 原Host/tRPC/准备入口（下一实现，尚未开始代码）
+
+- [ ] 增加浏览器纯`parseExperienceOpeningDTO/Result`及binding选择目录契约，严格字段/UUID/时间/来源关系；不给原始binding私密字段进入wire。
+- [ ] 复用Host认证/目录身份及DB生命周期，固定startup加载非秘密provider配置，缺失为空、坏配置只阻断新provider选择而不阻断角色/剧本或历史经历读回；resolver在新开局才解析，回执仍优先。
+- [ ] 增加窄`withLocalExperienceOpenings`和公开错误白名单，不由Web打开Prisma。统一服务端binding列表、create、getPreparing，runtime包新增纯契约出口。
+- [ ] 同步tRPC router/context/http的来源、标记、非batch、大小和错误脱敏；真实HTTP未认证/跨源/未知字段/混batch/超限/数据库断开重启验证。不是仅root挂三个函数。
+- [ ] 原保存后的准备浮层消费目录与explicit预算，明确零调用固定确认；unknown保留原command/payload、dataset/epoch挡迟到，目录/弹窗/自动会话不创建经历。公开API实际验证后再接UI，最后原3100Chrome。
+
+固定启动对象必须跨Node launcher与Next route模块可见并绑定directory/environment/owner/dataset，热加载不重复重读可变配置；实际同进程桥接以production+dev HTTP验证，不仅单元测试假设。私密配置字段不返回前端、不建密钥输入框；缺密钥只在后续真实付费测试阶段由用户本地提供，当前代码仍可实施。

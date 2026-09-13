@@ -7,6 +7,7 @@ import {createExperience, getPreparingExperience} from '../src/application/exper
 import {openRuntimeDatabase} from '../src/infrastructure/db/client.js';
 import type {ExperienceOpeningStore} from '../src/ports/experience-opening-store.js';
 import {createExperienceOpeningService} from '../src/composition/experience-opening-service.js';
+import {createVideoBindingRegistry} from '../src/application/video-binding-registry.js';
 
 beforeAll(prepare); afterAll(dispose);
 async function setup() {
@@ -259,4 +260,19 @@ describe('durable zero-call experience opening', () => {
       } finally { await f.close(); }
     },
   );
+  it('pins the concrete registry and rejects changed account identity without replacing history', async () => {
+    const f = await setup();
+    try {
+      const config = {schemaVersion: 1, connections: [{id: 'personal', providerId: 'minimax', region: 'international', accountScopeId: 'account-one', credentialRef: 'env:MINIMAX_API_KEY'}],
+        bindings: [{bindingKey: f.input.bindingKey, versionNo: 1, connectionId: 'personal', catalogId: 'minimax-h3-max', operationKind: 'text-to-video', generation: {duration: 5, resolution: '768P', ratio: '16:9'}}]};
+      const registry = createVideoBindingRegistry(config);
+      const a = await createExperience(f.store, f.owner, f.input, registry);
+      expect(a.data.binding).toMatchObject({region: 'international', modelId: 'MiniMax-H3-Max'});
+      config.connections[0]!.accountScopeId = 'account-two';
+      const changed = createVideoBindingRegistry(config);
+      await expect(createExperience(f.store, f.owner, {...f.input, commandId: v7()}, changed)).rejects.toThrow('PROVIDER_BINDING_CONFLICT');
+      expect(await createExperience(f.store, f.owner, f.input, changed)).toEqual({...a, replayed: true});
+      expect(await getPreparingExperience(f.store, f.owner, {...f.protocol, id: a.data.id})).toEqual(a.data);
+    } finally { await f.close(); }
+  });
 });

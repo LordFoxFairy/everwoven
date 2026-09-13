@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {buildMiniMaxRequest,type MiniMaxRequestInput} from './minimax-request';
+import {buildMiniMaxRequest,type MiniMaxRequestInput} from '../src/providers/minimax-request.js';
 const input:MiniMaxRequestInput={model:'MiniMax-H3-Max',prompt:'在用户设定的世界里回应本次行动',resolution:'480P',duration:5};
 describe('official video request contract',()=>{
  it('defaults text generation to desktop landscape',()=>{
@@ -32,5 +32,18 @@ describe('official video request contract',()=>{
  });
  it('accepts standard H3 four-second 2K input without substituting a model',()=>{
   expect(buildMiniMaxRequest({...input,model:'MiniMax-H3',resolution:'2K',duration:4}).model).toBe('MiniMax-H3');
+ });
+ it('rejects overlong frame locators before parsing or returning a request',()=>{
+  expect(()=>buildMiniMaxRequest({...input,frames:{first:'https://media.example/?x='+'a'.repeat(65536)}})).toThrow();
+ });
+ it('counts multibyte URL size rather than only UTF-16 length',()=>{
+  expect(()=>buildMiniMaxRequest({...input,frames:{first:'https://media.example/?x='+'界'.repeat(3000)}})).toThrow();
+  expect(buildMiniMaxRequest({...input,frames:{first:'https://media.example/?x='+'界'.repeat(2000)}}).content).toHaveLength(2);
+ });
+ it('bounds escaped JSON for both frames plus prompt, not just each field separately',()=>{
+  const url='https://media.example/?x='+'"'.repeat(8100);
+  expect(()=>buildMiniMaxRequest({...input,prompt:'\u0001'.repeat(7000),frames:{first:url,last:url}})).toThrow();
+  const body=buildMiniMaxRequest({...input,prompt:'界'.repeat(7000),frames:{first:'https://media.example/a',last:'https://media.example/b'}});
+  expect(new TextEncoder().encode(JSON.stringify(body)).byteLength).toBeLessThanOrEqual(65536);
  });
 });

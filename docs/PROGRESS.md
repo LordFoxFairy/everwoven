@@ -448,3 +448,15 @@ M2-A2独立Cicero发现并确认P2：低层insertResponseDraft仅检查自身own
 M2-A2最终独立Cicero复核PASS50/50，原parent关系P2关闭；额外七类非初始/删除/归档父状态均拒绝并回滚，当前确认P1/P2=0。主仓最终105文件1652/1652、runtime/Web源码和测试类型实际exit0（/tmp/everwoven-opening-final-main.log）。最终Prisma适配复制到稳定隔离树后production build+原Studio完整内容/角色/四真图/unknown/重启/冷浏览器再验exit0（/tmp/everwoven-opening-final-production.log）。用户当前唯一3100仍原PID84490/原目录，Chrome自动会话/无连接码/原编辑器/刷新复用再验exit0且零业务seed、零模型调用（/tmp/everwoven-opening-current-entry.log）。
 
 本片真实新增内部CreateExperience/getPreparing/固定Binding事务及50条测试，源码10文件、测试3文件，原schema无变更，未开新端口。API/架构图/时序/计划/审计同步明确：历史CREATE确认不是当前播放快照，opaque capability不是准入，保存预算不是付费授权；原tRPC和准备页面尚未对接。下一步实际宿主Connection/Deployment登记与capabilitypolicy、同页面异步开局入口，再进入Quote/持久操作/官方视频/播后回应链。不把这片内部事务当整体产品完成；goal持续active。准备只提交本片明确路径，保留所有私有research未跟踪，不改main/tag/镜像。
+
+M2-A2已commit80c2632并push既有开发分支成功；精确CI34743112327，headSha80c2632ddadf249bd60799ed8da13efad8cc11cf，当前in_progress。下一轮查同一作业，不将push当CI通过或重启CI；上一d78a0ab及36daec9均success。当前goal轮有实码/50反例/独立复核/主仓1652全量/生产与原页面验证/提交，不是仅计划。Cicero已转只读核查下一宿主登记+能力policy+tRPC复用点（submission01a09978-f9de-7ea2-857c-5ea1edf369c8，当前尚未返回），主会话继续持唯一写权。用户3100原服务保持运行，未修改main/tag/镜像，私人研究资料仍未跟踪。整体goal保持active，直到真实两幕/恢复/分支验收再作产品完成通知。
+
+上一goal轮归类progress：80c2632真实新增原子经历和50测试，并主仓1652与原页面验证/提交。当前精确CI34743112327仍in_progress，原作业live继续观察。Cicero下一接线审查确认复用withLocalDatabase、原tRPC来源/标记/batch/大小边界及原保存后准备浮层，不能只加router就算接通。本轮推进统一runtime部署目录/非秘密connection-binding登记和MiniMax输入能力策略，避免再维护第二份模型数组；之后原入口使用这一登记，不启用fal fallback。官方CN/io创建文档本轮再次实际读取，支持分段job规格；文档证据不是账号权限或实时流。
+
+M2-A2精确CI34743112327已completed/success，head80c2632匹配。M2-A3本轮实码将Web部署目录/纯MiniMax构造迁入runtime，旧请求实现删除并直改import，共用规格constraints；新增非秘密CN/io连接登记、同步不可变BindingResolver、脱敏选择列表和严格已知capability输入兼容策略。未读key/调用模型、不改变当前live/fal available语义。聚焦5文件127/127及双端types实际exit0；新增真实SQLite证明具体registry开局固定地区账号，换账号同版本冲突而旧command历史回放不变。独立Cicero质量审查中，主仓全量与隔离build/原Studio进行中。
+
+M2-A3独立Cicero发现P2：合法HTTPS超长query能通过原请求构造并超过官方body上限。主会话补3条实际RED（长URL/多字节/双帧+转义body），改为URL解析前8192 UTF-8字节、最终JSON65536 UTF-8字节保守限制；保持纯TextEncoder，无Node Buffer。新增调用方零fetch反例，旧结构未改语义/未回显私密URL。修订前全量1688和原Studio/build已exit0但不作为最终验收；当前聚焦130与类型GREEN，最终测试/构建重新跑，独立复核未结束。
+
+M2-A3最终独立复核PASS（Cicero4文件111/111及超长URL/UTF-8/body边界独立反例），原P2关闭、确认P1/P2=0；主仓最终106文件1692/1692及runtime/Web types实际exit0（/tmp/everwoven-registry-final-main.log）。最终请求边界源码复制到隔离树后production build+原Studio完整四图/unknown/重启/冷浏览器exit0（/tmp/everwoven-registry-final-production.log），当前唯一3100自动会话/原角色剧本编辑器/无连接码/刷新复用亦exit0且无业务seed（/tmp/everwoven-registry-current-entry.log）。纯请求包出口未引入Node/Prisma，旧Web请求实现已删除，runtime和Web现共同使用单一约束目录。
+
+本片新增纯registry和兼容策略、公开投影、40个净新增反例并落实际SQLite绑定漂移验证，非模型付费或UI开局验收。官方CN/io任务原语仍未与新Host binding/持久Worker接上；原状态码分类等已知任务准入待M2后续修订，不作为现有registry可派发宣称。下一Chunk2-C计划已列output parser、固定启动登记、Host+tRPC全HTTP边界及原准备浮层；Cicero只读查启动模块桥接最少hook，主会话继续唯一写入。goal保持active。
