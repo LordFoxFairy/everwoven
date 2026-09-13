@@ -195,3 +195,7 @@ P05的StoryVersion、ProviderBindingVersion和初始budgetLimit由CreateExperien
 ### M1-C1c-2：asset begin共享创建身份
 
 仅asset begin在同事务使用同一服务端UUIDv7作为AssetUpload.id与CommandReceipt.id，重放以receipt.id核对对应意图，禁止仅凭response.id自证。complete以及其它业务回执仍独立ID。两表PK与owner/command真唯一未变，无FK/新增unique；应用维护关系而非ORM关联。M1保留意图与回执，未来归档需一起评审重放期限，见[ADR0010](adr/0010-asset-begin-identity.md)。
+
+## M1 维护查询索引
+
+当前单一fresh baseline新增普通索引`ix_asset_uploads_asset(asset_id)`，用于跨意图的资产身份/别名保护查询；真实SQLite EXPLAIN由SCAN变SEARCH。分页仍用现有owner/createdAt/id索引，tuple keyset支持相同时间戳。没有新增业务唯一、外键或触发器；16表/13业务真唯一不变。schema、迁移、生成DDL和已审结构指纹同步，不迁移用户旧库。

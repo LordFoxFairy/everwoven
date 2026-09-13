@@ -324,3 +324,19 @@ Pascal `01a0963a-4e45-7940-aa97-30aa76dc2070` 现为M1-D Web传输writer，唯�
 角色修复Dewey规格独立64/64 PASS，三文件无确认P1/P2；已交Cicero质量关闭原报告，主会话生产证据与隔离范围已明确。Hegel维护内部54项聚焦GREEN，实际EXPLAIN按assetId从SCAN变非唯一索引SEARCH；尚未最终停写/主仓验收，未记录维护完成。
 
 角色恢复最终Cicero独立64/64质量PASS，指定三源码/测试及smoke当前P1/P2均0。仅此修复与主会话文档准备提交；活跃维护/聚合源码不纳入该提交。新增原剧本smoke仍是未完成RED门槛，不加入CI或此提交。
+
+角色恢复已commit264af31，仅三文件/原角色smoke与主会话文档，push待取回。Einstein `01a09639-298c-75c1-81e9-f6ee63897f9f` 转为原UI唯一writer：原Editor/Platform/共享预览/列表、story controller-viewmodel-hook及tests；删除临时DatabaseDrafts及旧database-client/ports由他统一处理，Pascal只持新story transport。正式完整form不用旧有损Story补空；图片三槽/固定角色/异步保存/unknown/跨库保护；保持一个界面及原天空主题，不假游玩。两writer已通知对接唯一端口；主会话继续docs/smoke，等源码稳定后完整主仓验证。
+
+Hegel维护已停写，完整15文件清单保存/tmp/everwoven-maintenance-paths.txt，主会话逐路径复制到稳定隔离树（保留C2+角色修复，未复制在途故事）。报告55聚焦、合旧Host/gate/T2共143通过；主会话同8文件重新验证与隔离全量/类型/生产五Chrome正在跑，Dewey规格审查中。Hostindex维护终稿先冻结复制，再将故事白名单部分写权交Feynman，不让两writer同时改同文件。预览只保证不写业务/图片，security兑换/撤销仍写；候选上限非SQL CPU硬上界，SIGKILL不运行finally，临时会话沿既有8hTTL，文档如实说明。
+
+264af31 push已实际退出0，精确[CI34726396899](https://github.com/LordFoxFairy/everwoven/actions/runs/34726396899) verify=in_progress；未由push推断通过。维护新增实施边界文档明确stdin/退出码/SQL额度/预览security写入/SIGKILL期限，未预先写验收成功。
+
+维护初轮主会话8文件143/143 exit0，稳定隔离87文件1387/1387、双端types、production build/五Chromeexit0，另实际root pnpm两条命令stdout码→stdin验证默认空页preview/exit0/零asset目录（内部传递，无凭据输出）。Dewey独立55/55后真实SQLite追加P2：首候选非法v7 ID在逐行catch前整页throw，无cursor导致后续正常行饥饿。Hegel获仅维护分页/逐行处理写集修复授权，不动已交Feynman的Hostindex；此次GREEN不作为最终维护验收。
+
+264af31精确CI34726396899已确认verify=completed/success，publish/anonymous-pull skipped；未发tag/镜像。
+
+主会话独立扩原Studio生产smoke至真实角色基础图+故事覆盖/封面/开场四图、全部世界设置/关系、固定版本与源模板不被修改、服务重启原列表/原Editor字段读回；node语法检查通过。它仍未在新聚合生产运行，unknown/源模板后续编辑/生命周期/跨库及最终actual selectors待UIwriter稳定后补齐。明确不将已写脚本视为已通过，未加CI。原UIwriter已获告知测试语义而非要求为测试增加大按钮。
+
+维护P2修订已停写，新增第16文件asset-maintenance-position.test.ts；非法业务UUID但有界无损分页键逐行error/计数/cursor，不cleanup；UTF8 BINARY排序及原始hex/时间核对避免有损重绑定。真正超界/控制/非法编码/非规范时间键fail-closed，非任意坏库修复工具。Dewey独立69/69规格PASS、当前P1/P2=0；主会话最后9文件157/157 exit0，隔离最后全量/类型/build/5Chrome仍运行。已交Cicero全片质量，Hostindex以冻结副本限定维护范围，未把在途故事白名单混入。
+
+维护最终主会话157聚焦、冻结隔离88文件1401/1401/双端types/build/五Chrome已全部实际exit0；Dewey规格69/69、Cicero质量69/69 PASS，当前P1/P2均0。准备仅提交维护16文件及主会话文档。Hostindex在工作树已有Feynman故事白名单增量，将从已验收冻结副本仅暂存维护版本，保留工作树故事变更不覆盖；其余维护15文件已逐字节核对与冻结副本一致。未将并行原UI/聚合或新RED smoke混入该提交。

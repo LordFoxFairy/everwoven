@@ -312,3 +312,6 @@ CREATE INDEX "ix_asset_uploads_recovery" ON "asset_uploads"("status", "lease_exp
 
 -- CreateIndex
 CREATE INDEX "ix_asset_uploads_owner" ON "asset_uploads"("owner_id", "created_at", "id");
+
+-- Nonunique identity lookup for cleanup T1/T2; duplicate intents remain detectable.
+CREATE INDEX "ix_asset_uploads_asset" ON "asset_uploads"("asset_id");

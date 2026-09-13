@@ -289,5 +289,6 @@ model AssetUpload {
 
   @@index([status, leaseExpiresAt, id], map: "ix_asset_uploads_recovery")
   @@index([ownerId, createdAt, id], map: "ix_asset_uploads_owner")
+  @@index([assetId], map: "ix_asset_uploads_asset")
   @@map("asset_uploads")
 }

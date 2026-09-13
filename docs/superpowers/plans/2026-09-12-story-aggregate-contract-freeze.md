@@ -265,30 +265,30 @@ interface StoryDraftClient {
 
 ### 后端聚合写集
 
-- [story-draft.ts](/Users/nako/Documents/ChatGPT/minimax%20h3研究/apps/runtime/src/contracts/story-draft.ts)
-- [story-draft-validation.ts](/Users/nako/Documents/ChatGPT/minimax%20h3研究/apps/runtime/src/contracts/story-draft-validation.ts)
-- [story-draft-store.ts](/Users/nako/Documents/ChatGPT/minimax%20h3研究/apps/runtime/src/ports/story-draft-store.ts)
-- [story-drafts.ts](/Users/nako/Documents/ChatGPT/minimax%20h3研究/apps/runtime/src/application/story-drafts.ts)，按cast/DTO/receipt拆专属小模块
-- [prisma-story-draft-store.ts](/Users/nako/Documents/ChatGPT/minimax%20h3研究/apps/runtime/src/infrastructure/db/prisma-story-draft-store.ts)
-- [story-draft-service.ts](/Users/nako/Documents/ChatGPT/minimax%20h3研究/apps/runtime/src/composition/story-draft-service.ts)
-- [host/index.ts](/Users/nako/Documents/ChatGPT/minimax%20h3研究/apps/runtime/src/host/index.ts)，仅故事组合与错误导出
+- [story-draft.ts](../../../apps/runtime/src/contracts/story-draft.ts)
+- [story-draft-validation.ts](../../../apps/runtime/src/contracts/story-draft-validation.ts)
+- [story-draft-store.ts](../../../apps/runtime/src/ports/story-draft-store.ts)
+- [story-drafts.ts](../../../apps/runtime/src/application/story-drafts.ts)，按cast/DTO/receipt拆专属小模块
+- [prisma-story-draft-store.ts](../../../apps/runtime/src/infrastructure/db/prisma-story-draft-store.ts)
+- [story-draft-service.ts](../../../apps/runtime/src/composition/story-draft-service.ts)
+- [host/index.ts](../../../apps/runtime/src/host/index.ts)，仅故事组合与错误导出
 - 专属契约、聚合、版本、回执及真实SQLite回滚测试；现schema已有所需表与唯一约束。
 
 ### Web传输写集
 
-- [api/story-drafts.ts](/Users/nako/Documents/ChatGPT/minimax%20h3研究/apps/web/server/api/story-drafts.ts)
-- [local-runtime.ts](/Users/nako/Documents/ChatGPT/minimax%20h3研究/apps/web/server/local-runtime.ts)
-- [api/http.ts](/Users/nako/Documents/ChatGPT/minimax%20h3研究/apps/web/server/api/http.ts)
-- [local-boundary.ts](/Users/nako/Documents/ChatGPT/minimax%20h3研究/apps/web/server/local-boundary.ts)
-- [ports.ts](/Users/nako/Documents/ChatGPT/minimax%20h3研究/apps/web/lib/authoring/ports.ts)
+- [api/story-drafts.ts](../../../apps/web/server/api/story-drafts.ts)
+- [local-runtime.ts](../../../apps/web/server/local-runtime.ts)
+- [api/http.ts](../../../apps/web/server/api/http.ts)
+- [local-boundary.ts](../../../apps/web/server/local-boundary.ts)
+- [ports.ts](../../../apps/web/lib/authoring/ports.ts)
 - 新 `story-client.ts`、纯story错误/容量契约及测试；删除被替代database-client，不留别名。
 
 ### 原页面写集
 
-- [story-editor.tsx](/Users/nako/Documents/ChatGPT/minimax%20h3研究/apps/web/components/story-editor.tsx)
-- [platform.tsx](/Users/nako/Documents/ChatGPT/minimax%20h3研究/apps/web/components/platform.tsx)
+- [story-editor.tsx](../../../apps/web/components/story-editor.tsx)
+- [platform.tsx](../../../apps/web/components/platform.tsx)
 - 新story-controller/viewmodel/hook与原列表、导航测试
-- 删除 [database-drafts.tsx](/Users/nako/Documents/ChatGPT/minimax%20h3研究/apps/web/components/database-drafts.tsx) 临时入口及替代测试
+- 删除 [database-drafts.tsx](../../../apps/web/components/database-drafts.tsx) 临时入口及替代测试
 - 复用已冻结资产端口，不改Hegel资产maintenance文件。
 
 **需在实施前明确的真实欠定义：**

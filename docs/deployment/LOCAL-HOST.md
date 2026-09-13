@@ -45,7 +45,7 @@ APP_ENV=dev RUNTIME_DATA_DIR="$HOME/.everwoven/local-dev" pnpm local --productio
 
 - `runtime.db`：Prisma/SQLite，16 张领域/操作表、无外键。DB 文件 0600，私有宿主目录 0700。敏感目录内有 WAL/SHM 时同样检查权限。
 - `manifest.json`：最后发布的 ready 标志，包含环境和本机 owner，不含连接码。
-- `assets/`：真实规范化静态WebP，完成发布和数据库确认后才可读；清除表单图片仅解除引用，不删除文件。清理服务已有显式生命周期，但有界CLI维护入口尚在实施，启动时不自动扫描。
+- `assets/`：真实规范化静态WebP，完成发布和数据库确认后才可读；清除表单图片仅解除引用，不删除文件。清理使用[显式有界维护CLI](ASSET-MAINTENANCE.md)，启动时不自动扫描。
 - `security/`：短期连接码/会话的 SHA-256 文件名与期限记录，不保存原始凭证。会话能跨 Web 进程重启。
 - 初始化中断后不把残留目录误认作 ready，也不自动清理锁/目录。先停止相关进程并保留残留用于检查；可选择全新的目标目录。备份/修复工具后续交付。
 - 当前 owner 是本机宿主唯一身份，HTTP 请求不能提供 ownerId；不是多人账号系统。没有 against same-OS-user 恶意进程隔离保证。

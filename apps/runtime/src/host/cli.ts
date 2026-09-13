@@ -1,8 +1,10 @@
 import {isAbsolute} from 'node:path';
+import {runAssetMaintenanceCLI} from './asset-maintenance-cli.js';
 import {initializeLocalHost, issueConnectionCode, type LocalEnvironment} from './index.js';
 
 async function main() {
   const [command, ...args] = process.argv.slice(2);
+  if (command === 'maintain-assets') {await runAssetMaintenanceCLI(args, process.stdin); return;}
   if ((command !== 'init' && command !== 'connect') || args.length !== 4) throw new Error();
   const values = new Map<string, string>();
   for (let i = 0; i < args.length; i += 2) {

@@ -3,9 +3,10 @@
 // index column order/uniqueness/expressions and table options. No legacy allowlist.
 export const approvedMigration = {
   name: '202609120001_authoring_baseline',
-  checksum: '2b9b5c153e9fac5eb54ab63766300051e5817c89e205b1146f844798797a2e40',
+  checksum: '22f92a219d81d743476fd3c60ba15a9d98c05c8d224599565e407b5db3854c94',
 } as const;
 export const approvedSchemaObjects = [
+  {"type":"index","name":"ix_asset_uploads_asset","tableName":"asset_uploads","sql":"CREATE INDEX \"ix_asset_uploads_asset\" ON \"asset_uploads\"(\"asset_id\")"},
   {"type":"index","name":"ix_asset_uploads_owner","tableName":"asset_uploads","sql":"CREATE INDEX \"ix_asset_uploads_owner\" ON \"asset_uploads\"(\"owner_id\", \"created_at\", \"id\")"},
   {"type":"index","name":"ix_asset_uploads_recovery","tableName":"asset_uploads","sql":"CREATE INDEX \"ix_asset_uploads_recovery\" ON \"asset_uploads\"(\"status\", \"lease_expires_at\", \"id\")"},
   {"type":"index","name":"ix_assets_owner_hash","tableName":"assets","sql":"CREATE INDEX \"ix_assets_owner_hash\" ON \"assets\"(\"owner_id\", \"sha256\")"},

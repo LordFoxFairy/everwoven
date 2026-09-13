@@ -8,6 +8,10 @@ import {checkedFile, recheckTarget, sameFile, validatedHost, type ValidatedHost,
 import {createSessionOperations} from './sessions.js';
 import {assetErrors, bindAssets} from './assets.js';
 import type {AssetService} from '../ports/asset-service.js';
+import {createAssetMaintenance} from '../application/asset-maintenance.js';
+import {PrismaAssetMaintenanceStore} from '../infrastructure/db/prisma-asset-maintenance-store.js';
+import type {AssetMaintenanceInput,AssetMaintenanceResult} from '../ports/asset-maintenance.js';
+export type {AssetMaintenanceInput,AssetMaintenanceResult} from '../ports/asset-maintenance.js';
 export type {AssetService} from '../ports/asset-service.js';
 export type {ImageBodySource} from '../ports/image-body-receiver.js';
 
@@ -84,4 +88,17 @@ export function withLocalAssets<T>(directory: string, environment: LocalEnvironm
   work: (service: AssetService) => Promise<T>): Promise<T> {
   return withLocalDatabase(directory, environment, token, assetErrors, 'LOCAL_ASSETS_FAILED',
     (db, owner, {host, revalidate}) => work(bindAssets(db, owner, host, revalidate)), true);
+}
+
+const maintenanceErrors = new Set([...assetErrors, 'INVALID_ASSET_MAINTENANCE',
+  'INVALID_ASSET_MAINTENANCE_CURSOR', 'ASSET_MAINTENANCE_FAILED']);
+/** Explicit one-page operation only. Uses the same pinned authentication/database
+ * boundary and lazy file store as uploads; never attached to startup or HTTP reads. */
+export function maintainLocalAssets(directory: string, environment: LocalEnvironment, token: string,
+  input: AssetMaintenanceInput): Promise<AssetMaintenanceResult> {
+  return withLocalDatabase(directory, environment, token, maintenanceErrors, 'LOCAL_ASSET_MAINTENANCE_FAILED',
+    (db, owner, {host, revalidate}) => {
+      const assets = bindAssets(db, owner, host, revalidate);
+      return createAssetMaintenance(new PrismaAssetMaintenanceStore(db), {owner, revalidate, cleanup: assets.cleanup})(input);
+    }, true);
 }
