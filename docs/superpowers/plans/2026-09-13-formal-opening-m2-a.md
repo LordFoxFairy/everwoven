@@ -29,14 +29,22 @@
 
 Run: `PATH=/Users/nako/.nvm/versions/node/v22.22.2/bin:$PATH pnpm exec vitest run apps/runtime/tests/story-version-validation.test.ts apps/runtime/tests/story-versions.integration.test.ts`；RED记录具体失败，GREEN应无失败。随后`pnpm --filter runtime typecheck`及`pnpm test --maxWorkers=1`。
 
-## Chunk 2: 开局契约、绑定和经历（后续实现，不勾选为已完成）
+## Chunk 2: 开局契约、绑定和经历（内部事务完成，原入口/任务链待接）
 
-- [ ] 固定服务器Connection与Binding的版本化JSON：connectionId/region/endpointProfileId/providerAccountScopeId、精确model、capability/adapter版本、有效参数，credentialRef只指向秘密。
-- [ ] 明确CreateExperience严格契约：owner仅来自会话，dataset/commandId/revision防重复；服务器预检内容与模型能力、客户端明确预算上限/币种，与immutable结果回执原子创建。恢复不重复创建。
-- [ ] 在同一WriteGate调用Chunk1封存、验证/写Binding、Experience及回执；回执失败版本/绑定/经历一并回滚。存入零调用preparing不是已生成。
+- [x] 固定Binding的版本化JSON及本地resolver端口：connectionId/region/endpointProfileId/providerAccountScopeId、精确model、capability/adapter版本、有效参数，credentialRef仅引用。实际宿主Connection/Deployment登记与矩阵Policy后续接入。
+- [x] 实现内部CreateExperience严格契约：owner来自受信调用上下文，dataset/commandId/revision防重复；固定内容、预算上限/币种及Binding快照，与immutable结果回执原子创建。回放不重新读取source/registry；完整模型能力组合预检属于Quote前的下一切片，不将opaque capabilities作为准入。
+- [x] 在同一WriteGate调用Chunk1封存、验证/写Binding、Experience/setup/空ResponseDraft及回执；任一点失败新写全体回滚，既有版本保留。孩子端口也校验父归属和节点关系，防止无FK环境的跨owner影子孩子。存入零调用preparing不是已生成。
 - [ ] 原准备页面对接单一tRPC命令，真实异步pending/unknown/epoch；正式任务链尚未完备时不显示已开始生成。
 - [ ] 真实SQLite/HTTP/Chrome完整开局、丢响应与进程重启；再接持久Quote、Operation/worker、媒体与后续回合。
 
 ## 不变的整体验收
 
 M2-A内部原语或创建经历通过≠两幕视频通过。最终仍需预算授权→官方提交/查询→私有视频→播完情境建议/自由回应→下一幕→重启续玩→合格节点分支。任务派发未知结果保持责任，不自动重试付费POST；不自动切fal、不断章删除播后建议。必要新表按已批准规范评审baseline，不绕过DDL检查。
+
+### Chunk2-A 内部事务落地边界（2026-09-13）
+
+先实现`createExperience`与`getPreparingExperience`，不把历史创建回执称为当前播放快照。新增`contracts/{provider-binding,experience-opening}.ts`及对应validation、`ports/experience-opening-store.ts`、`application/experience-openings.ts`、Prisma适配和composition工厂；不增加表。ProviderBinding resolver为同步、本地、有界端口，零网络/零读秘密，严格返回owner/key/version与部署参数。parameters固定schema/connection/region/endpoint/account/catalog/operation/protocol/generation；capabilities为带schema的有界规范JSON，在这一零调用切片不作准入依据，后续policy必须解码对应能力版本。
+
+Create输入：协议/dataset/commandId/storyDraftId/expectedStoryRevision/bindingKey/expectedBindingVersion/budget(limitMicros规范字符串,currency CNY或USD)。同一Gate先回执，再封存、绑定、经历、setup、空草稿、回执。回执ID=经历ID（不是commandId）；回放核对真实经历固定引用/预算、封存来源、绑定版本、setup及草稿身份，不重新读当前草稿/默认registry。公开binding仅白名单summary和摘要，不返回credentialRef/账户scope/原始参数。创建返回历史初始快照；getPreparing仅允许仍保持初始preparing的聚合，否则明确状态错误，后续另增完整状态查询。
+
+RED重点：max预算精度、任意额外URL/owner字段、resolver错绑/同版本漂移、历史回执整体互换/预算/绑定替换、各写点故障回滚、同配置新command可独立创建、并发同command只一次、真实SQLite重新连接恢复；回放时当前draft/registry零访问。保存上限不构成任何付费授权，setup不显示假选项或响应入口。

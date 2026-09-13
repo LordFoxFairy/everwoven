@@ -436,3 +436,15 @@ M2-A1最终质量Cicero已PASS34/34，封存父追加孩子反例关闭；独立
 Chunk2不变量已复核：沿现有Binding.parameters严格版本JSON固定connectionId、region、endpointProfileId、providerAccountScopeId、操作协议/生成参数；顶层credentialRef仅宿主秘密引用，客户端不传任意URL/key。CreateExperience在同一Gate封存/绑定/经历/setup/空稿/回执，保存预算上限不等于授权调用；Quote必须服务器固定ExecutionProfile、价格/素材用途/次数和上限，未知费用不能补零。保留后台任务与播后建议职责。上述内容作为下一实码切片输入，不提前宣称已实现。
 
 M2-A1最终主仓103文件1602/1602、runtime/Web types实际exit0；六个明确runtime源码复制到稳定隔离树后production build和原Studio完整聚合/图片/unknown/进程重启/冷浏览器实际exit0。当前用户3100独立Chrome仍自动连接、无取码框、原角色/剧本编辑器可用、刷新复用cookie，零业务seed、零模型调用。Cicero规格与质量独立34/34及补充反例通过；计划Chunk1完成，Chunk2正式经历/绑定/预算入口未实现。文档与内部时序已更新，准备仅提交该片源码/测试/文档，不包含root私人研究资料、不改main/tag/镜像。
+
+M2-A1已commit d78a0ab（12文件）并push既有开发分支成功；精确CI34742077431，headSha=d78a0ab6460db1369482cc84631466a8e81b48fd，当前in_progress，下一轮先查询原作业，不因等待重启。上一36daec9 CI已success。用户研究文件仍未跟踪，未改main/tag/镜像。本goal轮为progress（正式封存源代码、真实SQLite测试、文档、提交与原页面回归均完成），不是仅计划或等待；整体goal保持active，下一步沿计划Chunk2实现CreateExperience/Binding/预算/setup/回执原子事务，再接原tRPC准备入口。
+
+M2-A1精确CI34742077431已completed/success（head d78a0ab），不再等待。M2-A2主会话开始内部CreateExperience事务代码；Cicero独立只读核对确认既有schema足够，并要求回执除自身DTO外核对真实Experience固定引用、预算和来源，覆盖整体互换反例。主会话负责唯一写入；该切片仍零调用，未开放假开始按钮。
+
+M2-A2实际RED：契约模块缺失后18契约GREEN；数据库用例空实现22条全部行为失败，再实现单Gate开局和持久事实回执验证，40/40 GREEN。主会话额外发现JSON规范器数组getter未被拒绝，新增反例实际RED1→改descriptor遍历及整个binding先规范化；现46/46和runtime源/测试类型通过。新增composition、真实SQLite断开重连、并发同command、共享版本后续失败保留、历史softdelete不复活、错误owner/clock/id和全部写点after-write回滚。Cicero独立只读审查中，主仓全量/双端types与隔离productionbuild+原Studio正在跑，未将聚焦GREEN宣布整体完成。
+
+M2-A2独立Cicero发现并确认P2：低层insertResponseDraft仅检查自身owner，允许内部端口给另一owner节点插入影子草稿，破坏原历史；不是公开接口越权证明。主会话新增4条实际SQLite反例RED（跨owner/缺失经历/缺失setup/同owner错绑），修订两个孩子插入端口在同事务检查父经历归属/初始状态、setup所属经历及创建时间，当前50/50和runtime typesGREEN。先前1648全量及production原Studio虽通过，因P2修订不作为最终验收；正在主仓重新全量/双端类型和最终隔离build/原Studio，不停在早期PASS。
+
+M2-A2最终独立Cicero复核PASS50/50，原parent关系P2关闭；额外七类非初始/删除/归档父状态均拒绝并回滚，当前确认P1/P2=0。主仓最终105文件1652/1652、runtime/Web源码和测试类型实际exit0（/tmp/everwoven-opening-final-main.log）。最终Prisma适配复制到稳定隔离树后production build+原Studio完整内容/角色/四真图/unknown/重启/冷浏览器再验exit0（/tmp/everwoven-opening-final-production.log）。用户当前唯一3100仍原PID84490/原目录，Chrome自动会话/无连接码/原编辑器/刷新复用再验exit0且零业务seed、零模型调用（/tmp/everwoven-opening-current-entry.log）。
+
+本片真实新增内部CreateExperience/getPreparing/固定Binding事务及50条测试，源码10文件、测试3文件，原schema无变更，未开新端口。API/架构图/时序/计划/审计同步明确：历史CREATE确认不是当前播放快照，opaque capability不是准入，保存预算不是付费授权；原tRPC和准备页面尚未对接。下一步实际宿主Connection/Deployment登记与capabilitypolicy、同页面异步开局入口，再进入Quote/持久操作/官方视频/播后回应链。不把这片内部事务当整体产品完成；goal持续active。准备只提交本片明确路径，保留所有私有research未跟踪，不改main/tag/镜像。

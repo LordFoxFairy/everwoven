@@ -203,3 +203,8 @@ P05的StoryVersion、ProviderBindingVersion和初始budgetLimit由CreateExperien
 ## 2026-09-13实施补记：M2-A封存原语
 
 StoryVersion/StoryVersionCast/StoryVersionAsset已增加内部单事务封存实现，使用既有DDL而非迁移用户数据库。首次未封口header→引用→封口CAS→回读，复用校验内容hash与源修订，封口后的孩子追加在存储端口拒绝；完整[内部契约与时序](../api/STORY-VERSION-SEAL-M2-A.md)。这尚不是CreateExperience公开命令或任务链，具体测试/质量状态见PROGRESS，不改变后续绑定、Quote与预算责任设计。
+
+
+## M2-A2实施补记 · 2026-09-13
+
+沿现有SQLite schema实现内部CreateExperience/getPreparing，不新增Connection表或FK，不改baseline、不清用户库。Binding.parameters严格固定身份/部署/参数，capability有界快照在本片不是执行许可；BudgetLimitMicros以规范字符串入站、BigInt持久化、固定币种，零调用不授权支出。新建StoryVersion/BindingVersion/Experience/InteractionEvent(setup)/ResponseDraft和CommandReceipt同一WriteGate原子提交，回执ID共享Experience的服务端ID。既有版本按真实唯一复用，不按标题/内容做伪唯一。回放通过真实经历固定引用/预算及封存/绑定摘要核对原确认，优先于当前source/registry；历史确认与getPreparing明确分开。详见[内部契约与时序](../api/EXPERIENCE-OPENING-M2-A.md)。原页面/公开tRPC/费用Quote/后台视频任务链尚待接入，不作整体完成声明。
