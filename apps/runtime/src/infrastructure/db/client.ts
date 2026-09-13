@@ -2,7 +2,7 @@ import { stat, realpath } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 import { PrismaClient } from '../../generated/prisma/client.js';
-import {approvedMigration, approvedSchemaObjects} from './schema-baseline.js';
+import {approvedMigrations, approvedSchemaObjects} from './schema-baseline.js';
 
 /** Internal connection factory. No HTTP access, automatic migration or profile bootstrap. */
 export async function openRuntimeDatabase(path: string): Promise<PrismaClient> {
@@ -21,18 +21,18 @@ export async function openRuntimeDatabase(path: string): Promise<PrismaClient> {
       throw new Error('DATABASE_ENGINE_NOT_APPROVED');
     }
     const migrations = await client.$queryRawUnsafe<Array<{migration_name: string; checksum: string; finished_at: unknown; rolled_back_at: unknown}>>(
-      'SELECT migration_name, checksum, finished_at, rolled_back_at FROM _prisma_migrations',
+      'SELECT migration_name, checksum, finished_at, rolled_back_at FROM _prisma_migrations ORDER BY migration_name',
     );
-    const migration = migrations[0];
-    if (migrations.length !== 1 || !migration || migration.migration_name !== approvedMigration.name ||
-        migration.checksum !== approvedMigration.checksum || migration.finished_at === null || migration.rolled_back_at !== null) {
-      throw new Error('DATABASE_MIGRATION_NOT_APPROVED');
-    }
+    if (migrations.length !== approvedMigrations.length || migrations.some((migration, index) => {
+      const expected = approvedMigrations[index];
+      return !expected || migration.migration_name !== expected.name || migration.checksum !== expected.checksum ||
+        migration.finished_at === null || migration.rolled_back_at !== null;
+    })) throw new Error('DATABASE_MIGRATION_NOT_APPROVED');
     // Match the actual persisted DDL, not only table count or migration bookkeeping.
     // Exclude only SQLite internals and the migration table itself, not arbitrary
     // indexes/triggers attached to that table. GLOB keeps underscore literal.
     // Extra views/triggers/tables/indexes, altered columns/defaults/PKs and changed
-    // index order/uniqueness all differ from this single approved baseline.
+    // index order/uniqueness all differ from the exact approved final schema.
     const objects = await client.$queryRawUnsafe<Array<{type: string; name: string; tableName: string; sql: string | null}>>(
       "SELECT type, name, tbl_name AS tableName, sql FROM sqlite_master WHERE name NOT GLOB 'sqlite_*' AND NOT (type = 'table' AND name = '_prisma_migrations') ORDER BY type, name",
     );

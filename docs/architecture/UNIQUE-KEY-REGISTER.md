@@ -41,3 +41,7 @@ versionNo 和 sourceRevision 是两种不同的防线：发布编号与来源修
 每个新唯一键必须回答：业务实体、作用域、允许重复的反例、NULL语义、软删除/恢复、历史保留、冲突处理，以及跨租户/数据库迁移影响。任务/费用去重若真实业务唯一可以建立，不因“少索引”牺牲正确性；涉及账单调整则区分首次结算与有独立adjustmentId的后续调整。
 
 数据已存在时，先报告重复样本与业务裁决，禁止随意删除重复数据来让建索引成功。上线迁移须验证存量与回退范围。
+
+## M2-B1增量 · ExecutionProfileVersion
+
+新增 `ExecutionProfileVersion(ownerId,profileKey,versionNo)`，索引名`uq_execution_profiles_version`：同用户给定配置key的一个版本只能定义一份固定执行身份，三个阶段绑定、prompt/graph/schema或限额任一变化须新版本。同内容复用；同版本漂移冲突。字段均非空，历史无删除/占号复用；不同owner或不同key可以存同模型/同内容hash，hash不唯一。dataset由宿主隔离、应用摘要绑定，跨库导入不能只复制引用。累计**14个真实业务唯一、17个主键**；上方13/16为authoring基线历史，不再代表新增后的总数。没有外键。

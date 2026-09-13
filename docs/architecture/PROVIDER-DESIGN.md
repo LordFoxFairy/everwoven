@@ -166,3 +166,7 @@ M2测试清单（每项记录输入证据、结果、版本，不只写pass）�
 ## M2-A3实施补记 · 2026-09-13
 
 已将供应商—型号—精确部署映射及纯MiniMax请求构造迁入runtime，Web不再保留重复实现。非秘密connection/binding登记和输入兼容策略已实码：显式cn/international、稳定账号scope/credentialRef、严格版本和参数、三层能力证据；已存同版本漂移继续由开局事务拒绝。详见[登记/策略实施说明](VIDEO-BINDING-REGISTRY-M2-A.md)。这不是启动配置加载、完整Capability/Quote准入或公开原页面接通的完成声明，compatible不授予派发。
+
+## M2-B1实施补记 · 2026-09-13
+
+ExecutionProfile内部固定原语已进入实现：同一BindingVersion表明确text/job判别，原视频parser仍拒绝text；planner/validator固定参数、输入模态、提示/输出schema版本摘要及阶段总调用/总费用上限，validator要求图像输入声明但不将其当已验证画面能力。一张不可变Profile表与同WriteGate三阶段引用核对，不新增第二registry/管理CRUD。[具体契约](../api/EXECUTION-PROFILE-M2-B.md)。这不是text供应商适配、报价、实际视频语义校验或费用授权完成；未知能力/价格仍需后续Quote阻断。

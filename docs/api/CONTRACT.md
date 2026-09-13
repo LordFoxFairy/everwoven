@@ -1,5 +1,7 @@
 # 未完 · V1 API 契约
 
+> **2026-09-13 M2-B1：** 三阶段不可变ExecutionProfile内部契约/Prisma持久化及增量迁移已落地，text/video明确分族；[范围与时序](EXECUTION-PROFILE-M2-B.md)。Profile不是Quote或付费授权；storeEpoch、Quote/预算/Worker/媒体链仍待完成。
+
 > **2026-09-13 M2-A6：** 原「我的游玩」已接入认证SQLite旅程目录；新浏览器可发现已提交开局并只读重入封存内容，原草稿删除及当前provider配置缺失不改变旧开局。原准备/unknown回放保持；Quote/Worker/视频/播后两幕与真正续玩仍待落地，整体尚未闭环。
 
 

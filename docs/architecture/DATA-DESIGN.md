@@ -208,3 +208,7 @@ StoryVersion/StoryVersionCast/StoryVersionAsset已增加内部单事务封存实
 ## M2-A2实施补记 · 2026-09-13
 
 沿现有SQLite schema实现内部CreateExperience/getPreparing，不新增Connection表或FK，不改baseline、不清用户库。Binding.parameters严格固定身份/部署/参数，capability有界快照在本片不是执行许可；BudgetLimitMicros以规范字符串入站、BigInt持久化、固定币种，零调用不授权支出。新建StoryVersion/BindingVersion/Experience/InteractionEvent(setup)/ResponseDraft和CommandReceipt同一WriteGate原子提交，回执ID共享Experience的服务端ID。既有版本按真实唯一复用，不按标题/内容做伪唯一。回放通过真实经历固定引用/预算及封存/绑定摘要核对原确认，优先于当前source/registry；历史确认与getPreparing明确分开。详见[内部契约与时序](../api/EXPERIENCE-OPENING-M2-A.md)。原页面/公开tRPC/费用Quote/后台视频任务链尚待接入，不作整体完成声明。
+
+### M2-B1：不可变执行Profile落库
+
+新增ExecutionProfileVersion一表及`202609130001_execution_profiles`增量SQL，原baseline未重写，存量不reset。完整两条迁移的checksum/完成状态与最终精确DDL同时校验；17表/14业务唯一/零FK。text与video严格分族但沿同一个ProviderBindingVersion存储，三个阶段在同WriteGate固定，凭据仅引用不读取；内部Profile正文不直接作为公共DTO。详见[内部契约/时序/升级边界](../api/EXECUTION-PROFILE-M2-B.md)。Quote/storeEpoch/预算预留/Worker仍未完成，Profile版本不是收费许可。

@@ -1,10 +1,16 @@
-// Generated from reviewed clean baseline SQL, never from a user database.
+// Generated from reviewed migration-chain SQL, never from a user database.
 // Exact sqlite_master DDL fingerprints cover names, columns, defaults, constraints,
 // index column order/uniqueness/expressions and table options. No legacy allowlist.
-export const approvedMigration = {
-  name: '202609120001_authoring_baseline',
-  checksum: '22f92a219d81d743476fd3c60ba15a9d98c05c8d224599565e407b5db3854c94',
-} as const;
+export const approvedMigrations = [
+  {
+    "name": "202609120001_authoring_baseline",
+    "checksum": "22f92a219d81d743476fd3c60ba15a9d98c05c8d224599565e407b5db3854c94"
+  },
+  {
+    "name": "202609130001_execution_profiles",
+    "checksum": "903f189463f0a7d2723f6a0205b1ffdcab98563d03570185f047a39ec1d1d5da"
+  }
+] as const;
 export const approvedSchemaObjects = [
   {"type":"index","name":"ix_asset_uploads_asset","tableName":"asset_uploads","sql":"CREATE INDEX \"ix_asset_uploads_asset\" ON \"asset_uploads\"(\"asset_id\")"},
   {"type":"index","name":"ix_asset_uploads_owner","tableName":"asset_uploads","sql":"CREATE INDEX \"ix_asset_uploads_owner\" ON \"asset_uploads\"(\"owner_id\", \"created_at\", \"id\")"},
@@ -26,6 +32,7 @@ export const approvedSchemaObjects = [
   {"type":"index","name":"uq_character_versions_number","tableName":"character_versions","sql":"CREATE UNIQUE INDEX \"uq_character_versions_number\" ON \"character_versions\"(\"character_template_id\", \"version_no\")"},
   {"type":"index","name":"uq_character_versions_source","tableName":"character_versions","sql":"CREATE UNIQUE INDEX \"uq_character_versions_source\" ON \"character_versions\"(\"character_template_id\", \"source_revision\")"},
   {"type":"index","name":"uq_command_receipts_owner_command","tableName":"command_receipts","sql":"CREATE UNIQUE INDEX \"uq_command_receipts_owner_command\" ON \"command_receipts\"(\"owner_id\", \"command_id\")"},
+  {"type":"index","name":"uq_execution_profiles_version","tableName":"execution_profile_versions","sql":"CREATE UNIQUE INDEX \"uq_execution_profiles_version\" ON \"execution_profile_versions\"(\"owner_id\", \"profile_key\", \"version_no\")"},
   {"type":"index","name":"uq_interaction_events_revision","tableName":"interaction_events","sql":"CREATE UNIQUE INDEX \"uq_interaction_events_revision\" ON \"interaction_events\"(\"experience_id\", \"experience_revision\")"},
   {"type":"index","name":"uq_provider_binding_versions_number","tableName":"provider_binding_versions","sql":"CREATE UNIQUE INDEX \"uq_provider_binding_versions_number\" ON \"provider_binding_versions\"(\"owner_id\", \"binding_key\", \"version_no\")"},
   {"type":"index","name":"uq_response_drafts_node","tableName":"response_drafts","sql":"CREATE UNIQUE INDEX \"uq_response_drafts_node\" ON \"response_drafts\"(\"owner_id\", \"interaction_event_id\")"},
@@ -40,6 +47,7 @@ export const approvedSchemaObjects = [
   {"type":"table","name":"character_templates","tableName":"character_templates","sql":"CREATE TABLE \"character_templates\" (\n    \"scope\" TEXT NOT NULL DEFAULT 'library',\n    \"source_story_draft_id\" TEXT,\n    \"deleted_at\" DATETIME,\n    \"id\" TEXT NOT NULL PRIMARY KEY,\n    \"owner_id\" TEXT NOT NULL,\n    \"name\" TEXT NOT NULL,\n    \"settings\" JSONB NOT NULL,\n    \"portrait_asset_id\" TEXT,\n    \"schema_version\" INTEGER NOT NULL DEFAULT 1,\n    \"archived_at\" DATETIME,\n    \"created_at\" DATETIME NOT NULL,\n    \"updated_at\" DATETIME NOT NULL,\n    \"revision\" INTEGER NOT NULL DEFAULT 1\n)"},
   {"type":"table","name":"character_versions","tableName":"character_versions","sql":"CREATE TABLE \"character_versions\" (\n    \"id\" TEXT NOT NULL PRIMARY KEY,\n    \"owner_id\" TEXT NOT NULL,\n    \"character_template_id\" TEXT NOT NULL,\n    \"version_no\" INTEGER NOT NULL,\n    \"source_revision\" INTEGER NOT NULL,\n    \"name\" TEXT NOT NULL,\n    \"settings\" JSONB NOT NULL,\n    \"portrait_asset_id\" TEXT,\n    \"schema_version\" INTEGER NOT NULL DEFAULT 1,\n    \"created_at\" DATETIME NOT NULL\n)"},
   {"type":"table","name":"command_receipts","tableName":"command_receipts","sql":"CREATE TABLE \"command_receipts\" (\n    \"id\" TEXT NOT NULL PRIMARY KEY,\n    \"owner_id\" TEXT NOT NULL,\n    \"command_id\" TEXT NOT NULL,\n    \"command_type\" TEXT NOT NULL,\n    \"payload_hash\" TEXT NOT NULL,\n    \"response\" JSONB NOT NULL,\n    \"schema_version\" INTEGER NOT NULL DEFAULT 1,\n    \"created_at\" DATETIME NOT NULL\n)"},
+  {"type":"table","name":"execution_profile_versions","tableName":"execution_profile_versions","sql":"CREATE TABLE \"execution_profile_versions\" (\n    \"id\" TEXT NOT NULL PRIMARY KEY,\n    \"owner_id\" TEXT NOT NULL,\n    \"profile_key\" TEXT NOT NULL,\n    \"version_no\" INTEGER NOT NULL,\n    \"planner_binding_version_id\" TEXT NOT NULL,\n    \"video_binding_version_id\" TEXT NOT NULL,\n    \"validator_binding_version_id\" TEXT NOT NULL,\n    \"snapshot\" JSONB NOT NULL,\n    \"content_hash\" TEXT NOT NULL,\n    \"schema_version\" INTEGER NOT NULL DEFAULT 1,\n    \"created_at\" DATETIME NOT NULL\n)"},
   {"type":"table","name":"experiences","tableName":"experiences","sql":"CREATE TABLE \"experiences\" (\n    \"budget_limit_micros\" BIGINT NOT NULL,\n    \"budget_currency\" TEXT NOT NULL,\n    \"deleted_at\" DATETIME,\n    \"row_revision\" INTEGER NOT NULL DEFAULT 1,\n    \"id\" TEXT NOT NULL PRIMARY KEY,\n    \"owner_id\" TEXT NOT NULL,\n    \"story_version_id\" TEXT NOT NULL,\n    \"provider_binding_version_id\" TEXT NOT NULL,\n    \"status\" TEXT NOT NULL DEFAULT 'preparing',\n    \"scheduling_paused\" BOOLEAN NOT NULL DEFAULT true,\n    \"dispatch_epoch\" INTEGER NOT NULL DEFAULT 0,\n    \"archived_at\" DATETIME,\n    \"created_at\" DATETIME NOT NULL,\n    \"updated_at\" DATETIME NOT NULL,\n    \"revision\" INTEGER NOT NULL DEFAULT 1\n)"},
   {"type":"table","name":"interaction_events","tableName":"interaction_events","sql":"CREATE TABLE \"interaction_events\" (\n    \"id\" TEXT NOT NULL PRIMARY KEY,\n    \"owner_id\" TEXT NOT NULL,\n    \"experience_id\" TEXT NOT NULL,\n    \"kind\" TEXT NOT NULL,\n    \"experience_revision\" INTEGER NOT NULL,\n    \"options\" JSONB NOT NULL,\n    \"schema_version\" INTEGER NOT NULL DEFAULT 1,\n    \"created_at\" DATETIME NOT NULL\n)"},
   {"type":"table","name":"local_profiles","tableName":"local_profiles","sql":"CREATE TABLE \"local_profiles\" (\n    \"write_epoch\" INTEGER NOT NULL DEFAULT 0,\n    \"deleted_at\" DATETIME,\n    \"id\" TEXT NOT NULL PRIMARY KEY,\n    \"display_name\" TEXT NOT NULL,\n    \"created_at\" DATETIME NOT NULL,\n    \"updated_at\" DATETIME NOT NULL,\n    \"revision\" INTEGER NOT NULL DEFAULT 1\n)"},

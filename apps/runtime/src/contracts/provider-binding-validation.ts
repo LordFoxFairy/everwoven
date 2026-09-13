@@ -1,5 +1,5 @@
 import {fields, parseId, parseRevision} from './story-draft-validation.js';
-import type {BindingJson, BindingSpec} from './provider-binding.js';
+import type {BindingJson, BindingSpec, ExecutionBindingSpec, TextBindingSpec} from './provider-binding.js';
 
 const code = 'INVALID_PROVIDER_BINDING';
 export function bindingLabel(v: unknown): string {
@@ -44,11 +44,11 @@ function objectJson(v: unknown): {[key: string]: BindingJson} {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error(code);
   return value;
 }
-export function parseBindingSpec(input: unknown): BindingSpec {
+function parseCommonBinding(input: unknown) {
   try {
     input = canonicalBindingJson(input);
     fields(input, ['ownerId', 'bindingKey', 'versionNo', 'providerId', 'modelId', 'adapterVersion', 'capabilityVersion', 'mode', 'credentialRef', 'parameters', 'capabilities', 'schemaVersion']);
-    if (input.schemaVersion !== 1 || !['job', 'realtime'].includes(input.mode as string)) throw Error(code);
+    if (input.schemaVersion !== 1 || !['job', 'realtime', 'text'].includes(input.mode as string)) throw Error(code);
     const p = input.parameters;
     fields(p, ['schemaVersion', 'connectionId', 'region', 'endpointProfileId', 'providerAccountScopeId', 'catalogId', 'operationKind', 'protocolVersion', 'generation']);
     const caps = objectJson(input.capabilities);
@@ -57,7 +57,7 @@ export function parseBindingSpec(input: unknown): BindingSpec {
       ownerId: parseId(input.ownerId), bindingKey: bindingLabel(input.bindingKey), versionNo: parseRevision(input.versionNo),
       providerId: bindingLabel(input.providerId), modelId: bindingLabel(input.modelId),
       adapterVersion: bindingLabel(input.adapterVersion), capabilityVersion: bindingLabel(input.capabilityVersion),
-      mode: input.mode as BindingSpec['mode'], credentialRef: bindingLabel(input.credentialRef),
+      mode: input.mode as ExecutionBindingSpec['mode'], credentialRef: bindingLabel(input.credentialRef),
       parameters: {
         schemaVersion: 1, connectionId: bindingLabel(p.connectionId), region: bindingLabel(p.region),
         endpointProfileId: bindingLabel(p.endpointProfileId), providerAccountScopeId: bindingLabel(p.providerAccountScopeId),
@@ -67,4 +67,25 @@ export function parseBindingSpec(input: unknown): BindingSpec {
       capabilities: caps as BindingSpec['capabilities'], schemaVersion: 1,
     };
   } catch { throw Error(code); }
+}
+
+export function parseExecutionBinding(input: unknown): ExecutionBindingSpec {
+  try {
+    const spec = parseCommonBinding(input);
+    if (spec.mode !== 'text') return spec as BindingSpec;
+    const p = spec.parameters, g = p.generation;
+    fields(g, ['inputModalities', 'maxInputTokens', 'maxOutputTokens', 'temperature']);
+    if (p.operationKind !== 'structured-generation' ||
+      !['["text"]', '["text","image"]'].includes(JSON.stringify(g.inputModalities)) ||
+      !Number.isSafeInteger(g.maxInputTokens) || (g.maxInputTokens as number) < 1 || (g.maxInputTokens as number) > 1_000_000 ||
+      !Number.isSafeInteger(g.maxOutputTokens) || (g.maxOutputTokens as number) < 1 || (g.maxOutputTokens as number) > 100_000 ||
+      typeof g.temperature !== 'number' || g.temperature < 0 || g.temperature > 2) throw Error(code);
+    return spec as TextBindingSpec;
+  } catch {throw Error(code);}
+}
+/** Existing video consumers keep their strict family boundary. */
+export function parseBindingSpec(input: unknown): BindingSpec {
+  const spec = parseExecutionBinding(input);
+  if (spec.mode === 'text') throw Error(code);
+  return spec;
 }

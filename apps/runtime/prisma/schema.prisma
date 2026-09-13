@@ -2,7 +2,8 @@
 // Primary keys + reviewed TRUE business uniqueness only; see UNIQUE-KEY-REGISTER.md.
 // Reference/lifecycle validation belongs to WriteGate; business UNIQUE is also enforced by SQL.
 // IDs and timestamps are supplied by runtime IdFactory / Clock, not database defaults.
-// No legacy database migration/compatibility. Runtime jobs/media/facts/ledger remain M2/M3.
+// Exact approved additive migration chain; no legacy runtime protocol compatibility.
+// Execution profiles are immutable M2 configuration; jobs/media/facts/ledger remain pending.
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -291,4 +292,22 @@ model AssetUpload {
   @@index([ownerId, createdAt, id], map: "ix_asset_uploads_owner")
   @@index([assetId], map: "ix_asset_uploads_asset")
   @@map("asset_uploads")
+}
+
+// Immutable bounded execution identity. No update/delete lifecycle: old turns retain their profile.
+model ExecutionProfileVersion {
+  id                        String   @id
+  ownerId                   String   @map("owner_id")
+  profileKey                String   @map("profile_key")
+  versionNo                 Int      @map("version_no")
+  plannerBindingVersionId   String   @map("planner_binding_version_id")
+  videoBindingVersionId     String   @map("video_binding_version_id")
+  validatorBindingVersionId String   @map("validator_binding_version_id")
+  snapshot                  Json
+  contentHash               String   @map("content_hash")
+  schemaVersion             Int      @default(1) @map("schema_version")
+  createdAt                 DateTime @map("created_at")
+
+  @@unique([ownerId, profileKey, versionNo], map: "uq_execution_profiles_version")
+  @@map("execution_profile_versions")
 }

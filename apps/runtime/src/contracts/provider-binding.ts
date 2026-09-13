@@ -24,3 +24,14 @@ export type PublicBinding = {
 export interface BindingResolver {
   resolve(owner: InternalOwnerContext, selection: {bindingKey: string; versionNo: number}): unknown;
 }
+
+/** Text is an explicit protocol family, never a video job capability. */
+export type TextBindingSpec = Omit<BindingSpec, 'mode' | 'parameters'> & {
+  mode: 'text';
+  parameters: Omit<BindingSpec['parameters'], 'operationKind' | 'generation'> & {
+    operationKind: 'structured-generation';
+    generation: {inputModalities: ['text'] | ['text', 'image']; maxInputTokens: number; maxOutputTokens: number; temperature: number};
+  };
+};
+export type ExecutionBindingSpec = BindingSpec | TextBindingSpec;
+export type ExecutionBindingRecord = ExecutionBindingSpec & {id: string; createdAt: Date};

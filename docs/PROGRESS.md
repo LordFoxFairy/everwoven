@@ -494,3 +494,17 @@ M2-A6本goal轮上一轮判定progress；精确CI34745838317已completed/success
 M2-A6最终主仓116文件1839/1839及runtime/Web源码和测试types实际exit0。稳定树最终production build、完整opening HTTP、原Studio四图/unknown/重启/冷浏览器均exit0；扩展原准备UI smoke关闭整个原Chrome进程，另启新Chrome，原草稿改名/删除和provider配置移除后，原我的游玩发现同一开局、封存世界/预算只读打开、焦点返回，业务POST与当前binding目录请求均为零。这证明发现已提交事实，不证明尚未提交的内存意图或视频播放恢复。列表截图已人工检查。Cicero独立4文件43项通过，当前确认开放P1/P2=0。
 
 原用户3100经PID/cwd核对，温和SIGTERM exit0后在同一个数据目录启动，加载compiled list服务；当前Chrome只读验证自动会话、原我的游玩/list返回200、模型目录已初始化、原编辑器/无取码框/刷新复用全部通过。未创建用户业务记录、未读模型密钥/调用付费接口。下一主线明确M2-B执行Profile/Quote/预算授权→持久Operation/Worker/私有媒体，停止扩展更多列表CRUD；整体goal active。
+
+A6已commit74f9eede8b6de13ced2dcae03a85a9ceae3261e5（30文件）并push既有开发分支；精确CI34746646130当前in_progress，下一轮只查询该作业，不另开CI。上一1488aa5已success。当前用户3100使用同一原数据目录运行新compiled list服务，最新只读原页面验证exit0。没有改main/tag/镜像，根私人研究未跟踪。上一goal轮为实码progress（真实冷浏览器发现/重入＋1839测试＋生产和独立证据＋提交），整体goal保持active；A6到此收束，下一主线M2-B执行Profile与Quote/预算/持久任务，不再扩展列表CRUD。
+
+M2-B1开始：按executing-plans/TDD落实已批准的下一主线。Cicero只读确认最小完整切片为Profile契约+一表迁移+in-scope存储，严格text/video判别与模态，阶段限额不是报价；完整迁移链校验不能移除。storeEpoch目前缺宿主来源，明确在Quote开放前补齐，不使用dataset/writeEpoch冒充。A6不再扩展CRUD。
+
+A6精确CI34746646130 completed/success（74f9eed），对应计划已勾验。M2-B1真实RED15项（先建未实现接口骨架后执行行为断言）→纯契约12通过/SQLite3明确被旧单migration拒绝→完整迁移链与Profile存储GREEN。自检video操作族遗漏，新增structured-generation混入video的RED后严格限制当前t2v/i2v，旧parseBindingSpec保持拒绝text。聚焦5文件132及双端types已exit0；补共享多模态binding/零fetch/底层不可覆盖/缺引用/已删除owner反例19项通过。无损增量升级测试通过，原migration未改、17表14真唯一、零FK；未知能力快照不是准入。
+
+production build、原准备UI冷浏览器、完整opening HTTP已通过；Studio调用时误写不存在脚本名local-studio.mjs，未执行产品测试，已更正为仓库真实local-story-ui.mjs重跑，不把该错误当通过。主仓全量与独立Cicero还在进行。用户库尚未升级/未删除数据，没有读key或调用模型。
+
+Cicero发现Profile hash envelope的P2（合法65500长度/深度snapshot被再次包裹后超过相同canonical边界），主会话补两项真实RED并改固定tuple只单独规范化snapshot，保留输入限额；pin/复用/断开重读均GREEN。独立2文件50/50复核PASS，当前P1/P2=0。原首次主仓/production证据不当作修改后版本验收，最终全仓和生产重跑中。
+
+用户库升级过程已如实记录：确认原3100 PID/cwd后SIGTERM退出0；使用私有SQLite backup API备份。首个临时维护脚本忘记显式close Python连接（with不关闭连接），Prisma报database locked、没有完成迁移；错误后提前重启造成短暂authoring读取500，已立即停机纠正，不作为可用状态。临时脚本修为关闭所有备份句柄后重跑，增量迁移成功；16张原业务表值摘要完全相同、原migration记录完全相同、0条新Profile、integrity_check=ok、所有表FK为空。正式runtime --check实际exit0，之后才重启同目录同3100。备份位置受限记录于/tmp/everwoven-profile-upgrade.json，不写入仓库或公开数据；原图片目录未动。当前Chrome只读验证进行中。
+
+M2-B1最终主仓117文件1863/1863＋runtime/Web源码/测试types实际exit0（/tmp/everwoven-profile-final-main.log）。修正后稳定树production build、原准备UI真实提交/丢响应/重启/冷浏览器恢复、完整opening HTTP、原Studio四图/聚合/unknown/重启/冷浏览器均exit0（/tmp/everwoven-profile-final-*.log）。当前唯一3100在用户原目录运行，迁移后原自动连接/无连接码/原我的游玩/原角色剧本编辑器/刷新复用真实Chrome只读通过、业务seed/模型调用为0（/tmp/everwoven-profile-current3100.log）。独立Cicero P1/P2=0，Profile合法边界hash问题已RED/GREEN关闭。此片只完成固定执行身份，不宣称Quote/视频/两幕/整个产品完成；下一主线storeEpoch+Quote及预算/任务依赖继续。无main/tag/镜像发布。
