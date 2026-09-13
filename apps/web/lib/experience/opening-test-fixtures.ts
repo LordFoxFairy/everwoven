@@ -3,6 +3,7 @@ import {v7} from 'uuid';
 import type {CreateExperience, ExperienceOpeningDTO} from 'runtime/contracts/experience-opening';
 import type {BindingDirectory, VideoBindingChoice} from 'runtime/contracts/video-binding-registry';
 import type {DraftDTO} from 'runtime/contracts/story-draft';
+import type {OpeningClient} from './opening-ports';
 export const datasetId = v7();
 export const protocol = {protocolVersion: 1 as const, datasetId};
 export const source: DraftDTO = {...protocol, id: v7(), title: '用户的世界', settings: {world: '海岛', opening: '窗外的雨停了', genre: '', playerRole: '', worldRules: [], tone: ''}, mainCharacter: null,
@@ -19,5 +20,5 @@ export function opening(input: CreateExperience = command): ExperienceOpeningDTO
     binding: {id: v7(), bindingKey: input.bindingKey, versionNo: input.expectedBindingVersion, providerId: choice.providerId, modelId: choice.modelId, mode: 'job', connectionId: choice.connectionId, region: choice.region, adapterVersion: 'v1', capabilityVersion: 'v1', snapshotHash: 'b'.repeat(64)},
     budget: {...input.budget}, setup: {id: setupId, kind: 'setup', experienceId: id, experienceRevision: 1, options: []}, responseDraft: {id: v7(), experienceId: id, interactionEventId: setupId, text: '', revision: 1}, media: null, canRespond: false, canDispatch: false};
 }
-export function clientFixture() {return {bindings: vi.fn(async () => structuredClone(directory)), create: vi.fn(async (q: CreateExperience) => ({data: opening(q), replayed: false})), getPreparing: vi.fn(async () => opening())};}
+export function clientFixture() {return {list: vi.fn<OpeningClient['list']>(async () => ({...protocol, items: [], nextCursor: null})), bindings: vi.fn(async () => structuredClone(directory)), create: vi.fn(async (q: CreateExperience) => ({data: opening(q), replayed: false})), getPreparing: vi.fn(async () => opening())};}
 export function deferred<T>() {let resolve!: (value: T) => void, reject!: (reason: unknown) => void; const promise = new Promise<T>((yes, no) => {resolve = yes; reject = no;}); return {promise, resolve, reject};}

@@ -81,6 +81,10 @@
     "./contracts/video-binding-registry": {
       "types": "./src/contracts/video-binding-registry.ts",
       "default": "./dist/contracts/video-binding-registry.js"
+    },
+    "./contracts/experience-directory": {
+      "types": "./src/contracts/experience-directory.ts",
+      "default": "./dist/contracts/experience-directory.js"
     }
   }
 }

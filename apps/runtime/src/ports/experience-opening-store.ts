@@ -24,6 +24,7 @@ export type OpeningReceiptRecord = {
   schemaVersion: number; response: unknown; createdAt: Date;
 };
 export interface ExperienceOpeningReadScope extends StoryVersionReadScope {
+  listExperiences(input: {take: number; before?: {updatedAt: Date; id: string}}): Promise<ExperienceRecord[]>;
   findExperience(id: string): Promise<ExperienceRecord | null>;
   findBinding(id: string): Promise<StoredBinding | null>;
   findSetup(experienceId: string): Promise<SetupRecord | null>;

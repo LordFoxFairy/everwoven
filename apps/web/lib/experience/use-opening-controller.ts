@@ -7,7 +7,7 @@ export function useOpeningController(client: OpeningClient) {
   const session = useAuthoringSession(), [controller] = useState(() => new OpeningController()), connected = session.state.status === 'connected';
   useLayoutEffect(() => {controller.bind({client, connected, datasetId: session.state.datasetId, invalidate: session.invalidate});}, [controller, client, connected, session.state.datasetId, session.invalidate]);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
-  useEffect(() => {if (state.visible && connected) void controller.load();}, [controller, client, connected, session.state.datasetId, session.invalidate, state.visible, state.source?.id, state.source?.revision]);
+  useEffect(() => {if (state.origin === 'draft' && state.visible && connected) void controller.load();}, [controller, client, connected, session.state.datasetId, session.invalidate, state.visible, state.origin, state.source?.id, state.source?.revision]);
   useEffect(() => () => controller.suspend(), [controller]);
   useEffect(() => {
     if (!state.busy && !state.unknown) return;

@@ -6,12 +6,12 @@ import type {OpeningController, OpeningState} from '../lib/experience/opening-co
 import {Button} from './ui/button';
 import styles from './story-preparation.module.css';
 
-export function StoryPreparation({controller, state, unsavedChanges, triggerRef, connectionSlot}: {
+export function StoryPreparation({controller, state, unsavedChanges, triggerRef, connectionSlot, returnLabel = '返回编辑'}: {
   controller: OpeningController; state: OpeningState; unsavedChanges: boolean;
-  triggerRef: RefObject<HTMLButtonElement | null>; connectionSlot: ReactNode;
+  triggerRef: RefObject<HTMLButtonElement | null>; connectionSlot: ReactNode; returnLabel?: string;
 }) {
-  const back = useRef<HTMLButtonElement>(null), source = state.source;
-  if (!source) return null;
+  const back = useRef<HTMLButtonElement>(null), source = state.source, story = source ?? state.confirmed?.story;
+  if (!story) return null;
   const locked = state.busy || state.unknown || Boolean(state.confirmed), disabled = locked || !state.connected || state.datasetChanged;
   const directory = state.directory;
   return <Dialog.Root open={state.visible} onOpenChange={open => {if (!open) controller.close();}}>
@@ -19,22 +19,22 @@ export function StoryPreparation({controller, state, unsavedChanges, triggerRef,
       <Dialog.Content className={styles.panel} onOpenAutoFocus={event => {event.preventDefault(); back.current?.focus();}}
         onCloseAutoFocus={event => {event.preventDefault(); triggerRef.current?.focus();}}>
         <header className={styles.header}>
-          <Button ref={back} type="button" variant="outline" size="sm" onClick={() => controller.close()}><ArrowLeft size={15}/>返回编辑</Button>
+          <Button ref={back} type="button" variant="outline" size="sm" onClick={() => controller.close()}><ArrowLeft size={15}/>{returnLabel}</Button>
           <span className={styles.status}><ShieldCheck size={15}/>仅本机 · 未调用模型</span>
         </header>
         <div className={styles.intro}>
           <Dialog.Title asChild><p className={styles.eyebrow}>正式故事准备</p></Dialog.Title>
-          <h2>{source.title}</h2>
+          <h2>{story.title}</h2>
           <Dialog.Description>先确认这一次旅程的起点。生成尚未接通；本次只固定开局配置，不提交视频任务。</Dialog.Description>
         </div>
         <div className={styles.grid}>
           <section className={styles.story} aria-label="已保存的开局">
             <span className={styles.eyebrow}>你的设定</span><h3>从这里，展开故事</h3>
-            <p className={styles.revision}>已保存 · 修订 {source.revision}</p>
-            <dl><dt>世界</dt><dd>{source.settings.world || '尚未填写世界设定'}</dd>
-              <dt>开场</dt><dd>{source.settings.opening || '尚未填写开场'}</dd>
-              <dt>角色</dt><dd>{source.mainCharacter?.effective.name ?? '尚未配置角色'}</dd></dl>
-            {unsavedChanges && <p className={styles.note}>本次准备不包含尚未保存的修改。返回编辑保存后，可重新确认起点。</p>}
+            <p className={styles.revision}>已保存 · 修订 {source?.revision ?? state.confirmed!.story.sourceRevision}</p>
+            <dl><dt>世界</dt><dd>{story.settings.world || '尚未填写世界设定'}</dd>
+              <dt>开场</dt><dd>{story.settings.opening || '尚未填写开场'}</dd>
+              <dt>角色</dt><dd>{story.mainCharacter?.effective.name ?? '尚未配置角色'}</dd></dl>
+            {state.origin === 'draft' && unsavedChanges && <p className={styles.note}>本次准备不包含尚未保存的修改。返回编辑保存后，可重新确认起点。</p>}
           </section>
           <section className={styles.settings} aria-label="模型与预算">
             {!state.connected && connectionSlot}
@@ -42,7 +42,7 @@ export function StoryPreparation({controller, state, unsavedChanges, triggerRef,
             {state.confirmed ? <>
               <div className={styles.confirmed}><Check size={22}/><h3>开局配置已固定</h3></div>
               <p>尚未报价、尚未生成。配置已保存到本机，后续编辑剧本不会改变这次开局。</p>
-              <dl><dt>固定模型</dt><dd>{state.confirmed.binding.modelId}</dd><dt>连接与地区</dt><dd>{state.confirmed.binding.connectionId} · {state.confirmed.binding.region === 'cn' ? '中国区' : '国际区'}</dd></dl>
+              <dl><dt>固定模型</dt><dd>{state.confirmed.binding.modelId}</dd><dt>连接与地区</dt><dd>{state.confirmed.binding.connectionId} · {state.confirmed.binding.region === 'cn' ? '中国区' : '国际区'}</dd><dt>预算上限 · 不等于费用授权</dt><dd>{state.amount} {state.currency}</dd></dl>
               {!state.current && <p className={styles.note}>下面的记录仅代表最初确认，请读取当前准备状态。</p>}
               <Button type="button" variant="outline" disabled={!state.connected || state.datasetChanged || state.reading} onClick={() => void controller.refresh()}>{state.reading ? '正在读取…' : '读取准备状态'}</Button>
             </> : <>

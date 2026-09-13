@@ -14,11 +14,12 @@ const dto: ExperienceOpeningDTO = {...protocol, id, revision: 1, status: 'prepar
     mainCharacter: null, assetSlots: {cover: null, opening: null, character: null}, schemaVersion: 1, createdAt: '2026-09-13T00:00:00.000Z', sealedAt: '2026-09-13T00:00:00.000Z', contentHash: 'a'.repeat(64)},
   binding: {id, bindingKey: 'video', versionNo: 1, providerId: 'minimax', modelId: 'MiniMax-H3-Max', mode: 'job', connectionId: 'personal', region: 'cn', adapterVersion: 'v1', capabilityVersion: 'v1', snapshotHash: 'b'.repeat(64)}, budget: command.budget,
   setup: {id, kind: 'setup', experienceId: id, experienceRevision: 1, options: []}, responseDraft: {id, experienceId: id, interactionEventId: id, text: '', revision: 1}, media: null, canRespond: false, canDispatch: false};
-const service = {create: vi.fn(), getPreparing: vi.fn(), bindings: vi.fn()};
-const inputs = {create: command, getPreparing: {...protocol, id}, bindings: protocol};
+const service = {create: vi.fn(), getPreparing: vi.fn(), bindings: vi.fn(), list: vi.fn()};
+const inputs = {create: command, getPreparing: {...protocol, id}, bindings: protocol, list: protocol};
 beforeEach(() => {
   vi.resetAllMocks(); service.create.mockResolvedValue({data: dto, replayed: false}); service.getPreparing.mockResolvedValue(dto);
   service.bindings.mockReturnValue({...protocol, status: 'empty', items: []});
+  service.list.mockResolvedValue({...protocol, items: [], nextCursor: null});
   host.withLocalExperienceOpenings.mockImplementation((_d, _e, _t, work) => work(service, owner));
 });
 function request(method: keyof typeof inputs, input: unknown = inputs[method], overrides?: HeadersInit) {

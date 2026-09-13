@@ -1,8 +1,10 @@
 import type {CreateExperience, GetPreparingExperience, ExperienceOpeningDTO, ExperienceOpeningResult} from 'runtime/contracts/experience-opening';
+import type {ExperienceList, ExperiencePage} from 'runtime/contracts/experience-directory';
 import type {BindingDirectory} from 'runtime/contracts/video-binding-registry';
 import type {StoryProtocol} from 'runtime/contracts/story-draft';
 import type {OpeningErrorCode} from '../../contracts/experience-http';
 export interface OpeningClient {
+  list(input: ExperienceList): Promise<ExperiencePage>;
   bindings(input: StoryProtocol): Promise<BindingDirectory>;
   create(input: CreateExperience): Promise<ExperienceOpeningResult>;
   getPreparing(input: GetPreparingExperience): Promise<ExperienceOpeningDTO>;

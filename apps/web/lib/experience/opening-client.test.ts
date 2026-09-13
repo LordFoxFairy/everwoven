@@ -59,3 +59,10 @@ it('cancels an oversized non-ending response stream at the 2MiB success boundary
   await expect(createOpeningClient().create(command)).rejects.toMatchObject({code: 'OPENING_RESPONSE_INVALID', outcome: 'unknown'});
   expect(cancel).toHaveBeenCalledTimes(1);
 });
+it('reads the authenticated directory without mutation and checks returned dataset/page size', async () => {
+  const fetch = vi.fn().mockResolvedValueOnce(ok({...protocol, items: [], nextCursor: null}))
+    .mockResolvedValueOnce(ok({...protocol, datasetId: v7(), items: [], nextCursor: null})); vi.stubGlobal('fetch', fetch);
+  const client = createOpeningClient(); expect(await client.list(protocol)).toEqual({...protocol, items: [], nextCursor: null});
+  expect(fetch.mock.calls[0][0]).toContain('/openings.list?'); expect(fetch.mock.calls[0][1].method ?? 'GET').toBe('GET');
+  await expect(client.list(protocol)).rejects.toMatchObject({code: 'OPENING_RESPONSE_INVALID'});
+});

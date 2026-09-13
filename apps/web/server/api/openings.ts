@@ -1,4 +1,5 @@
 import {z} from 'zod';
+import {parseExperienceList, parseExperiencePage, type ExperiencePage, type ExperienceList} from 'runtime/contracts/experience-directory';
 import {parseCreateExperience, parseGetPreparingExperience} from 'runtime/contracts/experience-opening-validation';
 import {parseExperienceOpeningDTO, parseExperienceOpeningResult, parseBindingDirectory} from 'runtime/contracts/experience-opening-output';
 import {fields, parseProtocol} from 'runtime/contracts/story-draft-validation';
@@ -28,7 +29,7 @@ function parseDirectoryQuery(value: unknown): StoryProtocol {
   const protocol = parseProtocol(value);
   try {fields(value, ['protocolVersion', 'datasetId']); return protocol;} catch {throw Error('INVALID_EXPERIENCE_QUERY');}
 }
-async function operation<T extends ExperienceOpeningDTO | ExperienceOpeningResult | BindingDirectory>(
+async function operation<T extends ExperienceOpeningDTO | ExperienceOpeningResult | BindingDirectory | ExperiencePage>(
   parse: (value: unknown) => T, request: StoryProtocol, datasetId: string, work: () => unknown,
 ): Promise<T> {
   try {
@@ -38,7 +39,7 @@ async function operation<T extends ExperienceOpeningDTO | ExperienceOpeningResul
     return result;
   } catch (error) {throw localOpeningError(error);}
 }
-function responseProtocol(result: ExperienceOpeningDTO | ExperienceOpeningResult | BindingDirectory): StoryProtocol {
+function responseProtocol(result: ExperienceOpeningDTO | ExperienceOpeningResult | BindingDirectory | ExperiencePage): StoryProtocol {
   return 'data' in result ? result.data : result;
 }
 function createOutput(input: CreateExperience) {
@@ -52,6 +53,12 @@ function createOutput(input: CreateExperience) {
   };
 }
 export const openingRouter = createTRPCRouter({
+  list: openingProcedure.input(parser<ExperienceList>(parseExperienceList))
+    .query(({ctx, input}) => operation(raw => {
+      const page = parseExperiencePage(raw);
+      if (page.items.length > (input.limit ?? 20)) throw Error('INVALID_EXPERIENCE_DTO');
+      return page;
+    }, input, ctx.owner.datasetId, () => ctx.openings.list(ctx.owner, input))),
   bindings: openingProcedure.input(parser<StoryProtocol>(parseDirectoryQuery))
     .query(({ctx, input}) => operation(parseBindingDirectory, input, ctx.owner.datasetId, () => ctx.openings.bindings())),
   create: openingProcedure.input(parser<CreateExperience>(parseCreateExperience))

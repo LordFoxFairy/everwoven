@@ -1,14 +1,15 @@
-# M2-A4 · 本地正式开局 HTTP 契约
+# M2-A4–A6 · 本地正式开局与重入 HTTP 契约
 
-2026-09-13。**同一应用的 Host/tRPC 已接通，并在隔离 dev、production 的真实 Node launcher＋Next＋SQLite 验证。** 原准备浮层还未消费这些新方法；本片不是视频任务或 Player 验收。
+2026-09-13。**同一应用的 Host/tRPC 已接通，原准备浮层已消费真实配置与开局命令。** A6补原「我的游玩」列表与已提交开局的只读重入；不是视频任务、播放或完整产品验收。具体运行证据见PROGRESS。
 
-## 1. 三个正式 tRPC 操作
+## 1. 正式 tRPC 操作
 
 | 操作 | 传输 | 输入 | 返回 |
 |---|---|---|---|
 | `openings.bindings` | GET query | `{protocolVersion:1,datasetId}` | `BindingDirectory` |
 | `openings.create` | POST mutation | [严格CreateExperience](EXPERIENCE-OPENING-M2-A.md) | `{data:ExperienceOpeningDTO,replayed:boolean}` |
 | `openings.getPreparing` | GET query | `{protocolVersion:1,datasetId,id}` | `ExperienceOpeningDTO` |
+| `openings.list` | GET query | `{protocolVersion:1,datasetId,limit?,cursor?}` | `ExperiencePage` |
 
 路径为既有 `/api/trpc/<operation>`；GET参数`input`为JSON URL编码，POST为JSON body。返回沿现有tRPC `{result:{data:...}}`，不新增REST客户端。机器基准为AppRouter＋runtime parser。全部要求原本机HttpOnly会话，包括binding目录；owner不在请求中。
 
@@ -54,7 +55,7 @@ type BindingDirectory = {
 
 | HTTP | 固定ID（主要） |
 |---|---|
-| 400 | INVALID_EXPERIENCE_COMMAND / INVALID_EXPERIENCE_QUERY |
+| 400 | INVALID_EXPERIENCE_COMMAND / INVALID_EXPERIENCE_QUERY / INVALID_EXPERIENCE_CURSOR |
 | 401 / 403 | LOCAL_SESSION_INVALID / LOCAL_ORIGIN_DENIED |
 | 404 | EXPERIENCE_NOT_FOUND / STORY_NOT_FOUND / PROVIDER_BINDING_NOT_REGISTERED |
 | 409 | REVISION_CONFLICT / IDEMPOTENCY_CONFLICT / STORY_ASSET_NOT_READY / STORY_ARCHIVED / PROVIDER_BINDING_CONFLICT / PREPARATION_NO_LONGER_CURRENT |
@@ -87,7 +88,7 @@ sequenceDiagram
 
 `scripts/smoke/local-openings.mjs`使用临时私有目录、原启动器和真实Chrome会话，在production/dev分别验证：未登录拒绝→自动会话→空目录→写配置但请求不热读→重启ready→真实开局→删配置后旧进程不变→重启empty且回执/get仍正常→坏配置unavailable且新命令503、原剧本可读→换账号同版本冲突且历史不变。脚本零模型请求，不是伪Provider或演示数据库。
 
-下一步：Quote/执行Profile/持久任务/媒体/播后回应，以及经历目录与冷浏览器续玩入口。两幕实际生成与恢复验收前，产品goal保持未完成。
+下一步：Quote/执行Profile/持久任务/媒体/播后回应；A6只补已提交开局的发现与重入，正式视频续玩仍待后续实现。两幕实际生成与恢复验收前，产品goal保持未完成。
 
 ## 6. M2-A5 原准备浮层与前端契约
 
@@ -139,3 +140,38 @@ sequenceDiagram
 ```
 
 真实production Chrome新增 `scripts/smoke/local-opening-ui.mjs`：原编辑器输入→真实保存→server binding选择→零预算开局→实际提交后故意损坏响应→关闭重入/导航守卫→宿主重启→同command确认→独立当前状态读取，禁用浏览器业务存储且零模型调用。它保留同一浏览器内存，不等于冷浏览器续玩、真实生成或最终产品验收。
+
+## 7. A6 已提交旅程目录与冷浏览器只读重入
+
+`ExperiencePage`为`{protocolVersion:1,datasetId,items,nextCursor}`。每项仅含`id,storyVersionId,title,sourceRevision,status,schedulingPaused,modelId,region,budget,createdAt,updatedAt`。
+
+- `limit`默认20，整数1–50，显式null/非法类型拒绝。最多读取limit+1；不加总数、搜索或第二套CRUD。
+- 认证owner + 固定`deletedAt/archivedAt IS NULL`，复用`ix_experiences_owner_list`；`updatedAt DESC,id DESC` keyset，同时间戳不丢项。cursor为有界base64url位置，校验格式、时间、UUID及owner/dataset/过滤排序版本scopeHash；它不是授权凭证，也不提供跨页快照，删除游标行仍可继续。
+- 每页同一只读事务，调用现有in-scope封存故事/固定binding/子归属检查，不循环调用公开service制造嵌套事务。只返回摘要；缺失或错误关系明确报固定存储错误，不跳过坏行并假装已读完。不读取现行草稿、默认Provider目录或密钥。
+- 标题、角色世界详情和预算来自固定事实；summary的status来自当前Experience根行，不来自历史CREATE。列表不授予当前可操作权，点击后仍由getPreparing检查初始状态与回执；已离开初始准备的状态不伪装成可续播。
+
+原「我的游玩」正式分支通过list展示SQLite记录；demo仍使用前端mock。点击「查看准备」只GET既有经历，不创建新经历、Quote、任务、费用或恢复调度。
+
+OpeningController显式区分`origin=draft/existing`：existing保留真实ExperienceOpeningDTO，`source=null`，展示其StoryVersion，不伪造DraftDTO及assets/revision等字段。来源草稿修改/删除、provider配置删除之后，旧封存内容仍可读取。重入不查询当前模型目录。
+
+关闭浮层返回来源列表并恢复触发按钮焦点；读取途中导航/开始新草稿会取消当前UI读取epoch，迟到结果不跨页面弹出。已有pending/unknown创建意图优先保留，不被列表条目覆盖。会话/dataset切换清理旧列表、屏蔽迟到列表/详情结果，不自动提交业务命令。
+
+```mermaid
+sequenceDiagram
+  participant B as 新浏览器
+  participant W as 原我的游玩页面
+  participant H as 认证Host
+  participant D as SQLite固定事实
+  B->>H: 自动建立本机会话
+  B->>W: 打开我的游玩
+  W->>H: openings.list(owner由认证提供)
+  H->>D: 索引分页＋固定关系校验
+  D-->>W: 摘要与nextCursor
+  B->>W: 显式查看准备(id)
+  W->>H: getPreparing(id)
+  H->>D: 读取初始状态、封存版本、Binding与回执
+  D-->>W: 原ExperienceOpeningDTO
+  Note over W,D: 无CREATE、无当前registry、无模型调用
+```
+
+`local-opening-ui.mjs`的A6追加验收关闭整个原Chrome进程，另启新Chrome；测试原草稿改名/删除与provider配置移除后，自动连接、原游玩列表发现开局、封存世界及预算读取、焦点返回，并断言新浏览器业务POST和binding目录请求均为零。它证明发现**已经提交的事实**，不证明恢复从未提交成功的内存意图，也不代表视频续玩已实现。

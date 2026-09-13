@@ -484,3 +484,13 @@ Cicero独立发现两个P2并已关闭：1)256KiB成功响应上限小于合法�
 M2-A5最终验收：主仓114文件1817/1817、runtime/Web源码及测试types实际exit0；最后production build、原准备UI（含1024×768桌面边界和1440窗口截图人工检查）、完整opening HTTP恢复、原Studio四图/聚合/重启/冷浏览器全部exit0。当前用户3100原入口再次Chrome验证自动会话、无取码框、原编辑器、刷新复用、shared provider目录初始化，零业务seed和模型调用。Cicero最终PASS，两个P2已关闭，撤回其旧oversize读旧行意见；当前开放P1/P2=0。CI新增两个已实测opening脚本，不发tag或改main。
 
 下一有限序列经只读复核：先用既有Experience表补有界列表/按ID重入原准备UI（冷浏览器发现已提交事实，不冒充丢失内存command恢复），然后主线Profile/Quote→原子接受/根BudgetScope预留与Outbox→planner/PreparedGeneration/一次submit及unknown查询恢复→私有媒体/校验→播放证明/事实/存档节点/情境建议→下一幕。按实际事务逐批迁移与登记真唯一，不一次预建全部远期表，也不把更多CRUD替代视频生成链。第一付费发送前这些门锁必须齐全；仍未获付费预算授权，不调用模型。
+
+本goal轮完成两次实码提交：M2-A4 cbec5ef已CI成功；M2-A5 1488aa5944afd8811965f335e7a9bb42861be11a（21文件）已push既有开发分支，精确CI34745838317当前in_progress，下一轮查询同一作业，不重新触发。主仓1817/双端types与最后production/UI/HTTP/Studio证据已收取exit0。当前3100继续运行原用户目录，本轮未创建用户业务数据；私人根研究文件仍未跟踪。整体goal保持active，下一步按已记录的短恢复入口＋M2-B生成主链继续，不以准备UI闭环冒充整个产品完成。
+
+M2-A6本goal轮上一轮判定progress；精确CI34745838317已completed/success（1488aa5）。实施已提交开局目录与只读重入：无新表/CRUD，以原Experience索引、owner/dataset/排序过滤作用域cursor、默认20最大50页读取同scope封存事实；status来自实际根行，不读取现行draft/registry。runtime首次RED7→GREEN7；HTTP/client新增list实际RED4→GREEN；前端reentry RED7→GREEN7，原Platform冷重入RED后接入，修正测试的弹窗内文本范围（背景也有同额预算，不改产品）。
+
+主会话自检发现null limit被默认吞掉、只读GET迟到跨页面弹窗两个缺口；实际RED2后，严格拒绝null，navigate/edit/openStory统一关闭并推进读取序号。原pending/unknown仍保留，不因关闭原浮层丢意图。既有开局origin=existing、source=null，仅展示真实confirmed.story，不伪造DraftDTO；重入不触发CREATE/当前binding目录/业务写入。51次真实开局的50+1分页、删除游标锚点、原索引EXPLAIN无临时排序、封存关系错误、源草稿删除和权限隔离均已覆盖。
+
+M2-A6最终主仓116文件1839/1839及runtime/Web源码和测试types实际exit0。稳定树最终production build、完整opening HTTP、原Studio四图/unknown/重启/冷浏览器均exit0；扩展原准备UI smoke关闭整个原Chrome进程，另启新Chrome，原草稿改名/删除和provider配置移除后，原我的游玩发现同一开局、封存世界/预算只读打开、焦点返回，业务POST与当前binding目录请求均为零。这证明发现已提交事实，不证明尚未提交的内存意图或视频播放恢复。列表截图已人工检查。Cicero独立4文件43项通过，当前确认开放P1/P2=0。
+
+原用户3100经PID/cwd核对，温和SIGTERM exit0后在同一个数据目录启动，加载compiled list服务；当前Chrome只读验证自动会话、原我的游玩/list返回200、模型目录已初始化、原编辑器/无取码框/刷新复用全部通过。未创建用户业务记录、未读模型密钥/调用付费接口。下一主线明确M2-B执行Profile/Quote/预算授权→持久Operation/Worker/私有媒体，停止扩展更多列表CRUD；整体goal active。

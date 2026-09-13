@@ -4,9 +4,11 @@ import type {CreateExperience, ExperienceBudget, ExperienceOpeningDTO} from 'run
 import type {BindingDirectory} from 'runtime/contracts/video-binding-registry';
 import {parseBudget, parseCreateExperience} from 'runtime/contracts/experience-opening-validation';
 import {OpeningClientError, type OpeningClient} from './opening-ports';
+import type {ExperienceSummary} from 'runtime/contracts/experience-directory';
 
 type Binding = {client: OpeningClient; connected: boolean; datasetId: string | null; invalidate: () => void};
 export type OpeningState = {
+  origin: 'draft' | 'existing'; items: ExperienceSummary[]; nextCursor: string | null; listReady: boolean; listLoading: boolean; listError: string;
   visible: boolean; source: DraftDTO | null; connected: boolean; datasetChanged: boolean;
   directory: BindingDirectory | null; loading: boolean; selection: {bindingKey: string; versionNo: number} | null;
   amount: string; currency: ExperienceBudget['currency']; busy: boolean; unknown: boolean;
@@ -16,6 +18,10 @@ export function budgetFromText(text: string, currency: ExperienceBudget['currenc
   if (!/^(0|[1-9][0-9]{0,12})(\.[0-9]{1,6})?$/.test(text)) throw Error('请输入有效金额，最多六位小数。');
   const [whole, fraction = ''] = text.split('.');
   return parseBudget({limitMicros: (BigInt(whole!) * 1000000n + BigInt(fraction.padEnd(6, '0'))).toString(), currency});
+}
+export function budgetToText(budget: ExperienceBudget): string {
+  const micros = BigInt(budget.limitMicros), fraction = (micros % 1000000n).toString().padStart(6, '0').replace(/0+$/, '');
+  return `${micros / 1000000n}${fraction ? `.${fraction}` : ''}`;
 }
 function failure(error: unknown) {
   const e = error instanceof OpeningClientError ? error : null;
@@ -34,24 +40,26 @@ function failure(error: unknown) {
 }
 /** One preparation intent; lifetime belongs to the workspace, not its dismissible dialog. */
 export class OpeningController {
-  private state: OpeningState = {visible: false, source: null, connected: false, datasetChanged: false, directory: null, loading: false, selection: null,
+  private state: OpeningState = {origin: 'draft', items: [], nextCursor: null, listReady: false, listLoading: false, listError: '', visible: false, source: null, connected: false, datasetChanged: false, directory: null, loading: false, selection: null,
     amount: '0', currency: 'CNY', busy: false, unknown: false, confirmed: null, current: false, reading: false, error: '', directoryError: ''};
   private binding: Binding | null = null; private epoch = 0; private readSequence = 0; private directorySequence = 0;
+  private listSequence = 0;
   private pending: CreateExperience | null = null; private flight: Promise<boolean> | null = null; private listeners = new Set<() => void>();
   subscribe = (listener: () => void) => {this.listeners.add(listener); return () => {this.listeners.delete(listener);};};
   getSnapshot = () => this.state;
   private publish(patch: Partial<OpeningState>) {this.state = {...this.state, ...patch}; this.listeners.forEach(fn => fn());}
-  private fence() {this.epoch++; this.readSequence++; this.directorySequence++; this.flight = null;
-    this.publish({busy: false, reading: false, loading: false, ...(this.pending ? {unknown: true} : {})});}
+  private fence() {this.epoch++; this.readSequence++; this.directorySequence++; this.listSequence++; this.flight = null;
+    this.publish({busy: false, reading: false, loading: false, listLoading: false, ...(this.pending ? {unknown: true} : {})});}
   bind(next: Binding) {
     const old = this.binding;
     if (old && old.client === next.client && old.connected === next.connected && old.datasetId === next.datasetId && old.invalidate === next.invalidate) return;
     this.fence(); this.binding = next;
-    this.publish({connected: next.connected, directory: null,
-      datasetChanged: Boolean(this.state.source && next.datasetId !== this.state.source.datasetId)});
+    const source = this.state.source ?? this.state.confirmed;
+    this.publish({connected: next.connected, directory: null, items: [], nextCursor: null, listReady: false, listError: '',
+      datasetChanged: Boolean(source && next.datasetId !== source.datasetId)});
   }
   suspend() {this.fence();}
-  private usable() {return Boolean(this.binding?.connected && this.state.connected && this.state.source && !this.state.datasetChanged);}
+  private usable() {return Boolean(this.binding?.connected && this.state.connected && (this.state.source || this.state.confirmed) && !this.state.datasetChanged);}
   private locked() {return Boolean(this.pending || this.state.busy || this.state.confirmed);}
   open(source: DraftDTO): boolean {
     this.publish({visible: true});
@@ -59,7 +67,7 @@ export class OpeningController {
     const old = this.state.source;
     if (old?.datasetId === source.datasetId && old.id === source.id && old.revision === source.revision) return true;
     this.fence();
-    this.publish({source: structuredClone(source), datasetChanged: source.datasetId !== this.binding?.datasetId, directory: null, selection: null,
+    this.publish({origin: 'draft', source: structuredClone(source), datasetChanged: source.datasetId !== this.binding?.datasetId, directory: null, selection: null,
       amount: '0', currency: 'CNY', unknown: false, confirmed: null, current: false, error: '', directoryError: ''});
     return true;
   }
@@ -71,7 +79,7 @@ export class OpeningController {
   }
   budget(amount: string, currency: ExperienceBudget['currency']) {if (!this.locked()) this.publish({amount, currency, error: ''});}
   async load() {
-    const b = this.binding; if (!this.usable() || !b?.datasetId) return;
+    const b = this.binding; if (this.state.origin !== 'draft' || !this.usable() || !b?.datasetId) return;
     const epoch = this.epoch, sequence = ++this.directorySequence, current = () => epoch === this.epoch && sequence === this.directorySequence;
     this.publish({loading: true, directoryError: ''});
     try {
@@ -80,6 +88,31 @@ export class OpeningController {
       this.publish({directory, ...(!this.locked() && !retained ? {selection: null} : {})});
     } catch (error) {if (current()) {const info = failure(error); this.publish({directoryError: info.message}); if (info.denied || info.reset) b.invalidate();}}
     finally {if (current()) this.publish({loading: false});}
+  }
+  async loadExperiences(append = false) {
+    const b = this.binding; if (!b?.connected || !this.state.connected || !b.datasetId || (append && !this.state.nextCursor)) return;
+    const epoch = this.epoch, sequence = ++this.listSequence, current = () => epoch === this.epoch && sequence === this.listSequence;
+    const cursor = append ? this.state.nextCursor : null; this.publish({listLoading: true, listError: ''});
+    try {
+      const page = await b.client.list({protocolVersion: 1, datasetId: b.datasetId, limit: 20, ...(cursor ? {cursor} : {})}); if (!current()) return;
+      const items = [...new Map((append ? [...this.state.items, ...page.items] : page.items).map(x => [x.id, x])).values()]
+        .sort((a, b) => a.updatedAt === b.updatedAt ? b.id.localeCompare(a.id) : b.updatedAt.localeCompare(a.updatedAt));
+      this.publish({items, nextCursor: page.nextCursor, listReady: true});
+    } catch (error) {if (current()) {const info = failure(error); this.publish({listError: `旅程列表读取失败。${info.message}`}); if (info.denied || info.reset) b.invalidate();}}
+    finally {if (current()) this.publish({listLoading: false});}
+  }
+  async openExisting(id: string): Promise<boolean> {
+    if (this.pending) {this.publish({visible: true}); return false;}
+    const b = this.binding; if (!b?.connected || !this.state.connected || !b.datasetId || this.state.reading) return false;
+    const epoch = this.epoch, sequence = ++this.readSequence, current = () => epoch === this.epoch && sequence === this.readSequence;
+    this.publish({visible: false, reading: true, listError: ''});
+    try {
+      const dto = await b.client.getPreparing({protocolVersion: 1, datasetId: b.datasetId, id}); if (!current()) return false;
+      this.publish({origin: 'existing', source: null, confirmed: dto, visible: true, current: true, datasetChanged: false,
+        directory: null, selection: null, amount: budgetToText(dto.budget), currency: dto.budget.currency, error: '', unknown: false});
+      return true;
+    } catch (error) {if (current()) {const info = failure(error); this.publish({listError: info.message}); if (info.denied || info.reset) b.invalidate();} return false;}
+    finally {if (current()) this.publish({reading: false});}
   }
   submit(): Promise<boolean> {
     if (this.flight) return this.flight;

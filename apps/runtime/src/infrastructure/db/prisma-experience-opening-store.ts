@@ -6,6 +6,9 @@ import {withOwnerWrite} from './write-gate.js';
 export function createExperienceOpeningReadScope(tx: Prisma.TransactionClient, ownerId: string): ExperienceOpeningReadScope {
   return {
     ...createStoryVersionReadScope(tx, ownerId),
+    listExperiences: ({take, before}) => tx.experience.findMany({where: {ownerId, deletedAt: null, archivedAt: null,
+      ...(before ? {OR: [{updatedAt: {lt: before.updatedAt}}, {updatedAt: before.updatedAt, id: {lt: before.id}}]} : {})},
+      orderBy: [{updatedAt: 'desc'}, {id: 'desc'}], take}),
     findExperience: id => tx.experience.findFirst({where: {id, ownerId}}),
     findBinding: id => tx.providerBindingVersion.findFirst({where: {id, ownerId}}),
     // Root ownership was checked; unfiltered children expose corrupt shadow ownership.

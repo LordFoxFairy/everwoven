@@ -1,11 +1,13 @@
 import {TRPCError} from '@trpc/server';
 import type {InternalOwnerContext} from 'runtime/contracts/story-draft';
 import type {CreateExperience, GetPreparingExperience, ExperienceOpeningResult, ExperienceOpeningDTO} from 'runtime/contracts/experience-opening';
+import type {ExperienceList, ExperiencePage} from 'runtime/contracts/experience-directory';
 import type {BindingDirectory} from 'runtime/contracts/video-binding-registry';
 import {openingHTTPStatus, openingTRPCCode} from '../contracts/experience-http';
 import {guardLocalRequest, localRuntimeConfig, sessionToken} from './local-boundary';
 
 export type OpeningService = {
+  list(owner: InternalOwnerContext, input: ExperienceList): Promise<ExperiencePage>;
   create(owner: InternalOwnerContext, input: CreateExperience): Promise<ExperienceOpeningResult>;
   getPreparing(owner: InternalOwnerContext, input: GetPreparingExperience): Promise<ExperienceOpeningDTO>;
   bindings(): BindingDirectory;

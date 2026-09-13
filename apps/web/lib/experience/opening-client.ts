@@ -1,4 +1,5 @@
 import {createTRPCClient, httpLink, TRPCClientError} from '@trpc/client';
+import {parseExperienceList, parseExperiencePage, type ExperiencePage} from 'runtime/contracts/experience-directory';
 import type {AppRouter} from '../../server/api/root';
 import {parseCreateExperience, parseGetPreparingExperience} from 'runtime/contracts/experience-opening-validation';
 import {parseBindingDirectory, parseExperienceOpeningDTO, parseExperienceOpeningResult} from 'runtime/contracts/experience-opening-output';
@@ -39,7 +40,7 @@ function directoryQuery(value: unknown): StoryProtocol {
   const protocol = parseProtocol(value);
   try {fields(value, ['protocolVersion', 'datasetId']); return protocol;} catch {throw Error('INVALID_EXPERIENCE_QUERY');}
 }
-function responseProtocol(result: ExperienceOpeningDTO | ExperienceOpeningResult | BindingDirectory): StoryProtocol {
+function responseProtocol(result: ExperienceOpeningDTO | ExperienceOpeningResult | BindingDirectory | ExperiencePage): StoryProtocol {
   return 'data' in result ? result.data : result;
 }
 /** Browser transport only. No business retries, credentials lookup, browser persistence or provider calls. */
@@ -56,7 +57,7 @@ export function createOpeningClient(): OpeningClient {
     if (response.status !== 200) failure(body, response.status);
     return new Response(body, {status: 200, headers: {'content-type': 'application/json'}});
   }})]});
-  async function call<I extends StoryProtocol, O extends ExperienceOpeningDTO | ExperienceOpeningResult | BindingDirectory>(
+  async function call<I extends StoryProtocol, O extends ExperienceOpeningDTO | ExperienceOpeningResult | BindingDirectory | ExperiencePage>(
     parser: (v: unknown) => I, input: unknown, send: (q: I) => Promise<unknown>, output: (v: unknown, q: I) => O,
   ): Promise<O> {
     try {
@@ -77,6 +78,9 @@ export function createOpeningClient(): OpeningClient {
     }
   }
   return {
+    list: q => call(parseExperienceList, q, input => rpc.openings.list.query(input), (raw, input) => {
+      const page = parseExperiencePage(raw); if (page.items.length > input.limit) throw invalid(); return page;
+    }),
     bindings: q => call(directoryQuery, q, input => rpc.openings.bindings.query(input), parseBindingDirectory),
     create: q => call(parseCreateExperience, q, input => rpc.openings.create.mutate(input), (raw, input) => {
       const result = parseExperienceOpeningResult(raw), d = result.data;
