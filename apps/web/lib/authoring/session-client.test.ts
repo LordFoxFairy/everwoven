@@ -28,3 +28,21 @@ it('keeps the disconnected response independent of dataset validation',async()=>
  vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true,json:async()=>({authenticated:false})}));
  await expect(createAuthoringSessionClient().session()).resolves.toEqual({authenticated:false});
 });
+it('establishes a local session without a code and returns only the verified dataset',async()=>{
+ const fetch=vi.fn().mockResolvedValue({ok:true,json:async()=>({authenticated:true,datasetId})});vi.stubGlobal('fetch',fetch);
+ await expect(createAuthoringSessionClient().connect()).resolves.toEqual({authenticated:true,datasetId});
+ expect(fetch).toHaveBeenCalledExactlyOnceWith('/api/local-session',{
+  method:'POST',credentials:'same-origin',cache:'no-store',redirect:'error',
+  headers:{'content-type':'application/json','x-everwoven-request':'1'},body:JSON.stringify({mode:'local'}),
+ });
+});
+it.each([{authenticated:false},{authenticated:true},{authenticated:true,datasetId:'invalid'}])('rejects invalid local establishment response %j without retry',async data=>{
+ const fetch=vi.fn().mockResolvedValue({ok:true,json:async()=>data});vi.stubGlobal('fetch',fetch);
+ await expect(createAuthoringSessionClient().connect()).rejects.toThrow('本机连接失败，请重试');expect(fetch).toHaveBeenCalledTimes(1);
+});
+it('keeps GET read-only and DELETE bodyless, preserves request headers, and hides transport errors',async()=>{
+ const fetch=vi.fn().mockResolvedValue({ok:true,json:async()=>({authenticated:false})});vi.stubGlobal('fetch',fetch);
+ const client=createAuthoringSessionClient();await client.session();await client.logout();
+ for(const [index,method] of ['GET','DELETE'].entries())expect(fetch.mock.calls[index]?.[1]).toEqual({method,credentials:'same-origin',cache:'no-store',redirect:'error',headers:{'content-type':'application/json','x-everwoven-request':'1'}});
+ fetch.mockRejectedValue(Error('TOKEN /private/path'));await expect(client.connect()).rejects.toThrow(/^本机连接失败，请重试$/);expect(fetch).toHaveBeenCalledTimes(3);
+});

@@ -45,6 +45,23 @@ export async function handleLocalSession(
     } catch {
       return json({ error: '连接请求格式无效' }, 400);
     }
+    // Local desktop-style access: the browser never receives a bootstrap code.
+    // Keep the private-host, exact-origin, custom-header and fetch-metadata gates;
+    // ordinary Web/Docker launches do not expose this capability.
+    if (body && typeof body === 'object' && !Array.isArray(body) &&
+        Object.keys(body).length === 1 && 'mode' in body && body.mode === 'local') {
+      if (request.headers.get('sec-fetch-site') !== 'same-origin')
+        return json({error: '来源不受信任'}, 403);
+      try {
+        const existing = await host.authenticateSession(config.directory, config.environment, sessionToken(request));
+        return json({authenticated: true, datasetId: existing.datasetId});
+      } catch {/* An absent/expired session is renewed only through this guarded POST. */}
+      const code = await host.issueConnectionCode(config.directory, config.environment);
+      const issued = await host.exchangeConnectionCode(config.directory, config.environment, code);
+      return json({authenticated: true, datasetId: issued.datasetId, expiresAt: issued.expiresAt}, 200, {
+        'Set-Cookie': cookie(issued.token, Math.max(0, Math.floor((issued.expiresAt - Date.now()) / 1000))),
+      });
+    }
     if (
       !body ||
       typeof body !== 'object' ||

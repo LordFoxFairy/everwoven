@@ -6,7 +6,7 @@ import {createStoryDraftClient} from '../lib/authoring/story-client';
 import {storyClient,datasetId,draft} from '../lib/authoring/story-test-fixtures';
 import {StoryClientError} from '../lib/authoring/story-ports';
 vi.mock('../lib/authoring/story-client',()=>({createStoryDraftClient:vi.fn()}));
-vi.mock('../lib/authoring/session-client',()=>({createAuthoringSessionClient:()=>({session:async()=>({authenticated:true,datasetId:'01994b80-0000-7000-8000-000000000099'}),connect:async()=>{},logout:async()=>{}})}));
+vi.mock('../lib/authoring/session-client',()=>({createAuthoringSessionClient:()=>({session:async()=>({authenticated:true,datasetId:'01994b80-0000-7000-8000-000000000099'}),connect:async()=>({authenticated:true,datasetId:'01994b80-0000-7000-8000-000000000099'}),logout:async()=>{}})}));
 vi.mock('../lib/authoring/character-client',()=>({createCharacterClient:()=>({list:async()=>({items:[],nextCursor:null,totalMatching:0})})}));
 afterEach(()=>{cleanup();vi.restoreAllMocks();});
 it('original Studio retains its unknown command after exact 400 and blocks leaving, with no browser fallback',async()=>{

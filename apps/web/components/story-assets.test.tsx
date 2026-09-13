@@ -144,12 +144,12 @@ it('changing editing instance discards only local file selection and revokes its
 it('Platform sidebar/Create/onUse cannot unmount an unknown image command; same-dataset reconnect confirms the original',async()=>{
  const {client}=formal(),c=character(),complete=vi.mocked(client.completeUpload).getMockImplementation()!;
  vi.spyOn(assetClients,'createFormalAssetClient').mockReturnValue(client);vi.spyOn(characterClients,'createCharacterClient').mockReturnValue(c.client);
- vi.spyOn(sessionClients,'createAuthoringSessionClient').mockReturnValue({session:async()=>({authenticated:true,datasetId}),connect:async()=>{},logout:async()=>{}});
+ vi.spyOn(sessionClients,'createAuthoringSessionClient').mockReturnValue({session:async()=>({authenticated:true,datasetId}),connect:async()=>({authenticated:true,datasetId}),logout:async()=>{}});
  vi.mocked(client.completeUpload).mockRejectedValueOnce(TypeError('lost')).mockRejectedValueOnce({message:'LOCAL_SESSION_INVALID',data:{httpStatus:401}}).mockImplementation(complete);
  render(<Platform environment="dev" databaseEnabled/>);await screen.findByText('已连接本机');click('角色库');click('创建角色');fireEvent.change(screen.getByLabelText('角色姓名'),{target:{value:'上传中保留'}});
  await upload();await screen.findByRole('button',{name:'确认上次图片命令'});
  for(const target of ['我的世界','创作一个剧本','用 角色 创作']){click(target);expect(screen.getByRole('button',{name:'确认上次图片命令'})).toBeTruthy();}
- click('确认上次图片命令');await screen.findByLabelText('本机连接码');fireEvent.change(screen.getByLabelText('本机连接码'),{target:{value:'test-code'}});click('连接本机');await screen.findByText('已连接本机');
+ click('确认上次图片命令');await screen.findByRole('button',{name:'重新连接'});click('重新连接');await screen.findByText('已连接本机');
  click('确认上次图片命令');await screen.findByText('图片已保存到本机，保存角色后生效');expect(client.beginUpload).toHaveBeenCalledOnce();expect(client.process).toHaveBeenCalledOnce();
  const calls=vi.mocked(client.completeUpload).mock.calls;expect(calls[0]![0]).toEqual(calls[2]![0]);expect((screen.getByLabelText('角色姓名') as HTMLInputElement).value).toBe('上传中保留');
 });
@@ -165,7 +165,7 @@ it('Platform use-TA then replace-and-saveCopy submits the current image without 
  const {client}=formal(),c=character(),original={...await c.client.get('fixture'),portraitAssetId:v7()};
  vi.mocked(c.client.list).mockResolvedValue({items:[original],nextCursor:null,totalMatching:1});
  vi.spyOn(assetClients,'createFormalAssetClient').mockReturnValue(client);vi.spyOn(characterClients,'createCharacterClient').mockReturnValue(c.client);
- vi.spyOn(sessionClients,'createAuthoringSessionClient').mockReturnValue({session:async()=>({authenticated:true,datasetId}),connect:async()=>{},logout:async()=>{}});
+ vi.spyOn(sessionClients,'createAuthoringSessionClient').mockReturnValue({session:async()=>({authenticated:true,datasetId}),connect:async()=>({authenticated:true,datasetId}),logout:async()=>{}});
  render(<Platform environment="dev" databaseEnabled/>);await screen.findByText('已连接本机');click('角色库');await screen.findByRole('button',{name:'用 角色 创作'});click('用 角色 创作');click('03角色配置');
  await upload();await screen.findByText('图片已保存到本机，保存角色后生效');click('另存为角色模板');await screen.findByText(/角色模板已保存。此剧本仍是编辑副本/);
  expect(c.client.create).toHaveBeenCalledOnce();const submitted=vi.mocked(c.client.create).mock.calls[0]![0];expect(submitted.portraitAssetId).toBeTruthy();expect(submitted.portraitAssetId).not.toBe(original.portraitAssetId);expect(c.client.update).not.toHaveBeenCalled();

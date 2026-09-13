@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {expect} from '@playwright/test';
-import {withLocalBrowser,fillConnectionCode} from './local-browser-harness.mjs';
+import {withLocalBrowser} from './local-browser-harness.mjs';
 
 // Actual original-page interaction, not an API-seeded portrait demonstration.
 process.env.SMOKE_PORT ??= '3195';
@@ -13,7 +13,7 @@ const first = await picture('sky-first.png', '#a9c9ed');
 const second = await picture('sky-second.png', '#c8b4e7');
 const third = await picture('sky-story-copy.png', '#e9c2de');
 
-await withLocalBrowser(async ({page, origin, datasetId, connectionCode, restart}) => {
+await withLocalBrowser(async ({page, origin, datasetId, restart}) => {
   page.setDefaultTimeout(15000);
   const mutations = [], boundaryErrors = [], commands = new Map();
   page.on('request', request => {
@@ -41,9 +41,8 @@ await withLocalBrowser(async ({page, origin, datasetId, connectionCode, restart}
   });
   await page.goto(origin, {waitUntil: 'networkidle'});
   await page.getByRole('button', {name: '角色库', exact: true}).click();
-  await fillConnectionCode(page.getByLabel('本机连接码', {exact: true}), connectionCode);
-  await page.getByRole('button', {name: '连接本机', exact: true}).click();
   await page.getByRole('status').filter({hasText: '已连接本机'}).waitFor();
+  assert.equal(await page.getByLabel('本机连接码').count(), 0);
   await page.getByRole('button', {name: '创建角色', exact: true}).click();
   const name = '原图片控件持久化验收';
   await page.getByLabel('角色姓名').fill(name);

@@ -6,7 +6,7 @@
 
 ## 当前开发状态 · 工程与交互原型
 
-推进真值见 [PROGRESS](docs/PROGRESS.md)，下一批完整字段、架构/时序、接口与SQL见 [M1 原创作贯通技术方案](docs/architecture/INTEGRATED-AUTHORING-M1.md)。按最新决策使用全新业务数据基线，不建设旧数据兼容层；尚未执行数据清理。
+推进真值见 [PROGRESS](docs/PROGRESS.md)，已实现的创作字段、架构/时序、接口与SQL见 [M1 原创作贯通技术方案](docs/architecture/INTEGRATED-AUTHORING-M1.md)。使用全新业务数据基线，不建设旧数据兼容层；不会自动导入或清除既有浏览器演练数据。
 
 已发布版本为 **v0.1.0**；下表包含尚未发布的本机存储切片，新功能不等于旧镜像已更新。
 
@@ -18,7 +18,7 @@
 | 自适应单舞台、全屏、情境建议、自由回应、草稿保护 | Mock 数据与行为由前端管理；不调用模型 |
 | T3 组合：Next.js + TypeScript + tRPC + TanStack Query + Zod | 供应商配置元数据读取；专用本机模式已接入受保护的原剧本聚合 tRPC CRUD |
 | shadcn AlertDialog/Button 与独立布局组件 | 复用 Radix 的焦点/模态能力；非全站组件迁移完成 |
-| Prisma + SQLite 原角色库六操作、真实图片上传/读取、短期本机会话 | 正式模式不依赖浏览器业务存储；原剧本完整聚合源码已接线，旧临时根面板已删除；最终启用/发布状态见PROGRESS；零外键，仅真实唯一 |
+| Prisma + SQLite 原角色库六操作、私有图片、完整剧本聚合、自动本机会话 | 原页面保存、异常恢复、冷浏览器及进程重启已验收；不依赖浏览器业务存储，旧临时面板已删除；零外键，仅真实唯一 |
 | 供应商—模型绑定、MiniMax 官方任务适配基础代码 | 指定模型的可用性、付费端到端生成与恢复尚未验收；不自动转到 fal |
 | Docker Web 打包与 CI | 同一个应用的另一种启动方式，不是第二套站点或完整多用户服务 |
 
@@ -47,9 +47,9 @@ pnpm build     # runtime 检查构建 + Next standalone 构建
 
 ## 启用本机数据库
 
-普通开发默认保留前端存储。正式 SQLite 创作使用**同一应用**的显式本机启动器：初始化专用数据目录 → `pnpm local` → 原角色库 → 一次性连接码。它固定监听 loopback，原角色保存/删除/恢复及图片已接通；完整原剧本聚合已通过原页面生产测试，正式单入口启用已实测，最新提交CI状态见PROGRESS。不自动导入浏览器数据、不冒充真实视频生成。
+普通开发默认保留前端存储。正式 SQLite 创作使用**同一应用**的显式本机启动器：初始化专用数据目录 → `pnpm local` → 打开原角色库，应用自动连接。它固定监听 loopback，原角色保存/删除/恢复及图片已接通；完整原剧本聚合已通过原页面生产测试，正式单入口启用已实测，最新提交CI状态见PROGRESS。不自动导入浏览器数据、不冒充真实视频生成。
 
-详见[启动与数据边界](docs/deployment/LOCAL-HOST.md)及[当前 tRPC/会话契约与时序](docs/api/LOCAL-AUTHORING-M0-C.md)。
+详见[启动与数据边界](docs/deployment/LOCAL-HOST.md)、[自动会话契约](docs/api/LOCAL-AUTO-SESSION.md)及[当前聚合tRPC契约](docs/api/STORY-AGGREGATE-M1.md)。
 
 ## 环境选择
 

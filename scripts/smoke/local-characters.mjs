@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import {withLocalBrowser,fillConnectionCode} from './local-browser-harness.mjs';
+import {withLocalBrowser} from './local-browser-harness.mjs';
 
-await withLocalBrowser(async({page,origin,datasetId,connectionCode,restart})=>{
+await withLocalBrowser(async({page,origin,datasetId,restart})=>{
  page.setDefaultTimeout(15000);
  const writes=new Map(),boundaryErrors=[];
  page.on('request',request=>{
@@ -36,9 +36,8 @@ await withLocalBrowser(async({page,origin,datasetId,connectionCode,restart})=>{
  });
  await page.goto(origin,{waitUntil:'networkidle'});
  await page.getByRole('button',{name:'角色库',exact:true}).click();
- await fillConnectionCode(page.getByLabel('本机连接码',{exact:true}),connectionCode);
- await page.getByRole('button',{name:'连接本机',exact:true}).click();
  await page.getByRole('status').filter({hasText:'已连接本机'}).waitFor();
+ assert.equal(await page.getByLabel('本机连接码').count(),0);
  await page.getByRole('button',{name:'创建角色',exact:true}).click();
  const name='原角色页完整验收';
  await page.getByLabel('角色姓名').fill(name);

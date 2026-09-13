@@ -7,12 +7,6 @@ import {fileURLToPath} from 'node:url';
 import {setTimeout as delay} from 'node:timers/promises';
 import {chromium} from '@playwright/test';
 
-// Playwright may include fill's argument in timeout logs, even for password
-// inputs. Never let that diagnostic escape the credential entry boundary.
-export async function fillConnectionCode(input, code) {
- try {await input.fill(code);} catch {throw Error('Connection code entry failed');}
-}
-
 /** Test-only fixture. Owns exactly one temporary host, browser and child server. */
 export async function withLocalBrowser(work){
  const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
@@ -39,17 +33,20 @@ export async function withLocalBrowser(work){
  }
  async function stop(){
   const child=server;if(!child||child.exitCode!==null)return;
-  const exited=new Promise(resolve=>child.once('exit',resolve));child.kill('SIGTERM');
-  const timer=setTimeout(()=>child.kill('SIGKILL'),10000);await exited;clearTimeout(timer);server=undefined;
+  const exited=new Promise(resolve=>child.once('exit',(code,signal)=>resolve({code,signal})));child.kill('SIGTERM');
+  const timer=setTimeout(()=>child.kill('SIGKILL'),12000);const result=await exited;clearTimeout(timer);server=undefined;
+  assert.deepEqual(result,{code:0,signal:null},'Local restart must shut down cleanly, not pass through the test SIGKILL watchdog');
  }
  try{
   cli('init');const manifest=JSON.parse(await readFile(path.join(directory,'manifest.json'),'utf8'));
-  const code=cli('connect');assert.match(code,/^[A-Za-z0-9_-]{43}$/);
   await start();
+  const document = await fetch(origin);
+  assert.equal(document.headers.get('x-frame-options'), 'DENY');
+  assert.equal(document.headers.get('content-security-policy'), "frame-ancestors 'none'");
   browser=await chromium.launch({...process.env.PLAYWRIGHT_CHANNEL?{channel:process.env.PLAYWRIGHT_CHANNEL}:{}});
   page=await browser.newPage({viewport:{width:1440,height:1000}});
   const errors=[];page.on('pageerror',error=>errors.push(error.message));page.on('dialog',dialog=>dialog.accept());
-  await work({page,origin,datasetId:manifest.datasetId,connectionCode:code,newConnectionCode:()=>cli('connect'),
+  await work({page,origin,datasetId:manifest.datasetId,
    async restart(){await stop();await start();assert.equal(JSON.parse(await readFile(path.join(directory,'manifest.json'),'utf8')).datasetId,manifest.datasetId);},
   });
   assert.deepEqual(errors,[],'Browser JavaScript errors');

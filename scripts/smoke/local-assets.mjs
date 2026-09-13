@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {createRequire} from 'node:module';
-import {withLocalBrowser,fillConnectionCode} from './local-browser-harness.mjs';
+import {withLocalBrowser} from './local-browser-harness.mjs';
 
 // Production HTTP and browser decoding evidence, not an implemented upload UI.
 // The shared harness owns only a temporary Host/server; it never touches port 3100.
@@ -11,13 +11,12 @@ const sharp = requireRuntime('sharp');
 const {v7} = requireRuntime('uuid');
 const png = await sharp({create: {width: 512, height: 320, channels: 3, background: '#a9c9ed'}}).png().toBuffer();
 
-await withLocalBrowser(async ({page, origin, datasetId, connectionCode, restart}) => {
+await withLocalBrowser(async ({page, origin, datasetId, restart}) => {
   page.setDefaultTimeout(15000);
   await page.goto(origin, {waitUntil: 'networkidle'});
   await page.getByRole('button', {name: '角色库', exact: true}).click();
-  await fillConnectionCode(page.getByLabel('本机连接码', {exact: true}), connectionCode);
-  await page.getByRole('button', {name: '连接本机', exact: true}).click();
   await page.getByRole('status').filter({hasText: '已连接本机'}).waitFor();
+  assert.equal(await page.getByLabel('本机连接码').count(), 0);
 
   function headers(response) {
     assert.equal(response.headers()['cache-control'], 'no-store');

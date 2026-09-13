@@ -2,6 +2,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import next from 'next';
+import {createLocalShutdown} from './local-shutdown.mjs';
 
 // The only supported formal local-host launcher. Never listen on all interfaces.
 const args = process.argv.slice(2);
@@ -27,7 +28,11 @@ const app = next({ dev: !production, webpack: true, dir, hostname: '127.0.0.1', 
 await app.prepare();
 const handle = app.getRequestHandler();
 const server = http.createServer((request, response) => {
-  void handle(request, response).catch(() => {
+  // Automatic local access must not make the private workspace embeddable in
+  // an unrelated website. These apply to the document, not just JSON responses.
+  response.setHeader('X-Frame-Options', 'DENY');
+  response.setHeader('Content-Security-Policy', "frame-ancestors 'none'");
+  void shutdown.track(() => handle(request, response)).catch(() => {
     response.statusCode = 500;
     response.end('服务暂不可用');
   });
@@ -39,10 +44,7 @@ server.on('error', (error) => {
   process.exitCode = 1;
   void app.close();
 });
+const shutdown = createLocalShutdown(server, () => app.close());
 server.listen(port, '127.0.0.1', () => console.log(`Everwoven local ready: ${origin}`));
 for (const signal of ['SIGINT', 'SIGTERM'])
-  process.once(signal, () => {
-    server.close(() => {
-      void app.close().finally(() => process.exit(0));
-    });
-  });
+  process.on(signal, () => { void shutdown(); });

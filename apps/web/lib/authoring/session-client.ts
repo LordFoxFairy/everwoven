@@ -3,12 +3,12 @@ import {parseId} from 'runtime/contracts/story-draft-validation';
 
 /** Shared transport for the single host connection; never expose cookies to UI. */
 export function createAuthoringSessionClient() {
- async function request(method:'GET'|'POST'|'DELETE',code?:string):Promise<AuthoringSession>{
+ async function request(method:'GET'|'POST'|'DELETE'):Promise<AuthoringSession>{
   try {
    const response=await fetch('/api/local-session',{
-    method,credentials:'same-origin',cache:'no-store',
+    method,credentials:'same-origin',cache:'no-store',redirect:'error',
     headers:{'content-type':'application/json','x-everwoven-request':'1'},
-    ...(code===undefined?{}:{body:JSON.stringify({code})}),
+    ...(method==='POST'?{body:JSON.stringify({mode:'local'})}:{}),
    });
    if(!response.ok)throw Error();
    const data:unknown=await response.json();
@@ -20,7 +20,7 @@ export function createAuthoringSessionClient() {
  }
  return {
   session:()=>request('GET'),
-  connect:async(code:string)=>{await request('POST',code);},
+  connect:()=>request('POST'),
   logout:async()=>{await request('DELETE');},
  };
 }

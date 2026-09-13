@@ -4,7 +4,7 @@ import type {AuthoringSessionClient} from './session-client';
 
 type Mode='demo'|'unconfigured'|'local';
 type State={status:'demo'|'unconfigured'|'checking'|'disconnected'|'connected';datasetId:string|null;busy:boolean;error:string};
-type Connection={state:State;connect(code:string):Promise<void>;refresh():Promise<void>;invalidate():void};
+type Connection={state:State;connect():Promise<void>;refresh():Promise<void>;invalidate():void};
 const Context=createContext<Connection|null>(null);
 
 /** Lives above navigation. Losing authorization must not unmount unsaved editors. */
@@ -23,18 +23,21 @@ export function AuthoringSessionProvider({mode,client,children}:{mode:Mode;clien
   scope.epoch++;scope.locked=false;
   publish({status:'disconnected',datasetId:dataset.current,busy:false,error:'连接已失效，未保存内容仍保留。'});
  },[scope,mode,publish,viewEpoch]);
- const run=useCallback(async(code?:string)=>{
+ const run=useCallback(async()=>{
   if(!scope.active||mode!=='local'||scope.locked)return;
   scope.locked=true;const epoch=++scope.epoch;
   const current=()=>scope.active&&epoch===scope.epoch;
   publish({status:'checking',datasetId:dataset.current,busy:true,error:''});
   try{
-   if(code!==undefined)await client.connect(code);
+   let session=await client.session();
    if(!current())return;
-   const session=await client.session();
+   // One automatic establishment per invocation. Failure waits for an explicit
+   // retry; reconnecting a session never invokes a pending business command.
+   if(!session.authenticated)session=await client.connect();
    if(!current())return;
-   if(session.authenticated)dataset.current=session.datasetId;
-   publish({status:session.authenticated?'connected':'disconnected',datasetId:dataset.current,busy:false,error:''});
+   if(!session.authenticated)throw Error('LOCAL_SESSION_INVALID');
+   dataset.current=session.datasetId;
+   publish({status:'connected',datasetId:dataset.current,busy:false,error:''});
   }catch{
    if(current())publish({status:'disconnected',datasetId:dataset.current,busy:false,error:'本机连接失败，请重试。未保存内容仍保留。'});
   }finally{if(current())scope.locked=false;}

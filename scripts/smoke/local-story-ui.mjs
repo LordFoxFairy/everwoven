@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {chromium, expect} from '@playwright/test';
-import {withLocalBrowser,fillConnectionCode} from './local-browser-harness.mjs';
+import {withLocalBrowser} from './local-browser-harness.mjs';
 
 // Original Studio only. This gate deliberately rejects the temporary root panel.
 process.env.SMOKE_PORT ??= '3198';
@@ -13,7 +13,7 @@ const reference = await picture('story-source.png', '#a6c5ef');
 const portrait = await picture('story-person.png', '#c5b1eb');
 const cover = await picture('story-cover.png', '#eaceb7');
 const opening = await picture('story-opening.png', '#b3ded4');
-await withLocalBrowser(async ({page, origin, datasetId, connectionCode, newConnectionCode, restart}) => {
+await withLocalBrowser(async ({page, origin, datasetId, restart}) => {
   page.setDefaultTimeout(15000);
   const commands = new Map(), boundaryErrors = [];
   page.on('request', request => {
@@ -62,9 +62,8 @@ await withLocalBrowser(async ({page, origin, datasetId, connectionCode, newConne
   }
   await page.goto(origin, {waitUntil: 'networkidle'});
   await page.getByRole('button', {name: '角色库', exact: true}).click();
-  await fillConnectionCode(page.getByLabel('本机连接码', {exact: true}), connectionCode);
-  await page.getByRole('button', {name: '连接本机', exact: true}).click();
   await page.getByRole('status').filter({hasText: '已连接本机'}).waitFor();
+  assert.equal(await page.getByLabel('本机连接码').count(), 0);
   await page.getByRole('button', {name: '创建角色', exact: true}).click();
   const characterName = '原Studio聚合验收角色';
   await page.getByLabel('角色姓名').fill(characterName);
@@ -223,7 +222,7 @@ await withLocalBrowser(async ({page, origin, datasetId, connectionCode, newConne
   assert.deepEqual(boundaryErrors, []);
   assert.equal(commands.size, 7);
   // A process restart in the same tab is not a browser restart. Close the
-  // first Chromium process, open a separate clean one and explicitly reconnect.
+  // first Chromium process, open a separate clean one and connect automatically without a code.
   const persisted = await query('storyDrafts.get', {protocolVersion: 1, datasetId, id: created.data.id});
   assert.equal(persisted.revision, 7);
   await page.context().browser().close();
@@ -239,9 +238,9 @@ await withLocalBrowser(async ({page, origin, datasetId, connectionCode, newConne
       IDBFactory.prototype.open = function () {throw Error('test IndexedDB unavailable');};
     });
     await fresh.goto(origin, {waitUntil: 'networkidle'});
+    await expect(fresh.getByRole('status').filter({hasText: '已连接本机'})).toBeVisible();
+    await expect(fresh.getByLabel('本机连接码')).toHaveCount(0);
     await fresh.getByRole('button', {name: '我的剧本', exact: true}).click();
-    await fillConnectionCode(fresh.getByLabel('本机连接码', {exact: true}), newConnectionCode());
-    await fresh.getByRole('button', {name: '连接本机', exact: true}).click();
     await fresh.getByRole('button', {name: `打开剧本 ${title}`, exact: true}).click();
     await expect(fresh.getByLabel('剧本名称')).toHaveValue(persisted.title);
     const reopened = await fresh.request.get(`${origin}/api/trpc/storyDrafts.get?input=${encodeURIComponent(JSON.stringify({protocolVersion: 1, datasetId, id: persisted.id}))}`, {headers: {'x-everwoven-request': '1'}});
