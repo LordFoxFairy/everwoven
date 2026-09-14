@@ -58,7 +58,7 @@ export async function createExperience(store: ExperienceOpeningStore, owner: Int
       id = nextId(services), setupId = nextId(services), draftId = nextId(services);
     const root: ExperienceRecord = {
       id, ownerId: owner.ownerId, storyVersionId: story.id, providerBindingVersionId: binding.id,
-      budgetLimitMicros: BigInt(v.budget.limitMicros), budgetCurrency: v.budget.currency,
+      budgetScopeId: null, budgetLimitMicros: BigInt(v.budget.limitMicros), budgetCurrency: v.budget.currency,
       status: 'preparing', schedulingPaused: true, dispatchEpoch: 0, revision: 1, rowRevision: 1,
       createdAt: now, updatedAt: now, deletedAt: null, archivedAt: null,
     };

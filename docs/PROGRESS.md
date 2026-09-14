@@ -524,3 +524,19 @@ transport自检补adapter版本RED，改为复用已有validateMiniMaxBinding/mi
 当前原3100启动句柄已不存在且端口无监听，权威检查确认服务停止后才执行旧host显式init-epoch，实际exit0且不打印epoch/凭据，runtime --check通过，然后启动同目录同3100。上次完整主仓/production+原开局UI已通过，adapter约束最后小改后聚焦/类型也通过；最后全量/构建及当前原页面验证在继续。没有视频付费调用、没有新增用户剧情/图片业务数据。
 
 本轮最后主仓118文件1866/1866及runtime/Web类型exit0（/tmp/everwoven-transport-final-main.log）；最后production build及原开局/unknown/冷浏览器重入UI smoke exit0，当前3100原页面只读检查exit0。原连接码表单仍不存在。真实视频尚未在原页面播放，明确未闭环。transport独立复核因外部agent认证错误待补，不把主会话自检当独立PASS；现有epoch独立PASS限其范围。下一步按用户纠偏以完整纵向切片直接接start/任务/播放器/播后第二幕，不继续增加孤立管理能力。
+
+
+上一提交 f6fdef07bdd50bc8e2135f89d218459faaa30d01 已 push 既有开发分支；精确 CI34812426859 completed/success。transport 的独立复核仍因外部 agent 认证失败待补，不把主会话验证当独立 PASS。整体 goal active，未合并 main、发 tag 或发布镜像。
+
+2026-09-14 主线推进：首幕/回应报价、同事务 Quote 消费＋根/经历预算＋Turn/Reservation/Outbox、一次提交与恢复查询、播放后决定节点、下一幕 parentTurnId 已加入 runtime。schema 增量为五表和 Experience.budgetScopeId，共22表15业务唯一零FK；尚未应用到用户库。定价9项首轮真实RED→GREEN；随后SQLite生成/Worker测试覆盖事务注入失败回滚、进程重开、未知提交不重发、租约过期与迟到结果、播前无选项和两幕自由回应。最后聚焦检查进行中，未拿前一1866结果替代。
+
+实现边界明确：这是内部应用链路，尚未注册原页面/Host的正式 executor，也未落地私有视频传输和真实付费调用。测试的HTTP响应、导演和媒体检查是测试替身；没有写用户剧情或读取密钥。预算当前保守持有，实际费用结算/释放、存档fork和回应草稿编辑API继续待做，不能声称全面闭环。上次 f6fdef0 的精确CI34812426859已success。
+
+
+本轮最终验证：主仓完整测试与 runtime/Web 类型均 exit0（/tmp/everwoven-generation-final-main.log）；隔离源码生产构建、原准备UI/冷浏览器重入 smoke exit0（/tmp/everwoven-generation-isolated-build.log、*-ui.log）。主仓原有大页图片维护测试完整并行时超5秒，单独原断言约2秒通过；仅将该127次真实宿主检查的单例上限调为15秒，未改维护实现或断言。其他测试没有放宽。
+
+用户原3100 PID94510/cwd确认后温和停机exit0；独立SQLite backup完成并关闭所有句柄后执行第三个增量迁移。原17业务表按旧列逐行摘要相同、前两次migration记录相同、五个新表为空、integrity_check=ok、零FK。私有备份位置仅存/tmp/everwoven-generation-upgrade.json。正式 runtime --check exit0 后，同目录同3100已重启（session74220/PID4287）；当前Chrome自动会话、原角色/剧本编辑器、我的游玩目录、刷新复用只读验证exit0（/tmp/everwoven-generation-current3100.log）。没有写入用户剧情、图片或生成测试数据。
+
+最新用户约束：用户已有 API Key；明确要求实现写完之前不做昂贵测试。所有本轮已运行验证均为本地/测试替身，付费调用为0；后续先写完正式组合，再核对明确预算与用户授权。用户截图只显示 OPENROUTER_API_KEY、POLLO_API_KEY、POLLO_BASE 名称和截断URL，不能当作MiniMax官方凭据证明。已异步询问不含凭据的完整POLLO_BASE、服务名和模型ID；不要请求/记录Key值，也不要把POLLO Key发送给官方MiniMax或反过来。截图可能表示文字与视频两个独立供应商，须以真实端点协议确定适配器。先前cn/io提问可由实际供应商信息取代。
+
+下一步仍围绕同一原页面：正式执行器（文字规划/视频/私有媒体/内容结果）、Host/tRPC、原准备费用确认和单视频舞台；随后实际结算、草稿编辑和存档fork。内部两幕测试已经覆盖playback后才给选项和parentTurnId，但原页面尚未播放真实生成视频，未声称完成。维持无付费调用；provider具体协议等待用户提供公开地址，不凭变量名猜接口。

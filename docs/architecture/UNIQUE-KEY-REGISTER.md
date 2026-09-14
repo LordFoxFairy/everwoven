@@ -45,3 +45,9 @@ versionNo 和 sourceRevision 是两种不同的防线：发布编号与来源修
 ## M2-B1增量 · ExecutionProfileVersion
 
 新增 `ExecutionProfileVersion(ownerId,profileKey,versionNo)`，索引名`uq_execution_profiles_version`：同用户给定配置key的一个版本只能定义一份固定执行身份，三个阶段绑定、prompt/graph/schema或限额任一变化须新版本。同内容复用；同版本漂移冲突。字段均非空，历史无删除/占号复用；不同owner或不同key可以存同模型/同内容hash，hash不唯一。dataset由宿主隔离、应用摘要绑定，跨库导入不能只复制引用。累计**14个真实业务唯一、17个主键**；上方13/16为authoring基线历史，不再代表新增后的总数。没有外键。
+
+## 分段生成主链增量（2026-09-14）
+
+`GenerationTurn(quoteId)` / `uq_generation_turn_quote`：同一已接受报价仅产生一个回合。quoteId 非空，回合失败或结果未知后仍保留历史占号，不能通过软删除重试收费；新收费必须是新的报价确认。不同报价可以引用同一父节点，故 parentTurnId **不是唯一键**。累计 22 个主键、15 个真实业务唯一，所有表零 FK。
+
+BudgetReservation.id 和 RuntimeOutbox.id 分别复用本次 turnId，表示本轮唯一预算占用与可反复唤醒的一条执行记录；没有额外叠加 `(ownerId,id)` 等冗余唯一。未来若支持多个并行工作项，应另立工作项身份，不能无声改变当前一对一含义。

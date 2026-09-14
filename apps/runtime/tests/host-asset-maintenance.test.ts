@@ -76,4 +76,5 @@ it('actual DB default quota 25 / hard 100; no fetch-until-empty and next cursor 
  const list=vi.spyOn(stores.PrismaAssetMaintenanceStore.prototype,'list');const a=await run();expect(a.examined).toBe(25);expect(list).toHaveBeenCalledOnce();
  const b=await run({limit:100});expect(b.examined).toBe(100);expect(list).toHaveBeenCalledTimes(2);
  const c=await run({limit:100,cursor:b.nextCursor!});expect(c.examined).toBe(2);expect(c.nextCursor).toBeNull();await noFiles();
-});
+// 127 real host-bound item checks compete with the full integration suite for disk I/O.
+},15000);

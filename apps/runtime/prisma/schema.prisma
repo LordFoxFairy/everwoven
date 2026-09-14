@@ -3,7 +3,7 @@
 // Reference/lifecycle validation belongs to WriteGate; business UNIQUE is also enforced by SQL.
 // IDs and timestamps are supplied by runtime IdFactory / Clock, not database defaults.
 // Exact approved additive migration chain; no legacy runtime protocol compatibility.
-// Execution profiles are immutable M2 configuration; jobs/media/facts/ledger remain pending.
+// Execution profiles and quotes are immutable. Generation execution is durable; private media and settlement composition remain pending.
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -216,6 +216,7 @@ model ProviderBindingVersion {
 }
 
 model Experience {
+  budgetScopeId String? @map("budget_scope_id")
   budgetLimitMicros        BigInt    @map("budget_limit_micros")
   budgetCurrency           String    @map("budget_currency")
   deletedAt                DateTime? @map("deleted_at")
@@ -310,4 +311,85 @@ model ExecutionProfileVersion {
 
   @@unique([ownerId, profileKey, versionNo], map: "uq_execution_profiles_version")
   @@map("execution_profile_versions")
+}
+
+
+model GenerationQuote {
+ id String @id
+ ownerId String @map("owner_id")
+ datasetId String @map("dataset_id")
+ storeEpoch String @map("store_epoch")
+ experienceId String @map("experience_id")
+ experienceRevision Int @map("experience_revision")
+ interactionEventId String @map("interaction_event_id")
+ profileId String @map("profile_id")
+ maxCostMicros BigInt @map("max_cost_micros")
+ currency String
+ snapshot Json
+ contentHash String @map("content_hash")
+ acceptedTurnId String? @map("accepted_turn_id")
+ createdAt DateTime @map("created_at")
+ expiresAt DateTime @map("expires_at")
+ schemaVersion Int @default(1) @map("schema_version")
+ @@index([ownerId, experienceId, createdAt, id], map:"ix_generation_quotes_experience")
+ @@map("generation_quotes")
+}
+model BudgetScope {
+ id String @id
+ ownerId String @map("owner_id")
+ limitMicros BigInt @map("limit_micros")
+ currency String
+ createdAt DateTime @map("created_at")
+ @@map("budget_scopes")
+}
+model GenerationTurn {
+ parentTurnId String? @map("parent_turn_id")
+ prepared Json?
+ providerReference Json? @map("provider_reference")
+ media Json?
+ result Json?
+ id String @id
+ ownerId String @map("owner_id")
+ experienceId String @map("experience_id")
+ budgetScopeId String @map("budget_scope_id")
+ quoteId String @unique(map:"uq_generation_turn_quote") @map("quote_id")
+ interactionEventId String @map("interaction_event_id")
+ status String
+ errorCode String? @map("error_code")
+ createdAt DateTime @map("created_at")
+ updatedAt DateTime @map("updated_at")
+ revision Int @default(1)
+ @@index([ownerId, experienceId, createdAt, id], map:"ix_generation_turn_experience")
+ @@index([parentTurnId], map:"ix_generation_turn_parent")
+ @@map("generation_turns")
+}
+model BudgetReservation {
+ id String @id
+ ownerId String @map("owner_id")
+ experienceId String @map("experience_id")
+ budgetScopeId String @map("budget_scope_id")
+ reservedMicros BigInt @map("reserved_micros")
+ settledMicros BigInt @map("settled_micros")
+ currency String
+ status String
+ createdAt DateTime @map("created_at")
+ updatedAt DateTime @map("updated_at")
+ revision Int @default(1)
+ @@index([budgetScopeId, status], map:"ix_budget_reservation_scope")
+ @@index([ownerId, experienceId], map:"ix_budget_reservation_experience")
+ @@map("budget_reservations")
+}
+model RuntimeOutbox {
+ id String @id
+ ownerId String @map("owner_id")
+ kind String
+ status String
+ availableAt DateTime @map("available_at")
+ leaseUntil DateTime? @map("lease_until")
+ leaseToken String? @map("lease_token")
+ createdAt DateTime @map("created_at")
+ updatedAt DateTime @map("updated_at")
+ revision Int @default(1)
+ @@index([status, availableAt, id], map:"ix_runtime_outbox_ready")
+ @@map("runtime_outbox")
 }

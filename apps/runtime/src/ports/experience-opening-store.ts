@@ -7,7 +7,7 @@ export type StoredBinding = Omit<BindingSpec, 'parameters' | 'capabilities' | 'm
 };
 export type ExperienceRecord = {
   id: string; ownerId: string; storyVersionId: string; providerBindingVersionId: string;
-  budgetLimitMicros: bigint; budgetCurrency: string; status: string; schedulingPaused: boolean;
+  budgetScopeId: string | null; budgetLimitMicros: bigint; budgetCurrency: string; status: string; schedulingPaused: boolean;
   dispatchEpoch: number; revision: number; rowRevision: number;
   deletedAt: Date | null; archivedAt: Date | null; createdAt: Date; updatedAt: Date;
 };

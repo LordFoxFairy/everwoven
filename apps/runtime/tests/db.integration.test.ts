@@ -50,7 +50,7 @@ describe('M0 real Prisma / file-backed SQLite', () => {
     expect(await db.$queryRawUnsafe('PRAGMA journal_mode')).toEqual([{ journal_mode: 'wal' }]);
     expect(await db.$queryRawUnsafe('PRAGMA foreign_keys')).toEqual([{ foreign_keys: 1n }]);
     const tables = await db.$queryRawUnsafe<Array<{name: string}>>("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE '\\_%' ESCAPE '\\'");
-    expect(tables).toHaveLength(17);
+    expect(tables).toHaveLength(22);
     for (const {name} of tables) {
       expect(await db.$queryRawUnsafe(`PRAGMA foreign_key_list("${name}")`)).toEqual([]);
     }
@@ -161,17 +161,19 @@ describe('WriteGate and minimal internal title-update repository', () => {
 
 
 describe('database guardrails and standalone diagnostic entry', () => {
-  it('matches all 14 reviewed unique indexes by name and columns, with 17 primary keys', async () => {
+  it('matches all 15 reviewed unique indexes by name and columns, with 22 primary keys', async () => {
     const db = await connect();
     const migration = await readFile(join(root, 'prisma/migrations/202609120001_authoring_baseline/migration.sql'), 'utf8');
     const review = await readFile(join(root, '../../docs/architecture/data/authoring.generated.sql'), 'utf8');
     expect(migration.trim()).toBe(review.trim());
     const profileSQL = await readFile(join(root, 'prisma/migrations/202609130001_execution_profiles/migration.sql'), 'utf8');
     expect(profileSQL).toBe(await readFile(join(root, '../../docs/architecture/data/execution-profiles.generated.sql'), 'utf8'));
-    const sql = migration + '\n' + profileSQL;
+    const generationSQL = await readFile(join(root, 'prisma/migrations/202609140001_generation_acceptance/migration.sql'), 'utf8');
+    expect(generationSQL).toBe(await readFile(join(root, '../../docs/architecture/data/generation-acceptance.generated.sql'), 'utf8'));
+    const sql = migration + '\n' + profileSQL + '\n' + generationSQL;
     const expected = [...sql.matchAll(/CREATE UNIQUE INDEX "([^"]+)" ON "([^"]+)"\(([^)]+)\)/g)]
       .map(m => ({name: m[1]!, table: m[2]!, columns: m[3]!.replaceAll('"', '').split(',').map(v => v.trim())}));
-    expect(expected).toHaveLength(14);
+    expect(expected).toHaveLength(15);
     const actual = await db.$queryRawUnsafe<Array<{name: string}>>("SELECT name FROM sqlite_master WHERE type='index' AND sql LIKE 'CREATE UNIQUE INDEX%'");
     expect(actual.map(v => v.name).sort()).toEqual(expected.map(v => v.name).sort());
     for (const index of expected) {
@@ -198,7 +200,7 @@ describe('database guardrails and standalone diagnostic entry', () => {
   it('rejects an unexpected FK or trigger schema instead of using foreign_keys=OFF to disguise it', async () => {
     const db = await connect();
     await db.$executeRawUnsafe('ALTER TABLE story_drafts ADD COLUMN illegal_owner TEXT REFERENCES local_profiles(id)');
-    // Keep 17 business tables so the precise DDL check can reject this schema.
+    // Keep 22 business tables so the precise DDL check can reject this schema.
     const status = await openRuntimeDatabase(dbPath).then(async client => { await client.$disconnect(); return 'opened'; }, error => error.message);
     expect(status).toBe('DATABASE_SCHEMA_NOT_APPROVED');
     await db.$executeRawUnsafe('ALTER TABLE story_drafts DROP COLUMN illegal_owner');
@@ -274,7 +276,7 @@ describe('clean authoring baseline fields', () => {
 
 // Every predecessor remains mandatory; this is not a legacy schema acceptance mode.
 describe('approved complete migration chain', () => {
-  it.each(['202609120001_authoring_baseline', '202609130001_execution_profiles'])('rejects altered or missing predecessor %s', async name => {
+  it.each(['202609120001_authoring_baseline', '202609130001_execution_profiles', '202609140001_generation_acceptance'])('rejects altered or missing predecessor %s', async name => {
     const db = await connect();
     await db.$executeRawUnsafe('UPDATE _prisma_migrations SET checksum = ? WHERE migration_name = ?', 'wrong', name);
     await expect(openRuntimeDatabase(dbPath)).rejects.toThrow('DATABASE_MIGRATION_NOT_APPROVED');
@@ -289,6 +291,9 @@ describe('non-destructive explicit profile migration', () => {
     const db = await connect(); const {ownerId, story} = await seedStory(db);
     const before = await db.localProfile.findUniqueOrThrow({where: {id: ownerId}});
     const history = await db.$queryRawUnsafe<Array<{checksum:string}>>("SELECT checksum FROM _prisma_migrations WHERE migration_name = '202609120001_authoring_baseline'");
+    for (const table of ['generation_quotes', 'budget_scopes', 'generation_turns', 'budget_reservations', 'runtime_outbox']) await db.$executeRawUnsafe(`DROP TABLE ${table}`);
+    await db.$executeRawUnsafe('ALTER TABLE experiences DROP COLUMN budget_scope_id');
+    await db.$executeRawUnsafe("DELETE FROM _prisma_migrations WHERE migration_name = '202609140001_generation_acceptance'");
     // Return only this disposable database to the previously approved exact schema.
     await db.$executeRawUnsafe('DROP TABLE execution_profile_versions');
     await db.$executeRawUnsafe("DELETE FROM _prisma_migrations WHERE migration_name = '202609130001_execution_profiles'");
