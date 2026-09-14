@@ -20,7 +20,8 @@ import type {QuoteDTO} from '../contracts/generation.js';
 
 export type PreparedScene = {prompt: string};
 export type PrivateSceneMedia = {id: string; sha256: string; duration: number};
-export type SceneResult = {summary: string; choices: Array<{id: string; title: string; text: string}>};
+import {parseSceneResult, type SceneResult} from '../contracts/generation-output.js';
+export type {SceneResult} from '../contracts/generation-output.js';
 export type GenerationContext = {turnId: string; story: StoryVersionDTO; profile: PinnedProfile; quote: QuoteDTO; action: string; parentSummary: string; validatorImageLimit: number};
 /** Only trusted runtime adapters implement these operations; there is no request-time injection. */
 export type GenerationExecutor = {
@@ -128,10 +129,7 @@ export function createGenerationWorker(db: PrismaClient, owner: InternalOwnerCon
     if (!media || typeof media.id !== 'string' || !/^[a-f0-9]{64}$/.test(media.sha256) || !Number.isFinite(media.duration) || media.duration <= 0) throw Error('GENERATION_MEDIA_INVALID');
     await finish('checking', {media: json(media)});
    } else if (stage === 'validating') {
-    const result = await executor.validate(context, turn.media as unknown as PrivateSceneMedia);
-    if (!result || typeof result.summary !== 'string' || !result.summary.trim() || result.summary.length > 2000 || !Array.isArray(result.choices) || result.choices.length < 2 || result.choices.length > 4 ||
-     new Set(result.choices.map(c => c.id)).size !== result.choices.length || result.choices.some(c => typeof c.id !== 'string' || !/^[a-z0-9_-]{1,64}$/.test(c.id) ||
-      typeof c.title !== 'string' || !c.title.trim() || c.title.length > 100 || typeof c.text !== 'string' || !c.text.trim() || c.text.length > 2000)) throw Error('GENERATION_CONTENT_UNCONFIRMED');
+    const result = parseSceneResult(await executor.validate(context, turn.media as unknown as PrivateSceneMedia));
     // The media is playable; result remains a candidate until a separate playback-complete command.
     await finish('ready', {result: json(result)});
    }

@@ -540,3 +540,15 @@ transport自检补adapter版本RED，改为复用已有validateMiniMaxBinding/mi
 最新用户约束：用户已有 API Key；明确要求实现写完之前不做昂贵测试。所有本轮已运行验证均为本地/测试替身，付费调用为0；后续先写完正式组合，再核对明确预算与用户授权。用户截图只显示 OPENROUTER_API_KEY、POLLO_API_KEY、POLLO_BASE 名称和截断URL，不能当作MiniMax官方凭据证明。已异步询问不含凭据的完整POLLO_BASE、服务名和模型ID；不要请求/记录Key值，也不要把POLLO Key发送给官方MiniMax或反过来。截图可能表示文字与视频两个独立供应商，须以真实端点协议确定适配器。先前cn/io提问可由实际供应商信息取代。
 
 下一步仍围绕同一原页面：正式执行器（文字规划/视频/私有媒体/内容结果）、Host/tRPC、原准备费用确认和单视频舞台；随后实际结算、草稿编辑和存档fork。内部两幕测试已经覆盖playback后才给选项和parentTurnId，但原页面尚未播放真实生成视频，未声称完成。维持无付费调用；provider具体协议等待用户提供公开地址，不凭变量名猜接口。
+
+本轮已本地提交 57d327b（22文件，持久生成/播放后续幕内部链路），尚未推送或触发新CI。最新约束下先继续写完正式供应商组合和原页面；不进行付费API测试。当前公开供应商地址/模型ID的异步提问待回复，Key值不请求、不采集。原3100保持session74220/PID4287运行。
+
+2026-09-14 生成播放 API 实施：上一轮截图澄清没有实码，本轮继续推进可独立完成的代码，不等待公开供应商地址。按已批准执行计划，新增 GenerationPlayback 服务，将历史读取/播放完成从需要现行 GenerationPolicy 的生成服务分离；原 Host 注入认证 owner/dataset 与 storeEpoch、固定 SQLite 文件身份。原 `/api/trpc/generation.get`、`generation.completePlayback` 和浏览器 PlaybackClient 已实现；报价/接受尚未暴露到 HTTP，不会接受没有正式调度器的付费任务。没有读取 Key 或调用付费接口。
+
+新增严格 PlayDTO/SceneResult/PlaybackResult 输出校验，worker 与 API 共用建议规范。状态必须匹配当前 turn；媒体只给私有 ID/时长；选项只在 awaiting/viewed 返回。播放通知事务前验证候选内容，损坏数据不写决定节点/草稿/回执。历史播放回执按原命令的经历、修订、回合、媒体校验，后续 GET 读取真实当前状态。HTTP 限 origin、cookie、marker、非batch和有界输入；浏览器有界流与错误脱敏，不自动重发 mutation。此接口仍是客户端播放完成通知，尚不证明观看覆盖率；正式媒体/播放凭据门锁待接入。
+
+独立只读评审 Aquinas（01a09ec1-0b3d-7e01-a667-751663c4b717）发现 P2：按 createdAt 排序会在系统时间回拨后选中上一幕。已新增 currentGenerationTurn，以已接受报价的逻辑 experienceRevision 定位、核对 acceptedTurnId/quoteId/owner/经历/interactionEvent 双向关系。播放 get/complete、回应 quote/accept 共用规则；没有新增 schema/迁移或假唯一。真实 SQLite 三幕回拨测试证明第二幕时间早于第一幕仍能正确读取/播放/选择，第三幕 parent 指向第二幕。Aquinas 复核关闭 P2，4文件50项及17个内存探针通过，当前该切片开放 P1/P2=0；此评审不等同于旧正式 executor/整个产品已通过评审。
+
+验证记录：聚焦6文件63项通过；主仓完整125文件1939项、runtime/Web源码及测试类型检查均exit0（/tmp/everwoven-playback-main.log、*-types.log）。初次类型检查发现测试 Header fixture 推导带 undefined，修为显式 HeadersInit[] 后通过，未放宽断言。独立稳定树 /tmp/everwoven-verify.zRVKTD 覆盖当前显式源码，production build exit0（/tmp/everwoven-playback-production.log）。原3100核对PID4287/cwd后温和退出exit0，同数据目录重启为session30446/PID9207，无迁移/用户业务写入。真实Chrome原入口、自动会话、原角色/剧本编辑器、我的游玩、刷新复用与认证 generation GET 到真实Host全部exit0（/tmp/everwoven-playback-current3100.log）；该GET验证不冒充浏览器已播放视频。
+
+API文档与技术方案已更新架构/时序/状态/回执边界。仍待落实：正式供应商执行与价格准入/调度、私有媒体与播放凭据、原准备费用确认及舞台绑定、响应草稿编辑、实际费用结算、合格存档与fork；然后在明确预算授权后验收两幕真实生成和重启恢复。POLLO完整公开地址/文档/模型ID仍待用户提供；不得凭截图变量名把POLLO当官方MiniMax。全程付费调用0，goal保持active。

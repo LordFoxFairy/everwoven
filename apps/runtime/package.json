@@ -85,6 +85,14 @@
     "./contracts/experience-directory": {
       "types": "./src/contracts/experience-directory.ts",
       "default": "./dist/contracts/experience-directory.js"
+    },
+    "./contracts/generation": {
+      "types": "./src/contracts/generation.ts",
+      "default": "./dist/contracts/generation.js"
+    },
+    "./contracts/generation-output": {
+      "types": "./src/contracts/generation-output.ts",
+      "default": "./dist/contracts/generation-output.js"
     }
   }
 }

@@ -1,10 +1,11 @@
+import type {WithPlayback} from '../local-generation';
 import type {WithAssets} from '../local-assets';
 import type {WithCharacters} from '../local-characters';
 import type {WithStories} from '../local-runtime';
 import type {WithOpenings} from '../local-openings';
 import {initTRPC} from '@trpc/server';
 
-export type APIContext = {env: Record<string, string | undefined>; withStories?: WithStories; withCharacters?: WithCharacters; withAssets?: WithAssets; withOpenings?: WithOpenings};
+export type APIContext = {env: Record<string, string | undefined>; withStories?: WithStories; withCharacters?: WithCharacters; withAssets?: WithAssets; withOpenings?: WithOpenings; withPlayback?: WithPlayback};
 const t = initTRPC.context<APIContext>().create({
   errorFormatter({shape}) {
     const {stack: _stack, ...data} = shape.data;

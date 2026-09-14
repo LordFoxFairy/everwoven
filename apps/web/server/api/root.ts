@@ -1,3 +1,4 @@
+import {generationRouter} from './generation';
 import {assetRouter} from './assets';
 import {openingRouter} from './openings';
 import {characterRouter} from './characters';
@@ -7,6 +8,7 @@ import {readVideoConfiguration} from '../services/video-configuration';
 import {videoConfigurationSchema} from '../../contracts/video';
 
 export const appRouter = createTRPCRouter({
+  generation: generationRouter,
   openings: openingRouter,
   assets: assetRouter,
   storyDrafts: storyDraftRouter,

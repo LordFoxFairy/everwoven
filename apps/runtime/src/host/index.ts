@@ -1,3 +1,5 @@
+import {createGenerationPlayback} from '../application/generation-playback.js';
+import {acquireLocalStoreAuthority} from './store-epoch.js';
 import {createCharacterService} from '../composition/character-service.js';
 import type {PrismaClient} from '../generated/prisma/client.js';
 import {createStoryDraftService} from '../composition/story-draft-service.js';
@@ -119,5 +121,19 @@ export function maintainLocalAssets(directory: string, environment: LocalEnviron
     (db, owner, {host, revalidate}) => {
       const assets = bindAssets(db, owner, host, revalidate);
       return createAssetMaintenance(new PrismaAssetMaintenanceStore(db), {owner, revalidate, cleanup: assets.cleanup})(input);
+    }, true);
+}
+
+const playbackErrors = new Set(['CLIENT_RELOAD_REQUIRED', 'DATASET_CHANGED', 'OWNER_UNAVAILABLE', 'REVISION_CONFLICT',
+  'IDEMPOTENCY_CONFLICT', 'REVISION_EXHAUSTED', 'INVALID_GENERATION_COMMAND', 'INVALID_GENERATION_QUERY',
+  'EXPERIENCE_NOT_FOUND', 'GENERATION_NOT_PLAYABLE', 'GENERATION_CONTENT_UNCONFIRMED', 'STORE_AUTHORITY_UNAVAILABLE']);
+/** Uses the original local session and SQLite host. Reads and playback receipts never submit generation. */
+export function withLocalGenerationPlayback<T>(directory: string, environment: LocalEnvironment, token: string,
+  work: (service: ReturnType<typeof createGenerationPlayback>, owner: InternalOwnerContext) => Promise<T>): Promise<T> {
+  return withLocalDatabase(directory, environment, token, playbackErrors, 'LOCAL_GENERATION_FAILED',
+    async (db, owner, {revalidate}) => {
+      const captured = await acquireLocalStoreAuthority(directory, environment);
+      const authority = {...captured, revalidate: async () => {await revalidate(); await captured.revalidate();}};
+      return work(createGenerationPlayback(db, owner, authority), owner);
     }, true);
 }

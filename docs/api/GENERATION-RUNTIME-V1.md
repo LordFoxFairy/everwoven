@@ -1,6 +1,6 @@
-# 分段生成主链：内部应用契约
+# 分段生成主链与播放 API 契约
 
-2026-09-14。当前实现位于 `apps/runtime/src/application/generation.ts` 和 `generation-worker.ts`。本文记录内部已实现契约，**尚未注册到原页面 tRPC/Host，也没有正式的导演、私有视频和校验适配组合**。测试用显式假传输验证协议和数据库行为，不是付费模型验收。
+2026-09-14。生成实现位于 `apps/runtime/src/application/generation.ts` 和 `generation-worker.ts`；播放读取/回执独立位于 `generation-playback.ts`。`generation.get` 与 `generation.completePlayback` 已注册到原应用的 Host/tRPC，并有浏览器客户端。报价与接受仍是内部契约，**正式导演、私有视频、校验适配组合、调度及原页面绑定尚未完成**。测试用显式假传输验证协议和数据库行为，不是付费模型验收。
 
 ## 输入与回执
 
@@ -17,6 +17,53 @@
 `QuoteDTO.summary` 含标题、本次输入、模型、地区、时长、分辨率、比例、声音方案、明确发送的私有图片 ID。不得将此摘要说成视频中已发生的内容。`TurnDTO` 是接受回执；其 queued 状态为接受时的历史事实，当前状态以 get 为准。播放回执同样不替代当前读取。
 
 相同命令和规范化输入返回原回执；不同输入复用命令 ID 报 IDEMPOTENCY_CONFLICT。报价回放不续期、不读取当前价格；接受回放不重新预留预算。新命令重用已消费报价被拒绝。修改本轮输入后需要新报价和新的明确确认。
+
+## 原应用播放接口
+
+| 路径 | 方法 | tRPC 输入 / 输出 |
+|---|---|---|
+| `/api/trpc/generation.get` | GET | `input` 为 JSON 查询参数；输入为上表 get，输出 `result.data = PlayDTO` |
+| `/api/trpc/generation.completePlayback` | POST | JSON 请求体为上表 completePlayback，输出 `result.data = {data: PlayDTO, replayed: boolean}` |
+
+两者复用原本机会话 cookie、已配置来源和 `3100` 入口。POST 必须带相同 Origin 与 `x-everwoven-request: 1`；不接受单项或混合 batch。GET URL 上限 8192 字节，POST 流上限 16384 字节；响应 `no-store`、`nosniff`。浏览器读取成功响应最多 128 KiB，错误响应最多 8 KiB，越界立即取消读取。读取状态没有业务写入，也不唤醒 Worker。
+
+`PlayDTO` 的固定字段：`protocolVersion`、`datasetId`、`experienceId`、`title`、`revision`、`status`、`turn`、`interaction`。`turn` 仅含 `id/status/media/errorCode`；`media` 仅含私有 ID 和正数时长，不含绝对路径或供应商 URL。`interaction` 仅含 ID、1–2000 UTF-16 单元的摘要与 2–4 个去重建议；建议含 `id/title/text`，标题最多 100 单元，回应最多 2000 单元。
+
+输出校验关系：preparing 无 turn；generating 只允许执行中的 turn，且无媒体/选项；playing 必须 ready 且有媒体但无选项；awaiting 必须 viewed、有媒体和合法建议。unknown/failed 对应同名 turn，隐藏媒体和建议。成功/已播放状态不能带错误码。任何未知字段、跨数据集/经历响应或不一致状态都转为固定内部错误。
+
+当前幕定位使用已接受报价的 `experienceRevision`（逻辑修订），并验证报价 acceptedTurnId 与回合 quoteId、owner、经历、interactionEventId 的双向关系。接受使经历修订 +1，播放完成再 +1；同一逻辑节点出现多份已接受报价按数据损坏拒绝。报价、播放读取/完成和下一幕父节点选择共用此定位规则，系统时间回拨不会切换回旧幕。不增加物理外键或新的唯一约束。
+
+播放回执必须关联原请求的 turnId/mediaId，返回修订精确等于请求修订 +1。旧命令重放返回历史 awaiting 回执，**不代表当前仍可回应**；客户端应另行 GET 后渲染。新命令使用旧修订返回 409。当前 completePlayback 是受认证客户端的播放完成通知，尚不证明实际播放覆盖范围；正式媒体服务/播放凭据门锁仍待补齐，不能据此宣称真实视频验收完成。
+
+错误：无效参数 400；会话失效 401；来源拒绝 403；经历不存在 404；修订/幂等冲突、当前不可播放、内容未确认 409；数据集/协议变更 412；超大请求 413；未知内部失败 500；存储 epoch 暂不可用 503。返回固定标识，不传递堆栈、数据库路径、供应商响应。网络中断、无效响应、5xx 保持结果 unknown，不自动重发任何命令。
+
+```mermaid
+flowchart LR
+    Browser[原 T3 浏览器客户端] --> HTTP[原 tRPC / 会话与来源校验]
+    HTTP --> Host[withLocalGenerationPlayback]
+    Host --> Authority[文件身份 / owner / dataset / storeEpoch]
+    Host --> Playback[GenerationPlayback]
+    Playback --> DB[(同一个 SQLite)]
+    Generation[GenerationService 报价与接受] --> Playback
+    Generation --> Policy[安装的供应商执行策略]
+    Note[播放读取不依赖当前供应商配置] -.-> Playback
+```
+
+```mermaid
+sequenceDiagram
+    participant UI as 原页面客户端
+    participant Host as 播放 Host / tRPC
+    participant DB as SQLite
+    UI->>Host: GET generation.get(experienceId)
+    Host->>DB: 事务读取根状态、最新回合、当前决定节点
+    Host-->>UI: 经严格校验的 PlayDTO
+    Note over UI: 正式视频与 onEnded 绑定待完成
+    UI->>Host: POST completePlayback(原修订、回合、媒体、commandId)
+    Host->>DB: 幂等检查 + viewed/awaiting + 选项 + 草稿 + 回执
+    Host-->>UI: 历史播放回执
+    UI->>Host: GET generation.get(experienceId)
+    Host-->>UI: 当前状态，可能已进入新一幕
+```
 
 ## 持久执行
 

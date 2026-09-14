@@ -5,6 +5,7 @@ import {setup} from './fixtures/generation/setup.js';
 import {createGenerationWorker, type GenerationExecutor} from '../src/application/generation-worker.js';
 import {createMiniMaxVideoJobs} from '../src/providers/minimax-jobs.js';
 import {openRuntimeDatabase} from '../src/infrastructure/db/client.js';
+import {createGenerationPlayback} from '../src/application/generation-playback.js';
 beforeAll(prepare); afterAll(dispose);
 async function workerFixture() {
  const f = await setup(), quote = await f.generation.quote(f.quoteInput), accepted = await f.generation.accept(f.acceptInput(quote.data.id));
@@ -114,9 +115,68 @@ it('completes two persisted turns: choices only after playback, free response dr
   expect((await get()).interaction).toBeNull();
   for (let i = 0; i < 5; i++) await f.worker.tick();
   const result = await get(); expect(result.turn!.id).toBe(second.data.id); expect(result.turn!.status).toBe('ready');
+  // A delayed acknowledgement replays history; a separate GET keeps the actual current turn.
+  expect(await f.generation.completePlayback(completed)).toEqual({...played, replayed: true});
+  expect((await get()).turn!.id).toBe(second.data.id);
   expect(await f.db.generationTurn.findUnique({where: {id: second.data.id}})).toMatchObject({parentTurnId: f.turn.id});
   expect(await f.db.generationTurn.findUnique({where: {id: f.turn.id}})).toMatchObject({status: 'viewed', parentTurnId: null});
   expect(f.executor.plan).toHaveBeenLastCalledWith(expect.objectContaining({action: '我想回屋拿一把伞。', parentSummary: '两人在天台望向天空。'}));
   expect(await f.db.budgetReservation.count()).toBe(2);
+ } finally {await f.close();}
+});
+
+it('reads and acknowledges saved playback after reopening SQLite without any provider policy', async () => {
+ const f = await workerFixture(); let reopened: Awaited<ReturnType<typeof openRuntimeDatabase>> | undefined;
+ try {
+  for (let i = 0; i < 5; i++) await f.worker.tick();
+  const calls = f.transport.mock.calls.length;
+  const files = await f.db.$queryRawUnsafe<Array<{file: string}>>('PRAGMA database_list'); await f.db.$disconnect();
+  reopened = await openRuntimeDatabase(files[0]!.file);
+  const service = createGenerationPlayback(reopened, f.owner, f.authority, f.services);
+  const ready = await service.get({...f.protocol, experienceId: f.opening.id});
+  const input = {...f.protocol, commandId: v7(), experienceId: f.opening.id, expectedExperienceRevision: ready.revision, turnId: ready.turn!.id, mediaId: ready.turn!.media!.id};
+  const played = await service.completePlayback(input);
+  expect(played.data.interaction!.choices).toHaveLength(2);
+  expect(await service.completePlayback(input)).toEqual({...played, replayed: true});
+  expect(f.transport).toHaveBeenCalledTimes(calls);
+ } finally {await reopened?.$disconnect(); await f.close();}
+});
+it('rolls back playback entirely when stored candidate choices are malformed', async () => {
+ const f = await workerFixture();
+ try {
+  for (let i = 0; i < 5; i++) await f.worker.tick();
+  const ready = await f.generation.get({...f.protocol, experienceId: f.opening.id});
+  await f.db.generationTurn.update({where: {id: f.turn.id}, data: {result: {summary: '雨停了', choices: []}}});
+  const count = await f.db.commandReceipt.count();
+  await expect(f.generation.completePlayback({...f.protocol, commandId: v7(), experienceId: f.opening.id,
+   expectedExperienceRevision: ready.revision, turnId: f.turn.id, mediaId: ready.turn!.media!.id})).rejects.toThrow('GENERATION_CONTENT_UNCONFIRMED');
+  expect(await f.db.commandReceipt.count()).toBe(count);
+  expect(await f.db.interactionEvent.count({where: {kind: 'decision'}})).toBe(0);
+  expect((await f.generation.get({...f.protocol, experienceId: f.opening.id})).status).toBe('playing');
+ } finally {await f.close();}
+});
+
+it('keeps the logical current turn and parent across clock rollback through three scenes', async () => {
+ const f = await workerFixture();
+ try {
+  const get = () => f.generation.get({...f.protocol, experienceId: f.opening.id});
+  async function finishAndRespond() {
+   for (let i = 0; i < 5; i++) await f.worker.tick();
+   const ready = await get();
+   const played = await f.generation.completePlayback({...f.protocol, commandId: v7(), experienceId: f.opening.id,
+    expectedExperienceRevision: ready.revision, turnId: ready.turn!.id, mediaId: ready.turn!.media!.id});
+   const quote = await f.generation.quote({...f.protocol, kind: 'response', commandId: v7(), experienceId: f.opening.id,
+    expectedExperienceRevision: played.data.revision, interactionEventId: played.data.interaction!.id, text: '一起回屋。'});
+   return f.generation.accept({...f.acceptInput(quote.data.id), expectedExperienceRevision: played.data.revision});
+  }
+  for (let i = 0; i < 5; i++) await f.worker.tick();
+  f.tick(-500);
+  const second = await finishAndRespond();
+  const [firstRow, secondRow] = await Promise.all([f.db.generationTurn.findUniqueOrThrow({where: {id: f.turn.id}}), f.db.generationTurn.findUniqueOrThrow({where: {id: second.data.id}})]);
+  expect(secondRow.createdAt.getTime()).toBeLessThan(firstRow.createdAt.getTime());
+  expect((await get()).turn?.id).toBe(second.data.id);
+  const third = await finishAndRespond();
+  expect((await get()).turn?.id).toBe(third.data.id);
+  expect((await f.db.generationTurn.findUniqueOrThrow({where: {id: third.data.id}})).parentTurnId).toBe(second.data.id);
  } finally {await f.close();}
 });
