@@ -25,7 +25,7 @@
 
 这些是视觉采样核验，不能证明整个视频每一帧或音频正确；schema合格也不代表语义必然正确。实际画面理解能力、角色连续性和误判率仍需后续有预算的模型验收。
 
-每次成功返回的文本观察必须经过注入的 `observe(context, stage, observation)` **持久保存成功**才继续；该回调没有生产 no-op 默认。当前尚待实现正式持久观察记录/结算绑定。观察写入失败会传播给 Worker，维持未知状态和预留，不授权再次付费调用。
+每次成功返回的文本观察必须经过 `observe(context, stage, observation)` **持久保存成功**才继续；该回调没有生产 no-op 默认。`createPersistedGenerationExecutor` 已安装[正式SQLite观察记录](TEXT-USAGE-OBSERVATIONS.md)，绑定已接受报价/回合/阶段并验证幂等。结算仍须独立证据。观察写入失败会传播给 Worker，维持未知状态和预留，不授权再次付费调用。
 
 ## OpenRouter 适配准入
 
@@ -78,6 +78,6 @@ sequenceDiagram
 
 ## 下一实施切面
 
-正式 Host 仍需：固定供应商及凭据解析、精确视频尺寸/CDN、模型计量/价格准入、持久文本观察、采样授权和 scheduler。配置未就绪时不开放 accept。
+正式 Host 仍需：固定供应商及凭据解析、精确视频尺寸/CDN、模型计量/价格准入、安装现有持久执行器、采样授权和 scheduler。配置未就绪时不开放 accept。
 
 原 UI 需完整覆盖“旅程入口→generation.get按当前状态分流→quote/费用确认→accept→等待→私有视频→播放回执核对→回应/重新报价”。非 preparing 旅程当前入口限制、异步 Stage、同revision状态读取乱序、未知命令持久保留、回应草稿及覆盖凭据分别落地。它们没有被当前导演组件或媒体smoke替代。

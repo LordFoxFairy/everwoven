@@ -51,3 +51,9 @@ versionNo 和 sourceRevision 是两种不同的防线：发布编号与来源修
 `GenerationTurn(quoteId)` / `uq_generation_turn_quote`：同一已接受报价仅产生一个回合。quoteId 非空，回合失败或结果未知后仍保留历史占号，不能通过软删除重试收费；新收费必须是新的报价确认。不同报价可以引用同一父节点，故 parentTurnId **不是唯一键**。累计 22 个主键、15 个真实业务唯一，所有表零 FK。
 
 BudgetReservation.id 和 RuntimeOutbox.id 分别复用本次 turnId，表示本轮唯一预算占用与可反复唤醒的一条执行记录；没有额外叠加 `(ownerId,id)` 等冗余唯一。未来若支持多个并行工作项，应另立工作项身份，不能无声改变当前一对一含义。
+
+## 文字用量观察增量（2026-09-14）
+
+`TextUsageObservation(turnId,stage)` / `uq_text_usage_turn_stage`：当前执行图在一个回合的planner或validator阶段仅允许一次付费调用（封存maxCalls=1），所以各阶段最多一份首次响应观察。turnId为全局UUID、stage非空，所有者/数据集/存储代次由应用校验。相同观察重放；不同响应或用量报冲突，禁止覆盖。不同回合、不同阶段或不同供应商账户可以有相同responseId和用量，所以responseId、bindingHash、contentHash均不唯一。记录不可修改/软删除，不复用占号；后续供应商费用更正采用独立调整分录，不把此首次观察表扩成可覆盖账本。跨库导入必须重建所有权/代次，不直接复制引用。
+
+累计23个主键、16个真实业务唯一，零FK。新增普通索引`(ownerId,createdAt,id)`用于所有者范围的核账读取；不叠加冗余`(ownerId,id)`唯一。

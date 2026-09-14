@@ -393,3 +393,23 @@ model RuntimeOutbox {
  @@index([status, availableAt, id], map:"ix_runtime_outbox_ready")
  @@map("runtime_outbox")
 }
+
+// Immutable response evidence. One response per paid text stage; never a zero-cost inference.
+model TextUsageObservation {
+ id String @id
+ ownerId String @map("owner_id")
+ datasetId String @map("dataset_id")
+ storeEpoch String @map("store_epoch")
+ turnId String @map("turn_id")
+ quoteId String @map("quote_id")
+ profileId String @map("profile_id")
+ stage String
+ bindingHash String @map("binding_hash")
+ observation Json
+ contentHash String @map("content_hash")
+ schemaVersion Int @default(1) @map("schema_version")
+ createdAt DateTime @map("created_at")
+ @@unique([turnId, stage], map:"uq_text_usage_turn_stage")
+ @@index([ownerId, createdAt, id], map:"ix_text_usage_owner")
+ @@map("text_usage_observations")
+}

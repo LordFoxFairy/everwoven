@@ -598,3 +598,14 @@ Aquinas独立评审修复：遗漏LANGSMITH_TRACING_V2可能使LangChain自动�
 架构/执行时序/供应商限制记录于docs/api/SCENE-DIRECTOR-V1.md。下一实施仍为持久文字观察与结算、受信模型计量/价格/尺寸/CDN与凭据解析、Host executor/scheduler、原页面quote/accept/单视频Stage/异步草稿及播放覆盖凭据、存档fork。POLLO完整公开base/协议/model仍待确认，不能将截图变量名推断为MiniMax官方API。总goal active；当前组件和通过的离线验证不构成完整产品或两幕真实生成验收。
 
 隔离production媒体浏览器smoke也已exit0（/tmp/everwoven-director-media-browser.log）：真实Chrome解码/seek/ended、HEAD/Range、进程重启和hash保持，测试fixture清理完成；不代表正式舞台或模型内容验收。
+
+本切片已commit并push f075642b30f42ac2c1a78731a0e2b8001d4123ac（feat(runtime): compose bounded scene director and text provider）。精确CI34825018011当前in_progress，下一轮查询该作业；前次CI34822086173已success。未合并main/发tag/发布镜像；原3100维持运行。当前代码已提交，此CI进度记录留待下次同步；总goal保持active。
+
+
+2026-09-14 持久文字观察：上一轮f075642真实改动与验证属progress，精确CI34825018011已completed/success。本轮新增不可变TextUsageObservation和202609140002增量迁移，真实唯一(turnId,stage)、23PK/16业务唯一、零FK；schema指纹/可复现生成器/审阅SQL同步。正式createPersistedGenerationExecutor安装SQLite recorder，核对接受关系、固定Profile/binding、owner/dataset/storeEpoch、leased阶段和held预留；同内容回放不新增，不同响应/用量冲突。缺失用量保持缺失，不执行结算或放款；取消发生在写入后也回滚。模型内容不合格仍能保留已返回的用量；观察落库失败经真实Worker转unknown，禁止自动再发。
+
+Aquinas独立只读评审未发现本范围阻塞P1/P2，核对SQL/唯一/摘要、幂等与取消路径；没有将其静态结论冒充执行测试。主仓133文件2102测试exit0、runtime/Web源码及测试types exit0（/tmp/everwoven-observations-final-main.log、*-types.log），独立树production build exit0（/tmp/everwoven-observations-final-build.log）。原3100 PID9207身份/cwd复核后温和停止；SQLite独立backup句柄关闭后应用一张新增表，22旧表所有列逐行摘要和前三条migration记录保持，integrity_check=ok、零FK、新观察表为空。备份路径只保留/tmp/everwoven-observations-upgrade.json。runtime --check exit0，同一3100原目录重启session73411，Chrome自动连接/认证generation GET/角色剧本/MyPlay/刷新只读回归exit0（/tmp/everwoven-observations-current3100.log）。未读取Key、未调用付费模型、未seed用户业务数据。
+
+用户明确指出底层实施过细、产品进展偏慢。后续停止扩展周边抽象与重复评审，按已有组件直连“开始→费用确认→生成→播放→情境回应→下一幕”，必要异常仅围绕该链。Host生命周期研究已确认：原local-start持有后台连接，监听成功后串行tick；停机先停止领取并取消在途、等待状态落库再断开DB；独立于浏览器会话。首次accept要再次检查执行器就绪，旧回执重放不依赖当前供应商。内部validating视频采样不能调用仅ready/viewed的公开播放授权。落点和缺口已知，不再重新开展同一架构研究。
+
+原范围仍含供应商安装、实际计量/价格与结算、主页面费用/Stage接线、播放覆盖凭据、回应草稿和存档fork；尚无两幕真实生成验收，不声明产品完成。POLLO公开完整base与model信息未确认，付费授权为0；先完成不依赖付费的正式代码。参考docs/api/TEXT-USAGE-OBSERVATIONS.md及2026-09-14-text-observations计划。
