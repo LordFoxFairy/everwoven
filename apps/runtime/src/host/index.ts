@@ -1,4 +1,6 @@
 import {createGenerationPlayback} from '../application/generation-playback.js';
+import {createGenerationService} from '../application/generation.js';
+import {localGenerationRuntime} from './generation-runtime.js';
 import {openGenerationMedia} from '../application/generation-media.js';
 import {createPrivateVideoReader} from '../infrastructure/media/private-video-store.js';
 import type {GetGenerationMedia} from '../contracts/generation-media.js';
@@ -29,6 +31,9 @@ export type {HostManifest, LocalEnvironment} from './storage.js';
 export const {issueConnectionCode, exchangeConnectionCode, authenticateSession, revokeSession} = createSessionOperations();
 /** Explicit launcher-only loading. Request paths never initialize or reload provider configuration. */
 export const initializeLocalVideoProviders = localProviderStartup.initialize;
+export const initializeLocalGeneration = localGenerationRuntime.initialize;
+export const startLocalGeneration = localGenerationRuntime.start;
+export const stopLocalGeneration = localGenerationRuntime.stop;
 
 // Public application errors are fixed identifiers, never SQLite paths, queries or callback details.
 const storyErrors = new Set(['CLIENT_RELOAD_REQUIRED', 'TEMPLATE_REVISION_CONFLICT', 'CHARACTER_NOT_FOUND', 'ASSET_NOT_FOUND', 'STORY_ASSET_NOT_READY', 'DATASET_CHANGED', 'REVISION_CONFLICT', 'IDEMPOTENCY_CONFLICT', 'STORY_NOT_FOUND', 'STORY_NOT_DELETED', 'REVISION_EXHAUSTED',
@@ -132,6 +137,16 @@ export function maintainLocalAssets(directory: string, environment: LocalEnviron
 const playbackErrors = new Set(['CLIENT_RELOAD_REQUIRED', 'DATASET_CHANGED', 'OWNER_UNAVAILABLE', 'REVISION_CONFLICT',
   'IDEMPOTENCY_CONFLICT', 'REVISION_EXHAUSTED', 'INVALID_GENERATION_COMMAND', 'INVALID_GENERATION_QUERY',
   'EXPERIENCE_NOT_FOUND', 'GENERATION_NOT_PLAYABLE', 'GENERATION_CONTENT_UNCONFIRMED', 'STORE_AUTHORITY_UNAVAILABLE']);
+const generationErrors = new Set([...playbackErrors, 'GENERATION_QUOTE_NOT_FOUND', 'GENERATION_QUOTE_STALE', 'GENERATION_QUOTE_EXPIRED', 'GENERATION_QUOTE_CONSUMED',
+ 'GENERATION_NOT_AWAITING', 'GENERATION_BUDGET_EXCEEDED', 'GENERATION_STAGE_BUDGET_EXCEEDED', 'GENERATION_POLICY_UNAVAILABLE', 'GENERATION_PRICE_UNAVAILABLE',
+ 'GENERATION_RUNTIME_UNAVAILABLE', 'GENERATION_PROFILE_UNAVAILABLE', 'STORY_ASSET_NOT_READY', 'PREPARATION_NO_LONGER_CURRENT']);
+export function withLocalGeneration<T>(directory: string, environment: LocalEnvironment, token: string,
+ work: (service: ReturnType<typeof createGenerationService>, owner: InternalOwnerContext) => Promise<T>): Promise<T> {
+ return withLocalDatabase(directory, environment, token, generationErrors, 'LOCAL_GENERATION_FAILED', async (db, owner, {revalidate}) => {
+  const capture = await acquireLocalStoreAuthority(directory, environment), authority = {...capture, revalidate: async () => {await revalidate();await capture.revalidate();}};
+  return work(createGenerationService(db, owner, authority, localGenerationRuntime.access(directory, environment, owner).policy), owner);
+ }, true);
+}
 /** Uses the original local session and SQLite host. Reads and playback receipts never submit generation. */
 export function withLocalGenerationPlayback<T>(directory: string, environment: LocalEnvironment, token: string,
   work: (service: ReturnType<typeof createGenerationPlayback>, owner: InternalOwnerContext) => Promise<T>): Promise<T> {

@@ -1,5 +1,5 @@
 /** Own shutdown of this listener only; never inspect or stop other processes. */
-export function createLocalShutdown(server, closeApp, {exit = process.exit, graceMs = 5000, timeoutMs = 10000} = {}) {
+export function createLocalShutdown(server, closeApp, {exit = process.exit, graceMs = 5000, timeoutMs = 10000, onStopping = async () => {}} = {}) {
   const sockets = new Set();
   server.on('connection', socket => {
     sockets.add(socket);
@@ -8,6 +8,8 @@ export function createLocalShutdown(server, closeApp, {exit = process.exit, grac
   const requests = new Set();
   let pending;
   const shutdown = () => pending ??= new Promise(resolve => {
+    const background = Promise.resolve().then(onStopping);
+    void background.catch(() => {});
     let finished = false;
     const finish = code => {
       if (finished) return;
@@ -26,7 +28,7 @@ export function createLocalShutdown(server, closeApp, {exit = process.exit, grac
     server.close(() => {
       // A disconnected socket is not a completed write. Await handler promises
       // before application cleanup; the hard deadline still reports failure.
-      void Promise.allSettled([...requests]).then(closeApp).then(() => finish(0), () => finish(1));
+      void Promise.allSettled([...requests]).then(() => background).then(closeApp).then(() => finish(0), () => finish(1));
     });
   });
   shutdown.track = work => {

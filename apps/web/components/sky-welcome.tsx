@@ -12,7 +12,7 @@ export function SkyWelcome({onCreate, onExplore}: {onCreate: () => void; onExplo
       <h1 id="welcome-title">让想象发生。<br/><span>让故事，属于你。</span></h1>
       <p>一个世界，一位想遇见的人。<br/>从你的设定开始，把下一幕留给自己的选择。</p>
       <div className={styles.actions}><button className={styles.create} onClick={onCreate}><Plus size={17}/>创建我的世界<ArrowUpRight size={17}/></button>{demo&&<button className={styles.explore} onClick={onExplore}>探索示例开端<ArrowRight size={16}/></button>}</div>
-      <div className={styles.note}><span/>{demo?'前端演练 · 设定保存在本浏览器 · 不调用模型':'本地创作 · 设定保存在本浏览器 · 视频生成尚未接入'}</div>
+      <div className={styles.note}><span/>{demo?'前端演练 · 设定保存在本浏览器 · 不调用模型':'本机保存 · 自己定义开场 · 每一幕由你推动'}</div>
     </div>
     <div className={styles.visual} aria-hidden="true">
       <div className={styles.orbit}/>

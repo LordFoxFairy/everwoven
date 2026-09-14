@@ -22,7 +22,7 @@ it('original library opens the full aggregate, deletes/restores, and preparation
  const client=storyClient();vi.mocked(createStoryDraftClient).mockReturnValue(client);client.list.mockResolvedValue({protocolVersion:1,datasetId,items:[{...draft(),genre:'奇幻',mainCharacterName:'A',coverAssetId:null}],nextCursor:null,totalMatching:1});
  render(<Platform environment="dev" databaseEnabled/>);await screen.findByText('已连接本机');fireEvent.click(screen.getByRole('button',{name:'我的剧本'}));
  fireEvent.click(await screen.findByRole('button',{name:'打开剧本 聚合A'}));await screen.findByDisplayValue('聚合A');fireEvent.click(screen.getByRole('button',{name:/世界与开局/}));expect((screen.getByLabelText('玩家身份') as HTMLTextAreaElement).value).toBe('调查员');
- fireEvent.click(screen.getByRole('button',{name:'保存并进入准备'}));await screen.findByRole('dialog',{name:'正式故事准备'});expect(screen.getByText(/生成尚未接通/)).toBeTruthy();expect(screen.queryByText('开始演练')).toBeNull();
+ fireEvent.click(screen.getByRole('button',{name:'保存并进入准备'}));await screen.findByRole('dialog',{name:'正式故事准备'});expect(screen.getByText(/查看费用并确认生成/)).toBeTruthy();expect(screen.queryByText('开始演练')).toBeNull();
  fireEvent.click(screen.getByRole('button',{name:'返回编辑'}));fireEvent.click(screen.getByRole('button',{name:'我的剧本'}));
  fireEvent.click(await screen.findByRole('button',{name:'删除剧本 聚合A'}));await waitFor(()=>expect(client.delete).toHaveBeenCalledTimes(1));
  fireEvent.click(screen.getByRole('button',{name:'回收列表'}));fireEvent.click(await screen.findByRole('button',{name:'恢复剧本 聚合A'}));await waitFor(()=>expect(client.restore).toHaveBeenCalledTimes(1));

@@ -1,5 +1,8 @@
 import {fields, parseId, parseProtocol, parseRevision} from './story-draft-validation.js';
-import type {CompletePlaybackInput, PlayDTO} from './generation.js';
+import type {CompletePlaybackInput, PlayDTO, QuoteDTO, QuoteState, TurnDTO, GenerationQuoteInput, AcceptGenerationInput} from './generation.js';
+import {isTimestamp} from './primitives.js';
+import {modelIdentifier, bindingLabel} from './provider-binding-validation.js';
+import {parseBudget} from './experience-opening-validation.js';
 
 export type SceneResult = {summary: string; choices: Array<{id: string; title: string; text: string}>};
 const invalid = () => Error('INVALID_GENERATION_DTO');
@@ -62,6 +65,46 @@ export function parsePlayDTO(value: unknown): PlayDTO {
 }
 
 export type PlaybackResult = {data: PlayDTO; replayed: boolean};
+export type QuoteResult = {data: QuoteDTO; replayed: boolean};
+export type AcceptResult = {data: TurnDTO; replayed: boolean};
+export function parseQuoteDTO(value: unknown): QuoteDTO {
+ try {
+  fields(value, ['protocolVersion', 'datasetId', 'id', 'experienceId', 'experienceRevision', 'profileId', 'maxCostMicros', 'currency', 'expiresAt', 'createdAt', 'summary']);
+  const protocol = parseProtocol(value), budget = parseBudget({limitMicros: value.maxCostMicros, currency: value.currency});
+  if (budget.limitMicros === '0' || !isTimestamp(value.createdAt) || !isTimestamp(value.expiresAt) || value.expiresAt <= value.createdAt) throw invalid();
+  fields(value.summary, ['title', 'prompt', 'modelId', 'region', 'duration', 'resolution', 'ratio', 'audio', 'inputAssetIds']);
+  const s = value.summary;
+  if (typeof s.prompt !== 'string' || s.prompt.length > 16000 || typeof s.duration !== 'number' || !Number.isFinite(s.duration) || s.duration <= 0 || s.duration > 120 ||
+   !['native', 'silent'].includes(s.audio as string) || !Array.isArray(s.inputAssetIds) || s.inputAssetIds.length > 16 || new Set(s.inputAssetIds).size !== s.inputAssetIds.length) throw invalid();
+  return {...protocol, id: parseId(value.id), experienceId: parseId(value.experienceId), experienceRevision: parseRevision(value.experienceRevision), profileId: parseId(value.profileId),
+   maxCostMicros: budget.limitMicros, currency: budget.currency, createdAt: value.createdAt, expiresAt: value.expiresAt,
+   summary: {title: text(s.title, 240), prompt: s.prompt, modelId: modelIdentifier(s.modelId), region: bindingLabel(s.region), duration: s.duration,
+    resolution: bindingLabel(s.resolution), ratio: bindingLabel(s.ratio), audio: s.audio as 'native' | 'silent', inputAssetIds: s.inputAssetIds.map(parseId)}};
+ } catch {throw invalid();}
+}
+export function parseQuoteResult(value: unknown, input?: GenerationQuoteInput): QuoteResult {
+ try {
+  fields(value, ['data', 'replayed']);if (typeof value.replayed !== 'boolean') throw invalid();
+  const data = parseQuoteDTO(value.data);
+  if (input && (data.datasetId !== input.datasetId || data.experienceId !== input.experienceId || data.experienceRevision !== input.expectedExperienceRevision ||
+    (input.kind === 'response' && data.summary.prompt !== input.text.trim()))) throw invalid();
+  return {data, replayed: value.replayed};
+ } catch {throw invalid();}
+}
+export function parseQuoteState(value: unknown): QuoteState {
+ try {fields(value, ['quote', 'acceptedTurnId']);return {quote: parseQuoteDTO(value.quote), acceptedTurnId: value.acceptedTurnId === null ? null : parseId(value.acceptedTurnId)};}
+ catch {throw invalid();}
+}
+export function parseAcceptResult(value: unknown, input?: AcceptGenerationInput): AcceptResult {
+ try {
+  fields(value, ['data', 'replayed']);fields(value.data, ['protocolVersion', 'datasetId', 'id', 'experienceId', 'quoteId', 'status', 'createdAt']);
+  const v = value.data, protocol = parseProtocol(v);
+  if (typeof value.replayed !== 'boolean' || v.status !== 'queued' || !isTimestamp(v.createdAt)) throw invalid();
+  const data: TurnDTO = {...protocol, id: parseId(v.id), experienceId: parseId(v.experienceId), quoteId: parseId(v.quoteId), status: 'queued', createdAt: v.createdAt};
+  if (input && (data.datasetId !== input.datasetId || data.experienceId !== input.experienceId || data.quoteId !== input.quoteId)) throw invalid();
+  return {data, replayed: value.replayed};
+ } catch {throw invalid();}
+}
 export function parsePlaybackResult(value: unknown, input?: CompletePlaybackInput): PlaybackResult {
   try {
     fields(value, ['data', 'replayed']);

@@ -6,9 +6,9 @@ import type {OpeningController, OpeningState} from '../lib/experience/opening-co
 import {Button} from './ui/button';
 import styles from './story-preparation.module.css';
 
-export function StoryPreparation({controller, state, unsavedChanges, triggerRef, connectionSlot, returnLabel = '返回编辑'}: {
+export function StoryPreparation({controller, state, unsavedChanges, triggerRef, connectionSlot, returnLabel = '返回编辑', onStart}: {
   controller: OpeningController; state: OpeningState; unsavedChanges: boolean;
-  triggerRef: RefObject<HTMLButtonElement | null>; connectionSlot: ReactNode; returnLabel?: string;
+  triggerRef: RefObject<HTMLButtonElement | null>; connectionSlot: ReactNode; returnLabel?: string; onStart?: (experienceId: string) => void;
 }) {
   const back = useRef<HTMLButtonElement>(null), source = state.source, story = source ?? state.confirmed?.story;
   if (!story) return null;
@@ -25,7 +25,7 @@ export function StoryPreparation({controller, state, unsavedChanges, triggerRef,
         <div className={styles.intro}>
           <Dialog.Title asChild><p className={styles.eyebrow}>正式故事准备</p></Dialog.Title>
           <h2>{story.title}</h2>
-          <Dialog.Description>先确认这一次旅程的起点。生成尚未接通；本次只固定开局配置，不提交视频任务。</Dialog.Description>
+          <Dialog.Description>先确认这一次旅程的起点。准备完成后进入故事，查看费用并确认生成。</Dialog.Description>
         </div>
         <div className={styles.grid}>
           <section className={styles.story} aria-label="已保存的开局">
@@ -43,6 +43,7 @@ export function StoryPreparation({controller, state, unsavedChanges, triggerRef,
               <div className={styles.confirmed}><Check size={22}/><h3>开局配置已固定</h3></div>
               <p>尚未报价、尚未生成。配置已保存到本机，后续编辑剧本不会改变这次开局。</p>
               <dl><dt>固定模型</dt><dd>{state.confirmed.binding.modelId}</dd><dt>连接与地区</dt><dd>{state.confirmed.binding.connectionId} · {state.confirmed.binding.region === 'cn' ? '中国区' : '国际区'}</dd><dt>预算上限 · 不等于费用授权</dt><dd>{state.amount} {state.currency}</dd></dl>
+              {onStart && <Button type="button" disabled={!state.connected || state.datasetChanged || state.busy} onClick={() => onStart(state.confirmed!.id)}>进入故事</Button>}
               {!state.current && <p className={styles.note}>下面的记录仅代表最初确认，请读取当前准备状态。</p>}
               <Button type="button" variant="outline" disabled={!state.connected || state.datasetChanged || state.reading} onClick={() => void controller.refresh()}>{state.reading ? '正在读取…' : '读取准备状态'}</Button>
             </> : <>

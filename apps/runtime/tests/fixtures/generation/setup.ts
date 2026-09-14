@@ -31,7 +31,7 @@ export async function setup(budget = '1000000', withImage = false, customizeVide
  const price = (binding: unknown): StagePrice => ({version: 'fixture-only', bindingHash: generationBindingHash(binding), validUntil: new Date(now.getTime() + 3600000).toISOString(), currency: 'USD',
   inputTokenMicros: '1', outputTokenMicros: '1', perTokens: '1', outputSecondMicros: '100', inputImageMicros: '5', complete: true, adapterReady: true});
  const evidence: ReturnType<GenerationPolicy['resolve']> = {profile, prices: {planner: price(profile.planner.binding), video: price(video), validator: price(profile.validator.binding)}, audio: 'native', artifactsReady: true, validatorImageLimit: 3};
- const policy = {resolve: vi.fn(() => evidence)}, services = {ids: {next: () => v7()}, clock: {now: () => now}};
+ const policy = {resolve: vi.fn(() => evidence), assertDispatch: vi.fn(() => {})}, services = {ids: {next: () => v7()}, clock: {now: () => now}};
  const generation = createGenerationService(f.db, f.owner, authority, policy, services);
  const quoteInput = {...f.protocol, commandId: v7(), experienceId: opening.id, expectedExperienceRevision: 1, kind: 'opening' as const};
  const acceptInput = (quoteId: string) => ({...f.protocol, commandId: v7(), experienceId: opening.id, expectedExperienceRevision: 1, quoteId, consent: true as const});

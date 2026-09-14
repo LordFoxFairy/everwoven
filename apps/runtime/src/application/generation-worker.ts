@@ -53,12 +53,15 @@ async function boundedStep<T>(signal: AbortSignal, work: () => Promise<T>): Prom
 
 /** One durable step per call. A scheduler may repeat tick; it must never retry a paid HTTP POST itself. */
 export function createGenerationWorker(db: PrismaClient, owner: InternalOwnerContext, authority: LocalStoreAuthority,
- executor: GenerationExecutor, services: RuntimeServices = systemServices) {
+ executor: GenerationExecutor, services: RuntimeServices = systemServices, lifetime?: AbortSignal) {
  if (owner.ownerId !== authority.ownerId || owner.datasetId !== authority.datasetId) throw Error('OWNER_UNAVAILABLE');
- return {async tick(): Promise<boolean> {
+ const pending = new Set<Promise<unknown>>();
+ return {async drain() {await Promise.allSettled([...pending]);}, async tick(): Promise<boolean> {
+  if (lifetime?.aborted) return false;
   await authority.revalidate();
   const now = currentTime(services), token = nextId(services);
   const claimed = await withOwnerWrite(db, owner.ownerId, async tx => {
+   lifetime?.throwIfAborted();
    const wake = await tx.runtimeOutbox.findFirst({where: {ownerId: owner.ownerId, kind: 'generation.start', availableAt: {lte: now},
     OR: [{status: 'pending'}, {status: 'leased', leaseUntil: {lte: now}}]}, orderBy: [{availableAt: 'asc'}, {id: 'asc'}]});
    if (!wake) return null;
@@ -97,7 +100,8 @@ export function createGenerationWorker(db: PrismaClient, owner: InternalOwnerCon
   if (claimed.stopped) return true;
   const {stage, turn, binding} = claimed;
   const elapsed = Math.max(0, currentTime(services).getTime() - now.getTime());
-  const signal = elapsed >= stepTimeoutMs ? AbortSignal.abort() : AbortSignal.timeout(stepTimeoutMs - elapsed);
+  const deadline = elapsed >= stepTimeoutMs ? AbortSignal.abort() : AbortSignal.timeout(stepTimeoutMs - elapsed);
+  const signal = lifetime ? AbortSignal.any([deadline, lifetime]) : deadline;
   const context: GenerationContext = {...claimed.context, signal};
   const {id: bindingId, createdAt: _createdAt, ...bindingSpec} = binding;
   const bindingHash = hash(canonicalBindingJson(bindingSpec));
@@ -147,7 +151,8 @@ export function createGenerationWorker(db: PrismaClient, owner: InternalOwnerCon
    signal.throwIfAborted();return finish(status, patch, delayMs, true);
   }
   try {
-   await boundedStep(signal, async () => {
+   await boundedStep(signal, () => {
+   const work = (async () => {
    if (stage === 'planning') {
     const adapter = videoAdapter();
     const plan = await executor.plan(context);
@@ -183,6 +188,8 @@ export function createGenerationWorker(db: PrismaClient, owner: InternalOwnerCon
     // The media is playable; result remains a candidate until a separate playback-complete command.
     await progress('ready', {result: json(result)});
    }
+   })();
+   pending.add(work);void work.then(() => pending.delete(work), () => pending.delete(work));return work;
    });
   } catch (error) {
    // The conservative reservation stays held for failed/unknown usage too. No zero-cost inference.

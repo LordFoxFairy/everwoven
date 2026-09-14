@@ -115,3 +115,16 @@ it('pins explicit private references and rechecks image availability before acce
   expect(await f.db.generationTurn.count()).toBe(0);
  } finally {await f.close();}
 });
+it('dispatch readiness blocks all new budget/outbox writes but never breaks accepted receipt recovery',async()=>{
+ const f=await setup();
+ try{
+  const quote=await f.generation.quote(f.quoteInput),input=f.acceptInput(quote.data.id);
+  f.policy.assertDispatch.mockImplementation(()=>{throw Error('GENERATION_RUNTIME_UNAVAILABLE');});
+  await expect(f.generation.accept(input)).rejects.toThrow('GENERATION_RUNTIME_UNAVAILABLE');
+  expect(await f.db.budgetReservation.count()).toBe(0);expect(await f.db.runtimeOutbox.count()).toBe(0);
+  f.policy.assertDispatch.mockImplementation(()=>{});const accepted=await f.generation.accept(input);
+  f.policy.assertDispatch.mockImplementation(()=>{throw Error('GENERATION_RUNTIME_UNAVAILABLE');});
+  expect(await f.generation.accept(input)).toEqual({...accepted,replayed:true});
+  expect((await f.generation.getQuote({...f.protocol,experienceId:f.opening.id,quoteId:quote.data.id})).acceptedTurnId).toBe(accepted.data.id);
+ }finally{await f.close();}
+});

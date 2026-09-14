@@ -25,12 +25,15 @@ process.env.NODE_ENV = production ? 'production' : 'development';
 process.env.APP_ORIGIN = origin;
 process.env.EVERWOVEN_LOCAL_LAUNCH = 'loopback-v1';
 // Use the exact compiled external consumed by Next routes. Configuration failure
-// stays provider-local; this never initializes data, reads API keys or starts jobs.
+// stays provider-local. Generation credentials load only during explicit launcher initialization; accepted jobs start after listen.
 const host = createRequire(import.meta.url)('runtime/host');
 await host.initializeLocalVideoProviders(process.env.RUNTIME_DATA_DIR, process.env.APP_ENV);
 const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const app = next({ dev: !production, webpack: true, dir, hostname: '127.0.0.1', port });
-await app.prepare();
+try {
+  await app.prepare();
+  await host.initializeLocalGeneration(process.env.RUNTIME_DATA_DIR, process.env.APP_ENV);
+} catch (error) {await host.stopLocalGeneration();await app.close();throw error;}
 const handle = app.getRequestHandler();
 const server = http.createServer((request, response) => {
   // Automatic local access must not make the private workspace embeddable in
@@ -47,9 +50,11 @@ server.on('error', (error) => {
     error.code === 'EADDRINUSE' ? '本机端口已被占用，请停止旧服务或选择其他端口。' : '本机服务启动失败。',
   );
   process.exitCode = 1;
-  void app.close();
+  void host.stopLocalGeneration().then(() => app.close());
 });
-const shutdown = createLocalShutdown(server, () => app.close());
-server.listen(port, '127.0.0.1', () => console.log(`Everwoven local ready: ${origin}`));
+const shutdown = createLocalShutdown(server, async () => {await host.stopLocalGeneration();await app.close();}, {
+  onStopping: () => host.stopLocalGeneration(), timeoutMs: 25000,
+});
+server.listen(port, '127.0.0.1', () => {host.startLocalGeneration();console.log(`Everwoven local ready: ${origin}`);});
 for (const signal of ['SIGINT', 'SIGTERM'])
   process.on(signal, () => { void shutdown(); });

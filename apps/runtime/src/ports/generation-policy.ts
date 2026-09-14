@@ -7,6 +7,8 @@ export type StagePrice={version:string;bindingHash:string;validUntil:string;curr
   /** Explicit complete-meter tariff scope, verified by the installed adapter's policy. */
   complete:true;adapterReady:true};
 export type GenerationPolicy={
+ /** Recheck the installed runtime for a new paid acceptance. Historical receipt replay skips this. */
+ assertDispatch(profile: import('./execution-profile-store.js').PinnedProfile): void;
  resolve(input:{binding:BindingRecord;story:StoryVersionDTO}):{
   profile:ExecutionProfileSpec;prices:{planner:StagePrice;video:StagePrice;validator:StagePrice};
   audio:'native'|'silent';artifactsReady:true;

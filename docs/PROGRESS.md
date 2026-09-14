@@ -609,3 +609,17 @@ Aquinas独立只读评审未发现本范围阻塞P1/P2，核对SQL/唯一/摘要
 用户明确指出底层实施过细、产品进展偏慢。后续停止扩展周边抽象与重复评审，按已有组件直连“开始→费用确认→生成→播放→情境回应→下一幕”，必要异常仅围绕该链。Host生命周期研究已确认：原local-start持有后台连接，监听成功后串行tick；停机先停止领取并取消在途、等待状态落库再断开DB；独立于浏览器会话。首次accept要再次检查执行器就绪，旧回执重放不依赖当前供应商。内部validating视频采样不能调用仅ready/viewed的公开播放授权。落点和缺口已知，不再重新开展同一架构研究。
 
 原范围仍含供应商安装、实际计量/价格与结算、主页面费用/Stage接线、播放覆盖凭据、回应草稿和存档fork；尚无两幕真实生成验收，不声明产品完成。POLLO公开完整base与model信息未确认，付费授权为0；先完成不依赖付费的正式代码。参考docs/api/TEXT-USAGE-OBSERVATIONS.md及2026-09-14-text-observations计划。
+
+已commit并push 3f2c98fd51d96b2ea0438a78cfffa6fa6aa5c110（feat(runtime): persist text usage observations per generation stage）；精确CI34826386147当前in_progress，下轮只跟踪此作业。原3100 session73411继续服务。主线剩余实施按上述用户要求优先接可用游玩链，不再扩展无关基础设施。
+
+2026-09-14 原3100游玩主线接通：按用户“尽快完成、不要陷入底层”的要求，停止新架构研究，完成Platform/准备页/我的游玩→PlayController→原generation HTTP→真实SQLite的报价、接受、读取与回应草稿接线。单视频占满窗口；建议仅在播放确认后出现；生成/播放不允许插入新回应。新增getQuote、getDraft、saveDraft，原报价ID作为accept命令身份，刷新只读恢复；草稿800ms保存、报价及离开前确认落库，节点revision冲突明确选择保留哪一份。parentTurnId已用于两幕续接，但可选择历史节点的存档/fork仍未实现。
+
+Host安装器接入原local-start：固定OpenRouter文本与MiniMax官方text-to-video、私有generation.json、环境凭据、价格/尺寸/CDN声明；缺失配置时历史读取可用，首次付费接受前检查运行/配置。监听后串行Outbox，停机取消并drain、并发stop复用清理。未将POLLO Key交给官方MiniMax；Pollo公开完整base/protocol/model仍待核实。context-window是运营者提供的保守上界声明，不冒充已在线验证的模型metadata或精确token计数。
+
+Aquinas只读复核发现并关闭：临时SQLite锁导致永久停调度（现仅明确锁错误有界重试tick）、安装尺寸已知超界（提前检查像素/比例）；草稿冲突卡死（重读revision并显式选择）、未知接受过期卡死（原命令明确expired+getQuote未接受且过期才解锁）、保存期间修改建议丢失（编辑/确认回调统一pending锁）。原Chrome实测发现刷新可能早于accept回执，现已接受报价可通过getQuote直接GET恢复，零自动重发。限定复核无剩余P1/P2，不等同全产品已完成。
+
+最新主仓验证137文件2135测试通过（pnpm test --maxWorkers=4，/tmp/everwoven-play-wiring-final-tests-limited.log）；runtime/Web源码和测试类型exit0（*-final-types2.log）；独立依赖树/tmp/everwoven-verify.zRVKTD production build exit0（*-final-build2.log）。此前普通并发测试一项既有CLI测试5秒超时，降低测试并发后完整重跑通过；没有放宽断言或提高超时掩盖失败。真实SQLite→原HTTP→浏览器client/controller两幕集成使用供应商替身，验证父子关系/建议/草稿/无自动第三幕。
+
+原3100已更新重启，当前session71360/PID49373，原数据目录/23表/4迁移保留，无新迁移。编译导出变更引发旧Next开发缓存未失效，温和停服务并将生成的.next/dev缓存移到临时目录后重启解决；不删除用户数据。重启前只读确认generation.json不存在、generation_turns和Outbox为空，不会自动执行付费任务。原Chrome真实会话/旅程读取/角色与剧本编辑/刷新只读smoke通过（*-readonly3100.log）。新增可复现apps/web/scripts/verify-stage-flow.mjs，在独立Chrome上下文用浏览器接口替身和临时MP4，验证原入口→费用确认→刷新不重发→自然播放结束→建议/自由回应→草稿刷新→第二幕，以及1440×900舞台单视频；exit0（*-final-browser.log），用户业务表写入0、供应商调用0。它明确不是模型视频验收。
+
+API与技术方案更新：docs/api/PLAY-FLOW-V1.md及TECHNICAL-SOLUTION-V1入口，记录架构/时序/字段/错误恢复与供应商配置边界。仍未完成真实供应商两幕验收、实际账单结算、完整播放凭据和存档fork。当前没有付费验收授权；goal保持active，不声明整个V1闭环。

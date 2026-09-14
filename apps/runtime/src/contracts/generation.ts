@@ -16,6 +16,8 @@ export function parseAcceptGeneration(value:unknown):AcceptGenerationInput{
 export type ResponseQuoteInput = StoryProtocol & {commandId: string; experienceId: string; expectedExperienceRevision: number; kind: 'response'; interactionEventId: string; text: string};
 export type GenerationQuoteInput = OpeningQuoteInput | ResponseQuoteInput;
 export type GetPlayInput = StoryProtocol & {experienceId: string};
+export type GetQuoteInput = GetPlayInput & {quoteId: string};
+export type QuoteState = {quote: QuoteDTO; acceptedTurnId: string | null};
 export type CompletePlaybackInput = GetPlayInput & {commandId: string; expectedExperienceRevision: number; turnId: string; mediaId: string};
 export type PlayDTO = StoryProtocol & {experienceId: string; title: string; revision: number; status: string;
  turn: {id: string; status: string; media: {id: string; duration: number} | null; errorCode: string | null} | null;
@@ -35,6 +37,11 @@ export function parseGetPlay(value: unknown): GetPlayInput {
  try {fields(value, ['protocolVersion', 'datasetId', 'experienceId']); return {...protocol, experienceId: parseId(value.experienceId)};}
  catch {throw Error('INVALID_GENERATION_QUERY');}
 }
+export function parseGetQuote(value: unknown): GetQuoteInput {
+ const protocol = generationProtocol(value, true);
+ try {fields(value, ['protocolVersion', 'datasetId', 'experienceId', 'quoteId']);return {...protocol, experienceId: parseId(value.experienceId), quoteId: parseId(value.quoteId)};}
+ catch {throw Error('INVALID_GENERATION_QUERY');}
+}
 export function parseCompletePlayback(value: unknown): CompletePlaybackInput {
  const protocol = generationProtocol(value);
  try {
@@ -48,4 +55,28 @@ function generationProtocol(value: unknown, query = false): StoryProtocol {
   if (error instanceof Error && error.message === 'CLIENT_RELOAD_REQUIRED') throw error;
   throw Error(query ? 'INVALID_GENERATION_QUERY' : 'INVALID_GENERATION_COMMAND');
  }
+}
+
+export type GetResponseDraftInput = GetPlayInput & {interactionEventId: string};
+export type ResponseDraftDTO = GetResponseDraftInput & {revision: number; text: string};
+export type SaveResponseDraftInput = GetResponseDraftInput & {commandId: string; expectedDraftRevision: number; text: string};
+export function parseGetResponseDraft(value: unknown): GetResponseDraftInput {
+ const protocol = generationProtocol(value, true);
+ try {fields(value, ['protocolVersion','datasetId','experienceId','interactionEventId']);return {...protocol, experienceId:parseId(value.experienceId),interactionEventId:parseId(value.interactionEventId)};}
+ catch {throw Error('INVALID_GENERATION_QUERY');}
+}
+export function parseSaveResponseDraft(value: unknown): SaveResponseDraftInput {
+ const protocol = generationProtocol(value);
+ try {
+  fields(value, ['protocolVersion','datasetId','experienceId','interactionEventId','commandId','expectedDraftRevision','text']);
+  if(typeof value.text!=='string'||value.text.length>2000)throw Error();
+  return {...protocol,experienceId:parseId(value.experienceId),interactionEventId:parseId(value.interactionEventId),commandId:parseId(value.commandId),expectedDraftRevision:parseRevision(value.expectedDraftRevision),text:value.text};
+ }catch {throw Error('INVALID_GENERATION_COMMAND');}
+}
+export function parseResponseDraft(value: unknown): ResponseDraftDTO {
+ try {
+  fields(value,['protocolVersion','datasetId','experienceId','interactionEventId','revision','text']);
+  if(typeof value.text!=='string'||value.text.length>2000)throw Error();
+  return {...parseProtocol(value),experienceId:parseId(value.experienceId),interactionEventId:parseId(value.interactionEventId),revision:parseRevision(value.revision),text:value.text};
+ }catch {throw Error('INVALID_GENERATION_DTO');}
 }

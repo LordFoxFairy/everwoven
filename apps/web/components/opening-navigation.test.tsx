@@ -1,16 +1,18 @@
 // @vitest-environment jsdom
 import {afterEach, expect, it, vi} from 'vitest';
 import {act, cleanup, fireEvent, render, screen, waitFor, within} from '@testing-library/react';
+import {createGenerationClient} from '../lib/experience/playback-client';
 import {Platform} from './platform';
 import {createOpeningClient} from '../lib/experience/opening-client';
 import {createStoryDraftClient} from '../lib/authoring/story-client';
 import {createAuthoringSessionClient} from '../lib/authoring/session-client';
 import {clientFixture, datasetId, source, opening, deferred} from '../lib/experience/opening-test-fixtures';
+vi.mock('../lib/experience/playback-client',()=>({createGenerationClient:vi.fn()}));
 vi.mock('../lib/experience/opening-client', () => ({createOpeningClient: vi.fn()}));
 vi.mock('../lib/authoring/story-client', () => ({createStoryDraftClient: vi.fn()}));
 vi.mock('../lib/authoring/session-client', () => ({createAuthoringSessionClient: vi.fn()}));
 vi.mock('../lib/authoring/character-client', () => ({createCharacterClient: () => ({list: async () => ({items: [], nextCursor: null, totalMatching: 0})})}));
-afterEach(() => {cleanup(); vi.restoreAllMocks();});
+afterEach(() => {cleanup();window.history.replaceState(null,'','/'); vi.restoreAllMocks();});
 it('original editor uses opening workflow; closing unknown retains reentry, navigation never discards command', async () => {
   const client = clientFixture(); vi.mocked(createOpeningClient).mockReturnValue(client);
   vi.mocked(createAuthoringSessionClient).mockReturnValue({session: vi.fn(async () => ({authenticated: true as const, datasetId})), connect: vi.fn(), logout: vi.fn()});
@@ -40,13 +42,13 @@ it('a fresh workspace discovers and reenters persisted preparation without a dra
   vi.mocked(createAuthoringSessionClient).mockReturnValue({session: vi.fn(async () => ({authenticated: true as const, datasetId})), connect: vi.fn(), logout: vi.fn()});
   const save = vi.fn(); vi.mocked(createStoryDraftClient).mockReturnValue({create: save, update: save, get: vi.fn(), delete: vi.fn(), restore: vi.fn(),
     list: vi.fn(async () => ({protocolVersion: 1 as const, datasetId, items: [], totalMatching: 0, nextCursor: null}))});
+  const get=vi.fn(async()=>({protocolVersion:1 as const,datasetId,experienceId:dto.id,title:dto.story.title,revision:1,status:'preparing',turn:null,interaction:null}));
+  vi.mocked(createGenerationClient).mockReturnValue({get,quote:vi.fn(),accept:vi.fn(),getQuote:vi.fn(),completePlayback:vi.fn(),getDraft:vi.fn(),saveDraft:vi.fn()});
   render(<Platform environment="dev" databaseEnabled/>); await screen.findByText('已连接本机'); fireEvent.click(screen.getByRole('button', {name: '我的游玩'}));
-  const entry = await screen.findByRole('button', {name: `查看准备 ${dto.story.title}`}); fireEvent.click(entry);
-  const dialog = await screen.findByRole('dialog', {name: '正式故事准备'}); expect(within(dialog).getByText('1.234567 USD')).toBeTruthy();
-  expect(screen.queryByRole('button', {name: '确认开局配置'})).toBeNull(); expect(client.bindings).not.toHaveBeenCalled(); expect(client.create).not.toHaveBeenCalled(); expect(save).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', {name: '返回我的游玩'})); await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-  await waitFor(() => expect(document.activeElement).toBe(entry));
-  const late = deferred<typeof dto>(); client.getPreparing.mockReturnValueOnce(late.promise);
-  fireEvent.click(entry); fireEvent.click(screen.getByRole('button', {name: '我的世界'}));
-  await act(async () => {late.resolve(dto);}); expect(screen.queryByRole('dialog')).toBeNull();
+  const entry = await screen.findByRole('button', {name: `进入故事 ${dto.story.title}`}); fireEvent.click(entry);
+  await screen.findByText('故事已准备好');expect(get).toHaveBeenCalledOnce();
+  expect(client.create).not.toHaveBeenCalled();expect(save).not.toHaveBeenCalled();expect(document.querySelector('video')).toBeNull();
+  expect(window.location.hash).toContain(dto.id);
+  fireEvent.click(screen.getByRole('button',{name:'返回我的游玩'}));await screen.findByRole('heading',{name:'我的游玩'});
+  expect(window.location.hash).toBe('');
 });

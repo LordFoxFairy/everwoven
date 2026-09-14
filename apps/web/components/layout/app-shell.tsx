@@ -16,7 +16,7 @@ export function AppShell({view, draftCount, onNavigate, onCreate, children}: Pro
     <AppSidebar view={view} draftCount={draftCount} onNavigate={onNavigate} onCreate={onCreate}/>
     <div className={styles.workspace}>
       <header className={`topbar ${styles.header}`}><span>{navigation.find(item => item.id===view)?.label}</span>
-        <div><span className="mode-badge"><span className="demo-dot"/>{environment==='demo'?'演示环境':environment==='dev'?'开发环境':'生产环境'}</span><span className="topbar-note">{environment==='demo'?'仅本机 · 不调用模型':'本地创作 · 视频生成待接入'}</span></div>
+        <div><span className="mode-badge"><span className="demo-dot"/>{environment==='demo'?'演示环境':environment==='dev'?'开发环境':'生产环境'}</span><span className="topbar-note">{environment==='demo'?'仅本机 · 不调用模型':'本机保存 · 由你决定下一幕'}</span></div>
       </header>
       <main id="main" ref={content} tabIndex={-1} className={styles.content}>{children}</main>
     </div>

@@ -1,9 +1,10 @@
+import {parseGetResponseDraft,parseSaveResponseDraft,parseResponseDraft,type GetResponseDraftInput,type SaveResponseDraftInput,type ResponseDraftDTO} from '../contracts/generation.js';
 import {createGenerationPlayback} from './generation-playback.js';
 import {currentGenerationTurn} from './generation-current.js';
 import {createHash} from 'node:crypto';
 import {isDeepStrictEqual} from 'node:util';
 import {Prisma, type PrismaClient, type GenerationQuote} from '../generated/prisma/client.js';
-import {parseGenerationQuote, parseAcceptGeneration, type GenerationQuoteInput, type AcceptGenerationInput, type QuoteDTO, type TurnDTO} from '../contracts/generation.js';
+import {parseGenerationQuote, parseAcceptGeneration, parseGetQuote, type GetQuoteInput, type QuoteState, type GenerationQuoteInput, type AcceptGenerationInput, type QuoteDTO, type TurnDTO} from '../contracts/generation.js';
 import {parseOwner, parseId} from '../contracts/story-draft-validation.js';
 import type {InternalOwnerContext} from '../contracts/story-draft.js';
 import {canonicalBindingJson} from '../contracts/provider-binding-validation.js';
@@ -59,8 +60,45 @@ export function createGenerationService(db: PrismaClient, owner: InternalOwnerCo
   } catch {throw Error('STORED_GENERATION_QUOTE_INVALID');}
  }
 
+ async function currentDraft(tx: Prisma.TransactionClient,v:GetResponseDraftInput) {
+  const root=await tx.experience.findFirst({where:{id:v.experienceId,ownerId:owner.ownerId,deletedAt:null,archivedAt:null,status:'awaiting',schedulingPaused:true}});
+  const event=root&&await tx.interactionEvent.findFirst({where:{id:v.interactionEventId,ownerId:owner.ownerId,experienceId:root.id,experienceRevision:root.revision,kind:'decision'}});
+  const draft=event&&await tx.responseDraft.findUnique({where:{ownerId_interactionEventId:{ownerId:owner.ownerId,interactionEventId:event.id}}});
+  if(!root||!event||!draft||draft.experienceId!==root.id)throw Error('GENERATION_NOT_AWAITING');
+ }
  return {
   ...createGenerationPlayback(db, owner, authority, services),
+  async getDraft(input: GetResponseDraftInput): Promise<ResponseDraftDTO> {
+   const v=parseGetResponseDraft(input);dataset(v);await authority.revalidate();
+   return db.$transaction(async tx => {
+    await currentDraft(tx,v);
+    const row=await tx.responseDraft.findUniqueOrThrow({where:{ownerId_interactionEventId:{ownerId:owner.ownerId,interactionEventId:v.interactionEventId}}});
+    return parseResponseDraft({...v,revision:row.revision,text:row.text});
+   });
+  },
+  async saveDraft(input: SaveResponseDraftInput): Promise<ResponseDraftDTO> {
+   const v=parseSaveResponseDraft(input);dataset(v);await authority.revalidate();
+   return withOwnerWrite(db,owner.ownerId,async tx=>{
+    const type='generation.draft.v1',prior=await replay<ResponseDraftDTO>(tx,type,v);if(prior)return parseResponseDraft(prior);
+    await currentDraft(tx,v);
+    const row=await tx.responseDraft.findUniqueOrThrow({where:{ownerId_interactionEventId:{ownerId:owner.ownerId,interactionEventId:v.interactionEventId}}});
+    if(row.revision!==v.expectedDraftRevision)throw Error('REVISION_CONFLICT');
+    if(row.revision>=MAX_REVISION)throw Error('REVISION_EXHAUSTED');
+    const now=currentTime(services,row.updatedAt);
+    await tx.responseDraft.update({where:{id:row.id},data:{text:v.text,revision:{increment:1},updatedAt:now}});
+    const data=parseResponseDraft({protocolVersion:1,datasetId:owner.datasetId,experienceId:v.experienceId,interactionEventId:v.interactionEventId,revision:row.revision+1,text:v.text});
+    await saveReceipt(tx,type,v,data,now);return data;
+   });
+  },
+  async getQuote(input: GetQuoteInput): Promise<QuoteState> {
+   const v = parseGetQuote(input);dataset(v);await authority.revalidate();
+   return db.$transaction(async tx => {
+    const root = await tx.experience.findFirst({where: {id: v.experienceId, ownerId: owner.ownerId, deletedAt: null, archivedAt: null}});
+    const row = await tx.generationQuote.findFirst({where: {id: v.quoteId, ownerId: owner.ownerId, experienceId: v.experienceId}});
+    if (!root || !row) throw Error('GENERATION_QUOTE_NOT_FOUND');
+    const {quote} = await quoteFacts(tx, row);return {quote, acceptedTurnId: row.acceptedTurnId};
+   });
+  },
   async quote(input: GenerationQuoteInput): Promise<{data: QuoteDTO; replayed: boolean}> {
    const v = parseGenerationQuote(input); dataset(v); await authority.revalidate();
    return withOwnerWrite(db, owner.ownerId, async tx => {
@@ -172,6 +210,8 @@ export function createGenerationService(db: PrismaClient, owner: InternalOwnerCo
      if (!asset || asset.ownerId !== owner.ownerId || asset.deletedAt || asset.status !== 'ready' || asset.sha256 !== expected.sha256 || asset.revision !== expected.revision)
       throw Error('STORY_ASSET_NOT_READY');
     }
+    const execution = await readExecutionProfile(createExecutionProfileReadScope(tx, owner.ownerId), owner, q.profileId);
+    policy.assertDispatch(execution);
     // Root scope persists across later forks. First paid intent creates it; preparation spends nothing.
     const scopeId = root.budgetScopeId ?? nextId(services);
     if (!root.budgetScopeId) await tx.budgetScope.create({data: {id: scopeId, ownerId: owner.ownerId, limitMicros: root.budgetLimitMicros, currency: root.budgetCurrency, createdAt: now}});

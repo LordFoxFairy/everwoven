@@ -51,7 +51,7 @@ export function WorldHome({library, loadError, onCreate, onExplore, onResume, on
       <div className={styles.studio}>
         <header><div><span className={styles.eyebrow}>MAKE IT YOURS</span><h2>{drafts.length ? (featuredDraft ? '其他创作中的世界' : '继续你的创作') : '从一个念头，到身临其境'}</h2></div>{drafts.length > 0 && <button className={styles.textButton} onClick={onLibrary}>查看全部<ArrowRight size={14}/></button>}</header>
         {drafts.length > 0 ? <div className={styles.drafts}>{drafts.map(draft => <button key={draft.id} className={styles.draft} onClick={() => onEdit(draft)}><StoryThumbnail story={draft}/><span><strong>{draft.title || '尚未命名的世界'}</strong><small>{draft.character || '角色待定义'} · 本地草稿</small></span><ArrowUpRight size={17}/></button>)}</div>
-          : <ol className={styles.path}><li><span>01</span><div><strong>定义你的世界</strong><p>人物、关系、开场，都由你设定。</p></div></li><li><span>02</span><div><strong>进入故事现场</strong><p>{demo?'当前先用静态参考演练交互。':'保存开场设定，视频生成尚未接入。'}</p></div></li><li><span>03</span><div><strong>在回应中改变方向</strong><p>片段结束后，选一个方向或自己表达。</p></div></li></ol>}
+          : <ol className={styles.path}><li><span>01</span><div><strong>定义你的世界</strong><p>人物、关系、开场，都由你设定。</p></div></li><li><span>02</span><div><strong>进入故事现场</strong><p>{demo?'当前先用静态参考演练交互。':'确认开场与模型，进入沉浸式视频故事。'}</p></div></li><li><span>03</span><div><strong>在回应中改变方向</strong><p>片段结束后，选一个方向或自己表达。</p></div></li></ol>}
       </div>
       <div className={styles.inspiration}>
         <span className={styles.eyebrow}><Compass size={14}/> ROOM FOR SOMETHING NEW</span>
@@ -61,6 +61,6 @@ export function WorldHome({library, loadError, onCreate, onExplore, onResume, on
         {demo&&<button className={styles.textButton} onClick={onExplore}><BookOpen size={15}/>从示例找点灵感<ArrowRight size={14}/></button>}
       </div>
     </section>
-    <p className={styles.footnote}><Film size={14}/>{demo?'当前为前端交互演练，不调用模型；真实视频生成另行接入。':'当前开放本地创作，真实视频生成尚未接通；不会用演练代替。'}</p>
+    <p className={styles.footnote}><Film size={14}/>{demo?'当前为前端交互演练，不调用模型；真实视频生成另行接入。':'剧本与游玩进展保存在本机。生成需要配置供应商，确认费用后才开始。'}</p>
   </div>;
 }
