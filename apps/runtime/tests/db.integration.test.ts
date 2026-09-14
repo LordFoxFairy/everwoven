@@ -50,7 +50,7 @@ describe('M0 real Prisma / file-backed SQLite', () => {
     expect(await db.$queryRawUnsafe('PRAGMA journal_mode')).toEqual([{ journal_mode: 'wal' }]);
     expect(await db.$queryRawUnsafe('PRAGMA foreign_keys')).toEqual([{ foreign_keys: 1n }]);
     const tables = await db.$queryRawUnsafe<Array<{name: string}>>("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE '\\_%' ESCAPE '\\'");
-    expect(tables).toHaveLength(26);
+    expect(tables).toHaveLength(28);
     for (const {name} of tables) {
       expect(await db.$queryRawUnsafe(`PRAGMA foreign_key_list("${name}")`)).toEqual([]);
     }
@@ -161,7 +161,7 @@ describe('WriteGate and minimal internal title-update repository', () => {
 
 
 describe('database guardrails and standalone diagnostic entry', () => {
-  it('matches all 17 reviewed unique indexes by name and columns, with 26 primary keys', async () => {
+  it('matches all 18 reviewed unique indexes by name and columns, with 28 primary keys', async () => {
     const db = await connect();
     const migration = await readFile(join(root, 'prisma/migrations/202609120001_authoring_baseline/migration.sql'), 'utf8');
     const review = await readFile(join(root, '../../docs/architecture/data/authoring.generated.sql'), 'utf8');
@@ -173,17 +173,20 @@ describe('database guardrails and standalone diagnostic entry', () => {
     const observationsSQL = await readFile(join(root, 'prisma/migrations/202609140002_text_observations/migration.sql'), 'utf8');
     const savepointsSQL=await readFile(join(root,'prisma/migrations/202609140003_qualified_savepoints/migration.sql'),'utf8');
     expect(observationsSQL).toBe(await readFile(join(root, '../../docs/architecture/data/text-observations.generated.sql'), 'utf8'));
-    const sql = migration + '\n' + profileSQL + '\n' + generationSQL + '\n' + observationsSQL + '\n' + savepointsSQL;
-    const expected = [...sql.matchAll(/CREATE UNIQUE INDEX "([^"]+)" ON "([^"]+)"\(([^)]+)\)/g)]
+    const forkSQL=await readFile(join(root,'prisma/migrations/202609140004_experience_forks/migration.sql'),'utf8');
+    expect(forkSQL).toBe(await readFile(join(root,'../../docs/architecture/data/experience-forks.generated.sql'),'utf8'));
+    const sql = migration + '\n' + profileSQL + '\n' + generationSQL + '\n' + observationsSQL + '\n' + savepointsSQL + '\n' + forkSQL;
+    const historicalIndexes = [...sql.matchAll(/CREATE UNIQUE INDEX "([^"]+)" ON "([^"]+)"\(([^)]+)\)/g)]
       .map(m => ({name: m[1]!, table: m[2]!, columns: m[3]!.replaceAll('"', '').split(',').map(v => v.trim())}));
-    expect(expected).toHaveLength(17);
+    const expected=[...new Map(historicalIndexes.map(index=>[index.name,index])).values()];
+    expect(expected).toHaveLength(18);
     const actual = await db.$queryRawUnsafe<Array<{name: string}>>("SELECT name FROM sqlite_master WHERE type='index' AND sql LIKE 'CREATE UNIQUE INDEX%'");
     expect(actual.map(v => v.name).sort()).toEqual(expected.map(v => v.name).sort());
     for (const index of expected) {
       const columns = await db.$queryRawUnsafe<Array<{name: string}>>(`PRAGMA index_info("${index.name}")`);
       expect(columns.map(v => v.name)).toEqual(index.columns);
     }
-    const tables = [...sql.matchAll(/CREATE TABLE "([^"]+)"/g)].map(m => m[1]!);
+    const tables = [...new Set([...sql.matchAll(/CREATE TABLE "([^"]+)"/g)].map(m => m[1]!).filter(name=>!name.startsWith('new_')))];
     for (const name of tables) {
       const columns = await db.$queryRawUnsafe<Array<{name: string; pk: bigint}>>(`PRAGMA table_info("${name}")`);
       expect(columns.filter(v => v.pk !== 0n).map(v => v.name)).toEqual(['id']);
@@ -279,7 +282,7 @@ describe('clean authoring baseline fields', () => {
 
 // Every predecessor remains mandatory; this is not a legacy schema acceptance mode.
 describe('approved complete migration chain', () => {
-  it.each(['202609120001_authoring_baseline', '202609130001_execution_profiles', '202609140001_generation_acceptance', '202609140002_text_observations','202609140003_qualified_savepoints'])('rejects altered or missing predecessor %s', async name => {
+  it.each(['202609120001_authoring_baseline', '202609130001_execution_profiles', '202609140001_generation_acceptance', '202609140002_text_observations','202609140003_qualified_savepoints','202609140004_experience_forks'])('rejects altered or missing predecessor %s', async name => {
     const db = await connect();
     await db.$executeRawUnsafe('UPDATE _prisma_migrations SET checksum = ? WHERE migration_name = ?', 'wrong', name);
     await expect(openRuntimeDatabase(dbPath)).rejects.toThrow('DATABASE_MIGRATION_NOT_APPROVED');
@@ -295,6 +298,9 @@ describe('non-destructive explicit profile migration', () => {
     const before = await db.localProfile.findUniqueOrThrow({where: {id: ownerId}});
     const history = await db.$queryRawUnsafe<Array<{checksum:string}>>("SELECT checksum FROM _prisma_migrations WHERE migration_name = '202609120001_authoring_baseline'");
     for(const table of ['savepoints','state_snapshots','playback_sessions'])await db.$executeRawUnsafe(`DROP TABLE ${table}`);
+    await db.$executeRawUnsafe("DELETE FROM _prisma_migrations WHERE migration_name = '202609140004_experience_forks'");
+    await db.$executeRawUnsafe('DROP TABLE experience_scene_refs');await db.$executeRawUnsafe('DROP TABLE experience_forks');
+    await db.$executeRawUnsafe('ALTER TABLE generation_turns DROP COLUMN input_savepoint_id');
     await db.$executeRawUnsafe("DELETE FROM _prisma_migrations WHERE migration_name = '202609140003_qualified_savepoints'");
     await db.$executeRawUnsafe('DROP TABLE text_usage_observations');
     await db.$executeRawUnsafe("DELETE FROM _prisma_migrations WHERE migration_name = '202609140002_text_observations'");

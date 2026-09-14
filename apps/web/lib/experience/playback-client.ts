@@ -1,3 +1,4 @@
+import {parseRecoverFork,type RecoverForkQuery,parseHistoryQuery,parseSavedSceneQuery,parseFork,parseResumeFork,parseHistoryPage,parseSavedSceneDetail,parseForkReceipt,type HistoryQuery,type SavedSceneQuery,type ForkCommand,type ResumeForkCommand,type HistoryPage,type SavedSceneDetail,type ForkReceipt} from 'runtime/contracts/history';
 import {parseGetResponseDraft,parseSaveResponseDraft,parseResponseDraft,type GetResponseDraftInput,type SaveResponseDraftInput,type ResponseDraftDTO,parsePlaybackProgress,parsePlaybackSession,type BeginPlaybackInput,type PlaybackProgressInput,type PlaybackSessionDTO} from 'runtime/contracts/generation';
 import {createTRPCClient, httpLink, TRPCClientError} from '@trpc/client';
 import {parseGetPlay, parseCompletePlayback, parseGenerationQuote, parseAcceptGeneration, parseGetQuote, type GetPlayInput, type CompletePlaybackInput, type PlayDTO,
@@ -47,7 +48,8 @@ function failure(raw: string, status: number, acceptance = false): never {
   throw invalid(status);
 }
 /** No automatic mutation retries. A playback receipt is historical; callers GET the current state afterwards. */
-export function createGenerationClient(): GenerationClient {
+export type HistoryClient={recover(input:RecoverForkQuery):Promise<ForkReceipt|null>;list(input:HistoryQuery):Promise<HistoryPage>;get(input:SavedSceneQuery):Promise<SavedSceneDetail>;fork(input:ForkCommand):Promise<ForkReceipt>;resume(input:ResumeForkCommand):Promise<GetPlayInput>};
+export function createGenerationClient(): GenerationClient & {history:HistoryClient} {
   const rpc = createTRPCClient<AppRouter>({links: [httpLink({url: '/api/trpc', headers: {'x-everwoven-request': '1'}, fetch: async (url, options) => {
     if (options?.method !== 'POST' && new TextEncoder().encode(String(url)).byteLength > GENERATION_QUERY_MAX_BYTES)
       throw new PlaybackClientError('INVALID_GENERATION_QUERY', 400, 'rejected');
@@ -79,6 +81,13 @@ export function createGenerationClient(): GenerationClient {
    const data=parseResponseDraft(raw);if(data.datasetId!==q.datasetId||data.experienceId!==q.experienceId||data.interactionEventId!==q.interactionEventId)throw invalid();return data;
   }
   return {
+    history:{
+     recover:input=>call(parseRecoverFork,input,q=>rpc.history.recover.query(q),(v,q)=>{if(v===null)return null;const r=parseForkReceipt(v);if(r.data.datasetId!==q.datasetId)throw invalid();return r;}),
+     list:input=>call(parseHistoryQuery,{...input,limit:input.limit??20},q=>rpc.history.list.query(q),(v,q)=>{const r=parseHistoryPage(v);if(r.datasetId!==q.datasetId||r.experienceId!==q.experienceId)throw invalid();return r;}),
+     get:input=>call(parseSavedSceneQuery,input,q=>rpc.history.get.query(q),(v,q)=>{const r=parseSavedSceneDetail(v);if(r.datasetId!==q.datasetId||r.experienceId!==q.experienceId||r.savepoint.id!==q.savepointId)throw invalid();return r;}),
+     fork:input=>call(parseFork,input,q=>rpc.history.fork.mutate(q),(v,q)=>{const r=parseForkReceipt(v);if(r.data.datasetId!==q.datasetId||r.data.sourceSavepointId!==q.savepointId)throw invalid();return r;}),
+     resume:input=>call(parseResumeFork,input,q=>rpc.history.resume.mutate(q),(v,q)=>{const r=parseGetPlay(v);if(r.datasetId!==q.datasetId||r.experienceId!==q.experienceId)throw invalid();return r;}),
+    },
     beginPlayback:input=>call(parseCompletePlayback,input,q=>rpc.generation.beginPlayback.mutate(q),(raw,q)=>{
      const data=parsePlaybackSession(raw);if(data.datasetId!==q.datasetId||data.experienceId!==q.experienceId||data.turnId!==q.turnId||data.mediaId!==q.mediaId||data.experienceRevision!==q.expectedExperienceRevision)throw invalid();return data;
     }),

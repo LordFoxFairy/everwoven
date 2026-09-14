@@ -17,14 +17,7 @@ export async function openingFacts(
 ): Promise<ExperienceOpeningDTO> {
   assertOpeningAuthority(scope, owner);
   try {
-    parseId(row.id); parseId(row.storyVersionId); parseId(row.providerBindingVersionId);
-    if (row.ownerId !== owner.ownerId || !isTimestamp(row.createdAt.toISOString()) || typeof row.budgetLimitMicros !== 'bigint') throw Error();
-    const story = await readStoryVersionInScope(scope, owner, row.storyVersionId);
-    const bindingRow = await scope.findBinding(row.providerBindingVersionId);
-    if (!bindingRow || bindingRow.id !== row.providerBindingVersionId) throw Error();
-    const fixedBinding = decodeStoredBinding(bindingRow, owner), binding = publicBinding(fixedBinding, owner);
-    if (row.createdAt.getTime() < Math.max(Date.parse(story.sealedAt), fixedBinding.createdAt.getTime())) throw Error();
-    const budget = parseBudget({limitMicros: row.budgetLimitMicros.toString(), currency: row.budgetCurrency});
+    const {story,binding,budget}=await fixedExperienceFacts(scope,owner,row);
     const setup = await scope.findSetup(row.id);
     if (!setup) throw Error();
     parseId(setup.id);
@@ -55,4 +48,20 @@ export async function assertStillPreparing(scope: ExperienceOpeningReadScope, ro
   const draft = drafts[0]!;
   if (draft.text !== '' || draft.revision !== 1 || draft.updatedAt.getTime() !== draft.createdAt.getTime())
     throw Error('PREPARATION_NO_LONGER_CURRENT');
+}
+
+/** Fixed story, character and binding facts shared by openings and forked routes. */
+export async function fixedExperienceFacts(scope: ExperienceOpeningReadScope, owner: InternalOwnerContext, row: ExperienceRecord) {
+  assertOpeningAuthority(scope, owner);
+  try {
+    parseId(row.id); parseId(row.storyVersionId); parseId(row.providerBindingVersionId);
+    if (row.ownerId !== owner.ownerId || !isTimestamp(row.createdAt.toISOString()) || typeof row.budgetLimitMicros !== 'bigint') throw Error();
+    const story = await readStoryVersionInScope(scope, owner, row.storyVersionId);
+    const bindingRow = await scope.findBinding(row.providerBindingVersionId);
+    if (!bindingRow || bindingRow.id !== row.providerBindingVersionId) throw Error();
+    const fixedBinding = decodeStoredBinding(bindingRow, owner), binding = publicBinding(fixedBinding, owner);
+    if (row.createdAt.getTime() < Math.max(Date.parse(story.sealedAt), fixedBinding.createdAt.getTime())) throw Error();
+    const budget = parseBudget({limitMicros: row.budgetLimitMicros.toString(), currency: row.budgetCurrency});
+    return {story,binding,budget};
+  } catch {throw Error('STORED_EXPERIENCE_INVALID');}
 }

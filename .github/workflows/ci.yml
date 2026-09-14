@@ -94,6 +94,9 @@ jobs:
       - name: Verify natural playback, scene savepoint and response recovery without model calls
         run: node scripts/smoke/local-qualified-playback.mjs
 
+      - name: Verify independent fork, source deletion and lost receipt recovery without model calls
+        run: node scripts/smoke/local-fork-ui.mjs
+
       - name: Save the tested image
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         run: docker save everwoven-web:ci | gzip > "$RUNNER_TEMP/everwoven-image.tar.gz"

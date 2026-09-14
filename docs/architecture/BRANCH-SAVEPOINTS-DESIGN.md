@@ -1,6 +1,49 @@
 # 分支存档技术设计 · 1.0
 
-2026-09-10 · 技术方案1.2专项。本文是待实现设计，不表示已建表或原型已经支持分支。
+2026-09-14 · 已实现基础历史回看、独立分支及恢复。下方逻辑设计保留背景，当前实际映射以本节与已实现API为准。
+
+## 当前实现映射
+
+- 第六迁移 `202609140004_experience_forks`：28业务表、18真实业务唯一、零外键。SQL见 [experience-forks.generated.sql](data/experience-forks.generated.sql)。
+- ExperienceFork.id 即 child Experience.id；来源/root/hash/base 为独立不可变记录，无冗余一对一唯一键。ExperienceSceneRef 显式登记 child 可读取的已确认前缀。
+- Savepoint 的 sourceTurnId/playbackSessionId 仅 fork_base 允许空，普通 played_segment 保持本路线真实证明要求。GenerationTurn.inputSavepointId 将新生成连接到本路线输入点。
+- child 首次 turn 的 parentTurnId=null、inputSavepointId=本地 fork_base；新已播点 parentSavepointId=该基点，快照包含继承前缀与新一幕。
+- 前缀上限1000，超过拒绝；实际导演输入在quote/accept前验证65536字符限额。来源后续剧情不进入子路线输入。
+- 同scope未知责任阻止新接受及付费阶段；planning/submitting/validating 的持久阶段标记串行化付费派发，read/materialize仍可恢复。实际结算账本尚未交付。
+- UI使用原舞台唯一视频，可收纳故事足迹；先保存原回应，显式创建paused child，再显式resume到awaiting。重启只读找回原fork回执，来源删除也保留入口。
+
+```mermaid
+flowchart LR
+  Stage[单视频舞台 / 故事足迹] --> API[history list/get/fork/recover/resume]
+  API --> History[ExperienceHistory / 来源和文件校验]
+  History --> DB[(SQLite / Prisma / owner写事务)]
+  DB --> Origin[ExperienceFork / ExperienceSceneRef]
+  DB --> State[Savepoint / StateSnapshot]
+  State --> Input[Generation inputSavepointId]
+  Input --> Worker[现有导演 / VideoJobAdapter]
+```
+
+```mermaid
+sequenceDiagram
+ participant U as 用户
+ participant C as 原舞台
+ participant A as History API
+ participant D as SQLite
+ U->>C: 查看已播点B并另开路线
+ C->>D: 经generation.saveDraft保存当前回应
+ C->>A: fork 原命令ID / B / hash
+ A->>A: 预检来源与文件
+ A->>D: 单事务创建child/base/decision/refs/receipt
+ Note over A,C: 若回执丢失，URL保留原命令ID
+ U->>C: 刷新并核对
+ C->>A: GET recover 原命令ID
+ A->>D: 校验并读取原回执
+ A-->>C: 同一child引用
+ U->>C: 从这里继续
+ C->>A: resume
+ A->>D: paused→awaiting / rowRevision+1
+ Note over U,D: 此前无模型请求、无费用预留
+```
 
 关联：[产品需求](../product/BRANCH-SAVEPOINTS-PROPOSAL.md) · [ADR](adr/ADR-0001-branch-experience-and-shared-budget.md) · [候选tRPC契约](../api/BRANCH-CONTRACT-DRAFT.md)。整体一期不因本设计直接扩大为全部分支UI交付。
 

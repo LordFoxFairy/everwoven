@@ -1,3 +1,6 @@
+import {assertSceneInputFits} from './scene-input.js';
+import {currentResponseInput} from './generation-input.js';
+import type {ConfirmedScene} from './saved-scene.js';
 import {parseGetResponseDraft,parseSaveResponseDraft,parseResponseDraft,type GetResponseDraftInput,type SaveResponseDraftInput,type ResponseDraftDTO} from '../contracts/generation.js';
 import {createGenerationPlayback} from './generation-playback.js';
 import {currentGenerationTurn} from './generation-current.js';
@@ -14,7 +17,7 @@ import type {LocalStoreAuthority} from '../host/store-epoch.js';
 import {withOwnerWrite} from '../infrastructure/db/write-gate.js';
 import {createExperienceOpeningReadScope} from '../infrastructure/db/prisma-experience-opening-store.js';
 import {createExecutionProfileWriteScope, createExecutionProfileReadScope} from '../infrastructure/db/prisma-execution-profile-store.js';
-import {openingFacts, assertStillPreparing} from './experience-opening-facts.js';
+import {fixedExperienceFacts, assertStillPreparing} from './experience-opening-facts.js';
 import {decodeStoredBinding} from './provider-binding-snapshots.js';
 import {pinExecutionProfile, readExecutionProfile} from './execution-profiles.js';
 import {calculateGenerationCost, type GenerationMeters} from './generation-pricing.js';
@@ -24,7 +27,7 @@ const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(valu
 export const generationBindingHash = (value: unknown) => hash(canonicalBindingJson(value));
 const stages = ['planner', 'video', 'validator'] as const;
 type AssetFact = {id: string; sha256: string; revision: number; purpose: string};
-type Snapshot = {quote: QuoteDTO; storyHash: string; profileHash: string; assets: AssetFact[]; parentTurnId: string | null; action: string; parentSummary: string; validatorImageLimit: number;
+type Snapshot = {inputSavepointId:string|null;inputSnapshotHash:string|null;confirmedScenes:ConfirmedScene[];quote: QuoteDTO; storyHash: string; profileHash: string; assets: AssetFact[]; parentTurnId: string | null; action: string; parentSummary: string; validatorImageLimit: number;
  prices: ReturnType<GenerationPolicy['resolve']>['prices']; meters: Record<typeof stages[number], GenerationMeters>};
 const json = (value: unknown) => value as Prisma.InputJsonValue;
 const MAX_REVISION = 2147483647;
@@ -114,21 +117,17 @@ export function createGenerationService(db: PrismaClient, owner: InternalOwnerCo
     if (!row || row.deletedAt || row.archivedAt) throw Error('EXPERIENCE_NOT_FOUND');
     if (row.revision !== v.expectedExperienceRevision) throw Error('REVISION_CONFLICT');
     let parentTurnId: string | null = null, parentSummary = '';
+    let inputScene:Awaited<ReturnType<typeof currentResponseInput>>|null=null;
     let interactionEventId: string;
     if (v.kind === 'opening') {
      await assertStillPreparing(scope, row);
      const setup = await scope.findSetup(row.id); if (!setup) throw Error('STORED_EXPERIENCE_INVALID');
      interactionEventId = setup.id;
     } else {
-     if (row.status !== 'awaiting' || !row.schedulingPaused) throw Error('GENERATION_NOT_AWAITING');
-     const event = await tx.interactionEvent.findFirst({where: {id: v.interactionEventId, ownerId: owner.ownerId, experienceId: row.id, kind: 'decision', experienceRevision: row.revision}});
-     const parent = await currentGenerationTurn(tx, owner.datasetId, row);
-     if (!event || !parent || parent.status !== 'viewed') throw Error('GENERATION_NOT_AWAITING');
-     const result = parent.result as {summary?: unknown};
-     if (typeof result?.summary !== 'string') throw Error('GENERATION_CONTENT_UNCONFIRMED');
-     parentTurnId = parent.id; parentSummary = result.summary; interactionEventId = event.id;
+     inputScene=await currentResponseInput(tx,owner,row,v.interactionEventId);
+     parentTurnId=inputScene.parentTurnId;parentSummary=inputScene.state.result.summary;interactionEventId=v.interactionEventId;
     }
-    const opening = await openingFacts(scope, owner, row), stored = await scope.findBinding(row.providerBindingVersionId);
+    const opening = await fixedExperienceFacts(scope, owner, row), stored = await scope.findBinding(row.providerBindingVersionId);
     if (!stored) throw Error('STORED_PROVIDER_BINDING_INVALID');
     const binding = decodeStoredBinding(stored, owner), {id: _, createdAt: __, ...bindingSpec} = binding;
     // resolve is installed host code: prices, adapter/artifact support cannot come from the caller.
@@ -161,13 +160,15 @@ export function createGenerationService(db: PrismaClient, owner: InternalOwnerCo
     }
     if (total > row.budgetLimitMicros || total > 9223372036854775807n) throw Error('GENERATION_BUDGET_EXCEEDED');
     const profile = await pinExecutionProfile(createExecutionProfileWriteScope(tx, owner.ownerId), owner, spec, services);
+    if(inputScene?.point.kind==='fork_base'&&profile.contentHash!==inputScene.state.executionProfileHash)throw Error('GENERATION_PROFILE_UNAVAILABLE');
     const quote: QuoteDTO = {protocolVersion: 1, datasetId: owner.datasetId, id: nextId(services), experienceId: row.id,
      experienceRevision: row.revision, profileId: profile.id, maxCostMicros: total.toString(), currency: spec.currency,
      createdAt: now.toISOString(), expiresAt: new Date(validUntil).toISOString(), summary: {
       title: opening.story.title, prompt: v.kind === 'response' ? v.text : opening.story.settings.opening, modelId: binding.modelId, region: binding.parameters.region,
       duration: g.duration, resolution: g.resolution, ratio: g.ratio, audio: evidence.audio, inputAssetIds: [...new Set(assets.map(a => a.id))]}};
-    const snapshot: Snapshot = {quote, storyHash: opening.story.contentHash, profileHash: profile.contentHash, assets, parentTurnId, action: v.kind === 'response' ? v.text : '', parentSummary, validatorImageLimit: evidence.validatorImageLimit,
+    const snapshot: Snapshot = {inputSavepointId:inputScene?.point.id??null,inputSnapshotHash:inputScene?.snapshot.contentHash??null,confirmedScenes:inputScene?.state.confirmedScenes??[],quote, storyHash: opening.story.contentHash, profileHash: profile.contentHash, assets, parentTurnId, action: v.kind === 'response' ? v.text : '', parentSummary, validatorImageLimit: evidence.validatorImageLimit,
      prices: structuredClone(evidence.prices), meters};
+    assertSceneInputFits({story:opening.story,quote,action:snapshot.action,parentSummary:snapshot.parentSummary,confirmedScenes:snapshot.confirmedScenes},snapshot.validatorImageLimit);
     await tx.generationQuote.create({data: {id: quote.id, ownerId: owner.ownerId, datasetId: owner.datasetId, storeEpoch: authority.storeEpoch,
      experienceId: row.id, experienceRevision: row.revision, interactionEventId, profileId: profile.id,
      maxCostMicros: total, currency: spec.currency, snapshot: json(snapshot), contentHash: hash([authority.storeEpoch, interactionEventId, snapshot]),
@@ -197,26 +198,30 @@ export function createGenerationService(db: PrismaClient, owner: InternalOwnerCo
     if (!root || root.deletedAt || root.archivedAt) throw Error('EXPERIENCE_NOT_FOUND');
     if (root.revision !== v.expectedExperienceRevision) throw Error('REVISION_CONFLICT');
     if (root.revision >= MAX_REVISION || root.rowRevision >= MAX_REVISION || root.dispatchEpoch >= MAX_REVISION) throw Error('REVISION_EXHAUSTED');
-    if (snapshot.parentTurnId) {
-     if (root.status !== 'awaiting' || !root.schedulingPaused) throw Error('GENERATION_NOT_AWAITING');
-     const event = await tx.interactionEvent.findFirst({where: {id: q.interactionEventId, ownerId: owner.ownerId, experienceId: root.id, kind: 'decision', experienceRevision: root.revision}});
-     const parent = await currentGenerationTurn(tx, owner.datasetId, root);
-     if (!event || !parent || parent.id !== snapshot.parentTurnId || parent.status !== 'viewed') throw Error('GENERATION_NOT_AWAITING');
-    } else await assertStillPreparing(scope, root);
-    const opening = await openingFacts(scope, owner, root);
-    if (opening.story.contentHash !== snapshot.storyHash || (!snapshot.parentTurnId && opening.setup.id !== q.interactionEventId)) throw Error('GENERATION_QUOTE_STALE');
+    if (snapshot.inputSavepointId) {
+     const basis=await currentResponseInput(tx,owner,root,q.interactionEventId);
+     if(basis.point.id!==snapshot.inputSavepointId||basis.snapshot.contentHash!==snapshot.inputSnapshotHash||basis.parentTurnId!==snapshot.parentTurnId||!isDeepStrictEqual(basis.state.confirmedScenes,snapshot.confirmedScenes))throw Error('GENERATION_QUOTE_STALE');
+    } else {
+     await assertStillPreparing(scope,root);
+     if(snapshot.parentTurnId!==null||snapshot.inputSnapshotHash!==null||snapshot.confirmedScenes.length)throw Error('GENERATION_QUOTE_STALE');
+     if((await scope.findSetup(root.id))?.id!==q.interactionEventId)throw Error('GENERATION_QUOTE_STALE');
+    }
+    const opening = await fixedExperienceFacts(scope, owner, root);
+    if(opening.story.contentHash!==snapshot.storyHash)throw Error('GENERATION_QUOTE_STALE');
     for (const expected of snapshot.assets) {
      const asset = await scope.findAsset(expected.id);
      if (!asset || asset.ownerId !== owner.ownerId || asset.deletedAt || asset.status !== 'ready' || asset.sha256 !== expected.sha256 || asset.revision !== expected.revision)
       throw Error('STORY_ASSET_NOT_READY');
     }
     const execution = await readExecutionProfile(createExecutionProfileReadScope(tx, owner.ownerId), owner, q.profileId);
+    assertSceneInputFits({story:opening.story,quote:snapshot.quote,action:snapshot.action,parentSummary:snapshot.parentSummary,confirmedScenes:snapshot.confirmedScenes},snapshot.validatorImageLimit);
     policy.assertDispatch(execution);
     // Root scope persists across later forks. First paid intent creates it; preparation spends nothing.
     const scopeId = root.budgetScopeId ?? nextId(services);
     if (!root.budgetScopeId) await tx.budgetScope.create({data: {id: scopeId, ownerId: owner.ownerId, limitMicros: root.budgetLimitMicros, currency: root.budgetCurrency, createdAt: now}});
     const budget = await tx.budgetScope.findFirst({where: {id: scopeId, ownerId: owner.ownerId}});
     if (!budget || budget.currency !== q.currency || root.budgetCurrency !== q.currency) throw Error('GENERATION_BUDGET_INVALID');
+    if(await tx.generationTurn.count({where:{budgetScopeId:scopeId,status:'unknown'}}))throw Error('SCOPE_RECONCILIATION_REQUIRED');
     // Unknown outcomes remain reserved. A reservation may only be released by definitive settlement.
     async function liability(where: Prisma.BudgetReservationWhereInput) {
      const rows = await tx.budgetReservation.findMany({where});
@@ -236,7 +241,7 @@ export function createGenerationService(db: PrismaClient, owner: InternalOwnerCo
      data: {budgetScopeId: scopeId, status: 'generating', schedulingPaused: false, revision: {increment: 1}, rowRevision: {increment: 1}, dispatchEpoch: {increment: 1}, updatedAt: now}});
     if (changed.count !== 1) throw Error('REVISION_CONFLICT');
     await tx.generationTurn.create({data: {id, ownerId: owner.ownerId, experienceId: root.id, budgetScopeId: scopeId, quoteId: q.id,
-     interactionEventId: q.interactionEventId, parentTurnId: snapshot.parentTurnId, status: 'queued', createdAt: now, updatedAt: now}});
+     interactionEventId: q.interactionEventId, parentTurnId: snapshot.parentTurnId, inputSavepointId:snapshot.inputSavepointId, status: 'queued', createdAt: now, updatedAt: now}});
     await tx.budgetReservation.create({data: {id, ownerId: owner.ownerId, experienceId: root.id, budgetScopeId: scopeId, reservedMicros: q.maxCostMicros,
      settledMicros: 0n, currency: q.currency, status: 'held', createdAt: now, updatedAt: now}});
     await tx.runtimeOutbox.create({data: {id, ownerId: owner.ownerId, kind: 'generation.start', status: 'pending', availableAt: now, createdAt: now, updatedAt: now}});

@@ -128,3 +128,9 @@ PlaybackSessionDTO除公共字段外含id、turnId、mediaId、experienceRevisio
 错误：PLAYBACK_MEDIA_UNAVAILABLE（文件不可读）、PLAYBACK_SESSION_UNAVAILABLE（会话失效）、PLAYBACK_PROGRESS_CONFLICT（序号冲突）、PLAYBACK_COVERAGE_INCOMPLETE（覆盖不足）、SAVEPOINT_SOURCE_UNAVAILABLE（来源完整性失败）。界面保留原视频与进展，重新播放不创建付费任务。
 
 浏览器验收：`node scripts/smoke/local-qualified-playback.mjs` 在一次性本机Host上使用同一生产应用、真实SQLite和本地ffmpeg测试片段，验证自然播放、原子存档、回应落库及进程重启。它不配置供应商，也不是模型生成验收。
+
+## 已播历史与独立路线（2026-09-14）
+
+舞台工具栏“足迹”打开可收纳浮层，历史预览复用唯一视频且不写播放进度。从已播点另开路线前保存原回应；创建暂停的独立child，显式继续后给出新建议/自由回应。刷新只读找回原fork结果，来源删除后仍可找回已创建child。完整契约见[分支API](BRANCH-CONTRACT-DRAFT.md)，架构/时序与数据映射见[专项设计](../architecture/BRANCH-SAVEPOINTS-DESIGN.md)。
+
+本地验收覆盖A/B/C→B分叉→D，只继承A/B；费用仍共用一个scope。历史和分支不调用模型。真实付费模型及实际结算仍为未完成项。

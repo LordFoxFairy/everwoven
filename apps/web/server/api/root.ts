@@ -1,3 +1,4 @@
+import {historyRouter} from './history';
 import {generationRouter} from './generation';
 import {assetRouter} from './assets';
 import {openingRouter} from './openings';
@@ -9,6 +10,7 @@ import {videoConfigurationSchema} from '../../contracts/video';
 
 export const appRouter = createTRPCRouter({
   generation: generationRouter,
+  history: historyRouter,
   openings: openingRouter,
   assets: assetRouter,
   storyDrafts: storyDraftRouter,

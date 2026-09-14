@@ -63,3 +63,9 @@ BudgetReservation.id 和 RuntimeOutbox.id 分别复用本次 turnId，表示本�
 `Savepoint(sourceTurnId)` / `uq_savepoint_played_turn`：一个已接受并完整播放的回合至多生成一个正式played_segment节点。sourceTurnId非空、全局UUID；节点不可变、不软删除、不重复占号。重复complete命令重放回执，事务冲突回滚，禁止覆盖旧快照。不同回合可有同内容或同媒体hash；同回合允许多次PlaybackSession（重播、断线），因此turnId在播放会话表不唯一。parentSavepointId允许多个子节点，StateSnapshot.contentHash也不唯一。跨库迁移须重建所有者/数据集关系，不能仅复制引用。
 
 累计26个主键、17个真实业务唯一、零FK。当前Savepoint仅实现played_segment；未来fork_base须明确新的来源/可空语义，不能伪造新分支已经播放了原回合。
+
+## 独立路线增量（2026-09-14，当前总数）
+
+累计 **28主键、18真实业务唯一、零FK**。`ExperienceSceneRef(experienceId,savepointId)` / `uq_experience_scene_ref`：同一子路线对同一已确认点仅保留一条授权引用，字段均非空，不软删除复用。不同child可以引用同一源点，相同child可引用多个不同点；owner/dataset由应用检查，引用随存活路线保留。
+
+ExperienceFork.id即child身份，一份child只有一个不可变来源，以主键表达，不再增加sourceSavepointId或rootExperienceId伪唯一。许多child可以来自同一源点和根。Savepoint.sourceTurnId现可空，仅fork_base为空；NULL不约束基点数量，基点身份由origin和原子初始化确定。普通played_segment仍需真实sourceTurn/playback证据并保持一回合一存档约束。

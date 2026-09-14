@@ -1,3 +1,4 @@
+import {readForkBase} from './saved-scene.js';
 import {createPlaybackSessions,type VerifyPlaybackMedia} from './playback-sessions.js';
 import {recordPlayedSavepoint} from './played-savepoints.js';
 import {createHash} from 'node:crypto';
@@ -9,7 +10,7 @@ import type {InternalOwnerContext} from '../contracts/story-draft.js';
 import type {LocalStoreAuthority} from '../host/store-epoch.js';
 import {withOwnerWrite} from '../infrastructure/db/write-gate.js';
 import {createExperienceOpeningReadScope} from '../infrastructure/db/prisma-experience-opening-store.js';
-import {openingFacts} from './experience-opening-facts.js';
+import {fixedExperienceFacts} from './experience-opening-facts.js';
 import {currentTime, nextId, systemServices, type RuntimeServices} from './runtime-services.js';
 import {currentGenerationTurn} from './generation-current.js';
 
@@ -41,13 +42,14 @@ export function createGenerationPlayback(db: PrismaClient, owner: InternalOwnerC
   if (!await tx.localProfile.findFirst({where: {id: owner.ownerId, deletedAt: null}})) throw Error('OWNER_UNAVAILABLE');
   const root = await tx.experience.findFirst({where: {id: experienceId, ownerId: owner.ownerId, deletedAt: null, archivedAt: null}});
   if (!root) throw Error('EXPERIENCE_NOT_FOUND');
-  const opening = await openingFacts(createExperienceOpeningReadScope(tx, owner.ownerId), owner, root);
+  const opening = await fixedExperienceFacts(createExperienceOpeningReadScope(tx, owner.ownerId), owner, root);
   const turn = await currentGenerationTurn(tx, owner.datasetId, root);
+  const inherited=!turn&&root.status!=='preparing'?await readForkBase(tx,owner,root):null;
   const event = root.status === 'awaiting' ? await tx.interactionEvent.findFirst({where: {ownerId: owner.ownerId, experienceId, experienceRevision: root.revision, kind: 'decision'}}) : null;
   const media = turn && ['ready', 'viewed'].includes(turn.status) ? turn.media as {id: string; duration: number} | null : null;
-  return parsePlayDTO({protocolVersion: 1, datasetId: owner.datasetId, experienceId, title: opening.story.title, revision: root.revision, status: root.status,
+  return parsePlayDTO({protocolVersion: 1, datasetId: owner.datasetId, experienceId, title: opening.story.title, revision: root.revision, status: root.status,...(inherited?{inherited:{savepointId:inherited.point.id,turnId:inherited.state.sourceTurnId,mediaId:inherited.state.media.id,duration:inherited.state.media.duration}}:{}),
    turn: turn ? {id: turn.id, status: turn.status, errorCode: turn.errorCode, media: media ? {id: media.id, duration: media.duration} : null} : null,
-   interaction: event && turn?.status === 'viewed' ? {id: event.id, summary: (turn.result as {summary: string}).summary, choices: event.options as NonNullable<PlayDTO['interaction']>['choices']} : null});
+   interaction: event && (turn?.status === 'viewed'||inherited) ? {id: event.id, summary: inherited?.state.result.summary??(turn!.result as {summary: string}).summary, choices: event.options as NonNullable<PlayDTO['interaction']>['choices']} : null});
  }
  return {
   ...createPlaybackSessions(db,owner,authority,services,verifyMedia),

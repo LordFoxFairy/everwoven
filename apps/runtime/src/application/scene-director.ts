@@ -1,3 +1,4 @@
+import {buildSceneInput} from './scene-input.js';
 import {RunnableLambda} from '@langchain/core/runnables';
 import {isDeepStrictEqual} from 'node:util';
 import {generationBindingHash} from './generation.js';
@@ -29,9 +30,7 @@ export function createSceneDirector(dependencies: SceneDirectorDependencies) {
     if (context.quote.profileId !== context.profile.id || context.quote.datasetId !== context.story.datasetId ||
       typeof context.action !== 'string' || context.action.length > 2000 || typeof context.parentSummary !== 'string' || context.parentSummary.length > 2000)
       throw Error('GENERATION_CONTEXT_INVALID');
-    return {story: {title: context.story.title, settings: context.story.settings, character: context.story.mainCharacter?.effective ?? null},
-      confirmedPast: context.parentSummary, userAction: context.action, output: {duration: context.quote.summary.duration,
-        resolution: context.quote.summary.resolution, ratio: context.quote.summary.ratio, audio: context.quote.summary.audio}};
+    return buildSceneInput(context);
   }
   async function invoke(context: GenerationContext, stage: 'planner' | 'validator', input: StructuredTextInput, signal?: AbortSignal) {
     // Local V1 has no approved remote tracing destination. Do not let ambient tracing/verbose flags export scene data.

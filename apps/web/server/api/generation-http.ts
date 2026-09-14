@@ -1,3 +1,4 @@
+import {localHistoryAccess} from '../local-history';
 import {fetchRequestHandler} from '@trpc/server/adapters/fetch';
 import {TRPC_ERROR_CODES_BY_KEY} from '@trpc/server/rpc';
 import {appRouter} from './root';
@@ -29,7 +30,7 @@ export async function handleGenerationHTTP(request: Request, env: Record<string,
     } catch (error) {return failure(error instanceof Error && error.message === 'BODY_TOO_LARGE' ? 'GENERATION_REQUEST_TOO_LARGE' : invalid);}
   }
   const response = await fetchRequestHandler({endpoint: '/api/trpc', req: request, router: appRouter,
-    createContext: () => ({env, withPlayback: localPlaybackAccess(request, env), withGeneration: localGenerationAccess(request, env)}),
+    createContext: () => ({env, withHistory:localHistoryAccess(request,env), withPlayback: localPlaybackAccess(request, env), withGeneration: localGenerationAccess(request, env)}),
   });
   if (response.status >= 400) {
     let identifier: GenerationErrorCode = 'GENERATION_INTERNAL_ERROR';

@@ -5,7 +5,7 @@ import styles from './segmented-stage.module.css';
 import {StageConfirmation} from './stage-confirmation';
 
 export type SegmentedStageProps = {
-  title: string; context: string; phase: 'preparing' | 'loading' | 'generating' | 'watching' | 'awaiting' | 'confirming' | 'unknown' | 'failed';
+  title: string; context: string; phase: 'history' | 'preparing' | 'loading' | 'generating' | 'watching' | 'awaiting' | 'confirming' | 'unknown' | 'failed';
   media: {kind: 'reference' | 'video' | 'empty'; url: string}; simulated: boolean;
   choices: {id: string; title: string; text: string}[];
   onEnded: (progress?:{positionMs:number;coveredMs:number}) => void; onRespond: (text: string) => boolean | Promise<boolean>; onExit: () => void;
@@ -14,7 +14,7 @@ export type SegmentedStageProps = {
   storageError?: string; onRetrySave?: () => void;
   onPlaybackStart?:()=>Promise<boolean>;onPlaybackProgress?:(progress:{positionMs:number;coveredMs:number})=>Promise<boolean>;
   managedResponse?: boolean; responsePending?: boolean; responseDirty?: boolean; onMediaError?: () => void;
-  statusDetail?: string; retryLabel?: string; mediaRevision?: number; recoveryLabel?: string; overlay?: (container: HTMLElement | null) => ReactNode;
+  tools?:(container:HTMLElement|null)=>ReactNode; statusDetail?: string; retryLabel?: string; mediaRevision?: number; recoveryLabel?: string; overlay?: (container: HTMLElement | null) => ReactNode;
 };
 
 /** Presentation shared by rehearsal and future validated segment results. */
@@ -58,7 +58,7 @@ export function SegmentedStage(props: SegmentedStageProps) {
       requestAnimationFrame(() => reopen.current?.focus());
     }
   }}>
-    {media.kind === 'video' ? <video key={`${media.url}:${props.mediaRevision ?? 0}`} className={styles.media} style={{objectFit: fit}} src={media.url} playsInline controls autoPlay={phase === 'watching'} onError={props.onMediaError} onPlay={event=>{
+    {media.kind === 'video' ? <video key={`${media.url}:${props.mediaRevision ?? 0}`} className={styles.media} style={{objectFit: fit}} src={media.url} playsInline controls autoPlay={phase === 'watching'||phase==='history'} onError={props.onMediaError} onPlay={event=>{
       if(!props.onPlaybackStart||phase!=='watching')return;
       const video=event.currentTarget;if(playbackGate.current===video)return;video.pause();
       if(startingVideo.current===video)return;startingVideo.current=video;video.currentTime=0;
@@ -79,7 +79,7 @@ export function SegmentedStage(props: SegmentedStageProps) {
         : <div className={styles.noMedia}>{simulated ? '尚未添加参考图片' : <span>你的故事，即将展开</span>}</div>}
     <header className={styles.header}>
       <div className={styles.heading}><button aria-label="返回我的游玩" onClick={leave}><ArrowLeft size={18}/></button><h1>{title}</h1></div>
-      <div className={styles.tools}><button onClick={() => setFit(fit === 'cover' ? 'contain' : 'cover')}>{fit === 'cover' ? '完整画面' : '铺满画面'}</button><button aria-label="切换全屏" onClick={() => void fullscreen()}><Maximize size={18}/></button></div>
+      <div className={styles.tools}>{props.tools?.(portal.current)}<button onClick={() => setFit(fit === 'cover' ? 'contain' : 'cover')}>{fit === 'cover' ? '完整画面' : '铺满画面'}</button><button aria-label="切换全屏" onClick={() => void fullscreen()}><Maximize size={18}/></button></div>
     </header>
     {simulated && <p className={styles.disclosure}>交互演练 · 静态参考 · 不调用模型</p>}
     {['preparing', 'loading', 'confirming', 'unknown'].includes(phase) && <section className={styles.status} role="status">

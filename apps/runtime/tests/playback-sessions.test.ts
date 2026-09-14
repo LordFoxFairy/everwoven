@@ -45,7 +45,7 @@ it('consumes complete evidence and writes snapshot, savepoint, decision and orig
   const points=await f.db.savepoint.findMany();expect(points).toHaveLength(1);expect(points[0]).toMatchObject({ownerId:f.owner.ownerId,sourceTurnId:f.turn.id,kind:'played_segment',parentSavepointId:null,interactionEventId:result.data.interaction!.id});
   const snapshot=await f.db.stateSnapshot.findUniqueOrThrow({where:{id:points[0]!.stateSnapshotId}});expect(snapshot.state).toMatchObject({storyVersionId:f.opening.story.id,sourceTurnId:f.turn.id,media:f.media,result:f.result});
   expect(await f.generation.completePlayback(f.input)).toEqual({...result,replayed:true});expect(await f.db.stateSnapshot.count()).toBe(1);
-  expect((await f.db.playbackSession.findUniqueOrThrow({where:{id:points[0]!.playbackSessionId}})).status).toBe('consumed');
+  expect((await f.db.playbackSession.findUniqueOrThrow({where:{id:points[0]!.playbackSessionId!}})).status).toBe('consumed');
  }finally{await f.close();}
 });
 it('accepts valid coverage when network jitter bunches successive progress reports together',async()=>{

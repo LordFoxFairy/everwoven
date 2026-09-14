@@ -12,6 +12,8 @@ export type PlayState = {
 };
 function message(error: unknown): string {
  const messages: Record<string, string> = {
+  GENERATION_CONTEXT_LIMIT:'当前故事的上下文已超过这组模型的输入上限。内容仍保留，本次未提交生成。',
+  SCOPE_RECONCILIATION_REQUIRED:'同一故事的费用结果仍待核对，可回看与另开路线，暂不生成新内容。',
   PLAYBACK_COVERAGE_INCOMPLETE:'播放进度尚未完整确认，请重新播放这一幕后继续。',
   PLAYBACK_SESSION_UNAVAILABLE:'播放会话已失效，请重新播放当前片段。',PLAYBACK_MEDIA_UNAVAILABLE:'本机视频暂时不可读，请检查文件后重新播放。',
   GENERATION_RUNTIME_UNAVAILABLE: '视频生成配置尚未就绪。请完成本机供应商与模型配置后重新开始，当前故事已保存。',
@@ -109,7 +111,7 @@ export class PlayController {
     draftRecord = await b.client.getDraft({protocolVersion:1,datasetId:play.datasetId,experienceId:play.experienceId,interactionEventId:play.interaction.id});
     if (!current()) return false;
    }
-   this.publish({play, ...(play.turn?.media ? {lastMedia: {turnId: play.turn.id, mediaId: play.turn.media.id, duration: play.turn.media.duration}} : {}),
+   this.publish({play, ...(play.turn?.media ? {lastMedia: {turnId: play.turn.id, mediaId: play.turn.media.id, duration: play.turn.media.duration}} : play.inherited?{lastMedia:{turnId:play.inherited.turnId,mediaId:play.inherited.mediaId,duration:play.inherited.duration}}:{}),
     ...(!same && !this.acceptCommand ? {draft: draftRecord?.text ?? '', quote: null} : {}),
     ...(draftRecord?.interactionEventId === play.interaction?.id ? {draftRecord, ...(this.state.draftRecord?.interactionEventId !== draftRecord?.interactionEventId && !this.state.quote ? {draft:draftRecord?.text ?? ''} : {})} : {draftRecord:null})});
    if (play.status === 'awaiting' && this.playbackCommand?.turnId === play.turn?.id) {this.playbackCommand = null;this.publish({playbackUnknown: false});}

@@ -4,7 +4,7 @@ import {fields, parseOwner, parseId} from '../contracts/story-draft-validation.j
 import {parseExperienceList, parseExperiencePage, type ExperienceList, type ExperiencePage, type ExperienceSummary} from '../contracts/experience-directory.js';
 import {isTimestamp} from '../contracts/primitives.js';
 import type {ExperienceOpeningStore} from '../ports/experience-opening-store.js';
-import {assertOpeningAuthority, openingFacts} from './experience-opening-facts.js';
+import {assertOpeningAuthority, fixedExperienceFacts} from './experience-opening-facts.js';
 
 /** Read-only live keyset page. Cursor is a scoped position, not authority or a snapshot lease. */
 export async function listExperiences(store: ExperienceOpeningStore, owner: InternalOwnerContext, input: ExperienceList): Promise<ExperiencePage> {
@@ -27,7 +27,7 @@ export async function listExperiences(store: ExperienceOpeningStore, owner: Inte
     for (const row of rows.slice(0, q.limit)) {
       if (row.ownerId !== owner.ownerId || row.deletedAt || row.archivedAt) throw Error('STORED_EXPERIENCE_INVALID');
       // Reuse in-scope sealing/binding/ownership checks, not public nested transactions.
-      const facts = await openingFacts(scope, owner, row);
+      const facts = await fixedExperienceFacts(scope, owner, row);
       items.push({id: row.id, storyVersionId: facts.story.id, title: facts.story.title, sourceRevision: facts.story.sourceRevision,
         status: row.status, schedulingPaused: row.schedulingPaused, modelId: facts.binding.modelId, region: facts.binding.region,
         budget: facts.budget, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString()});

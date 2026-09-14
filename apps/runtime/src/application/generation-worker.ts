@@ -1,3 +1,5 @@
+import {isDeepStrictEqual} from 'node:util';
+import {readInputScene,type ConfirmedScene} from './saved-scene.js';
 import {createHash} from 'node:crypto';
 import {Prisma, type PrismaClient} from '../generated/prisma/client.js';
 import type {InternalOwnerContext} from '../contracts/story-draft.js';
@@ -13,7 +15,7 @@ import {withOwnerWrite} from '../infrastructure/db/write-gate.js';
 import {createExperienceOpeningReadScope} from '../infrastructure/db/prisma-experience-opening-store.js';
 import {createExecutionProfileReadScope} from '../infrastructure/db/prisma-execution-profile-store.js';
 import {readExecutionProfile} from './execution-profiles.js';
-import {openingFacts} from './experience-opening-facts.js';
+import {fixedExperienceFacts} from './experience-opening-facts.js';
 import {decodeStoredBinding} from './provider-binding-snapshots.js';
 import {currentTime, nextId, systemServices, type RuntimeServices} from './runtime-services.js';
 import {parseId} from '../contracts/story-draft-validation.js';
@@ -23,7 +25,7 @@ export type PreparedScene = {prompt: string};
 export type PrivateSceneMedia = {id: string; sha256: string; duration: number};
 import {parseSceneResult, type SceneResult} from '../contracts/generation-output.js';
 export type {SceneResult} from '../contracts/generation-output.js';
-export type GenerationContext = {turnId: string; story: StoryVersionDTO; profile: PinnedProfile; quote: QuoteDTO; action: string; parentSummary: string; validatorImageLimit: number; signal?: AbortSignal};
+export type GenerationContext = {confirmedScenes?:ConfirmedScene[];turnId: string; story: StoryVersionDTO; profile: PinnedProfile; quote: QuoteDTO; action: string; parentSummary: string; validatorImageLimit: number; signal?: AbortSignal};
 /** Only trusted runtime adapters implement these operations; there is no request-time injection. */
 export type GenerationExecutor = {
  /** Validate installed graph/prompt/schema and adapter versions before acquiring a paid stage. */
@@ -82,19 +84,30 @@ export function createGenerationWorker(db: PrismaClient, owner: InternalOwnerCon
     root.status !== 'generating' || root.budgetScopeId !== turn.budgetScopeId || reservation.budgetScopeId !== turn.budgetScopeId ||
     reservation.experienceId !== turn.experienceId || reservation.currency !== q.currency || reservation.status !== 'held' ||
     reservation.reservedMicros < q.maxCostMicros || turn.interactionEventId !== q.interactionEventId) throw Error('GENERATION_QUEUE_INVALID');
-   const snapshot = q.snapshot as unknown as {quote: QuoteDTO; profileHash: string; storyHash: string; action: string; parentSummary: string; validatorImageLimit: number};
+   const snapshot = q.snapshot as unknown as {inputSavepointId:string|null;inputSnapshotHash:string|null;confirmedScenes:ConfirmedScene[];quote: QuoteDTO; profileHash: string; storyHash: string; action: string; parentSummary: string; validatorImageLimit: number};
    if (q.contentHash !== hash([q.storeEpoch, q.interactionEventId, q.snapshot]) || snapshot.quote.id !== q.id || snapshot.quote.maxCostMicros !== q.maxCostMicros.toString()) throw Error('STORED_GENERATION_QUOTE_INVALID');
-   const scope = createExperienceOpeningReadScope(tx, owner.ownerId), opening = await openingFacts(scope, owner, root);
+   const scope = createExperienceOpeningReadScope(tx, owner.ownerId), opening = await fixedExperienceFacts(scope, owner, root);
    const profile = await readExecutionProfile(createExecutionProfileReadScope(tx, owner.ownerId), owner, q.profileId);
    if (profile.contentHash !== snapshot.profileHash || opening.story.contentHash !== snapshot.storyHash || profile.videoBindingVersionId !== root.providerBindingVersionId) throw Error('GENERATION_QUEUE_INVALID');
+   if(turn.inputSavepointId!==snapshot.inputSavepointId)throw Error('GENERATION_QUEUE_INVALID');
+   if(snapshot.inputSavepointId){
+    const input=await readInputScene(tx,owner,root,snapshot.inputSavepointId);
+    if(input.snapshot.contentHash!==snapshot.inputSnapshotHash||!isDeepStrictEqual(input.state.confirmedScenes,snapshot.confirmedScenes))throw Error('GENERATION_QUEUE_INVALID');
+   }else if(snapshot.inputSnapshotHash!==null||snapshot.confirmedScenes.length)throw Error('GENERATION_QUEUE_INVALID');
    executor.assertProfile(profile);
    const binding = await scope.findBinding(root.providerBindingVersionId);
    if (!binding) throw Error('GENERATION_QUEUE_INVALID');
    const stage = turn.status === 'queued' ? 'planning' : turn.status === 'prepared' ? 'submitting' : turn.status === 'checking' ? 'validating' : turn.status;
+   // The persisted paid-stage marker serializes new sends across workers in a scope.
+   // Unknown and still-running (including crashed, unrecovered) sends block only new paid work.
+   if(paidInFlight.has(stage)&&await tx.generationTurn.count({where:{budgetScopeId:turn.budgetScopeId,id:{not:turn.id},status:{in:['unknown',...paidInFlight]}}})){
+    await tx.runtimeOutbox.update({where:{id:wake.id},data:{availableAt:new Date(now.getTime()+3000),updatedAt:now,revision:{increment:1}}});
+    return{stopped:true as const};
+   }
    await tx.runtimeOutbox.update({where: {id: wake.id}, data: {status: 'leased', leaseToken: token, leaseUntil: new Date(now.getTime() + leaseMs), updatedAt: now, revision: {increment: 1}}});
    await tx.generationTurn.update({where: {id: turn.id}, data: {status: stage, updatedAt: now, revision: {increment: 1}}});
    return {stopped: false as const, stage, turn, binding: decodeStoredBinding(binding, owner),
-    context: {turnId: turn.id, story: opening.story, profile, quote: snapshot.quote, action: snapshot.action, parentSummary: snapshot.parentSummary, validatorImageLimit: snapshot.validatorImageLimit} satisfies GenerationContext};
+    context: {confirmedScenes:snapshot.confirmedScenes,turnId: turn.id, story: opening.story, profile, quote: snapshot.quote, action: snapshot.action, parentSummary: snapshot.parentSummary, validatorImageLimit: snapshot.validatorImageLimit} satisfies GenerationContext};
   });
   if (!claimed) return false;
   if (claimed.stopped) return true;

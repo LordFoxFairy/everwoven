@@ -1,74 +1,51 @@
-# 分支存档 tRPC 候选契约 · Draft 1
+# 分支存档 tRPC 契约 · V1
 
-2026-09-10 · 仅设计，**未注册到AppRouter**。不是新增REST/OpenAPI上线声明。领域语义以[专项设计](../architecture/BRANCH-SAVEPOINTS-DESIGN.md)为准。
+2026-09-14 · 已注册到原 AppRouter。文件路径沿用原设计入口；本稿替换候选方法，以下为实际契约。
 
-## 1. 共用规则
+## 共同约定
 
-服务端会话产生owner；Host/Origin/CSRF与既有本机门禁一致。客户端不提交owner、Snapshot、媒体URL或来源祖先数组。UUIDv7、UTC毫秒、正整数revision、十进制金额字符串和同币种规则沿用。查询结果不返回凭证、绝对路径或未来剧情事实。
+统一 `/api/trpc/history.*`，GET 查询、POST 命令。沿用本机 Host/Origin/CSRF/session 门禁，禁止混合批处理，响应 no-store。owner 取自会话；输入必须包含 `protocolVersion:1`、`datasetId`、`experienceId`。ID 为 UUIDv7，时间为 UTC ISO，金额为十进制微单位字符串。拒绝未知字段、客户端 owner、状态快照和供应商 URL。
 
-## 2. 方法与读写副作用
+## 已实现方法
 
-| 候选方法 | 类型 / 输入摘要 | 输出摘要 | 副作用 |
-|---|---|---|---|
-| history.listBranches | query / rootExperienceId、cursor、limit | 本owner分支列表、来源SP、当前阶段、nextCursor | 只读，不自动resume/fork |
-| history.listSavepoints | query / experienceId、cursor、limit | 可访问前缀与本地节点摘要、真实分页范围 | 只读，不返回完整世界状态给普通树列表 |
-| history.getSavepoint | query / experienceId、savepointId | 历史情境、受权媒体引用、snapshotHash、forkEligibility、scope预算摘要 | 只读；不创建播放instance，不报告播放，不轮询模型 |
-| experience.fork | mutation / ForkCommand | ForkReceipt | 创建独立paused child及持久引用；零模型调用、零资金预留 |
+| 方法 | 附加输入 | 输出和副作用 |
+|---|---|---|
+| history.list | limit（1–20，默认20）、beforeId? | items、nextBeforeId；UUID降序键集分页，只读本路线已播点及显式继承前缀，摘要最多300字符 |
+| history.get | savepointId | savepoint、scene、media ID、canFork、budget；只读，不补发播放证明 |
+| history.fork | commandId、savepointId、expectedSnapshotHash、branchBudgetLimitMicros、currency | ForkReceipt；原子创建 paused 子路线、基点、独立回应和引用，无任务及费用预留 |
+| history.recover | commandId | 已提交 ForkReceipt 或 null；校验发起 experience/dataset，只读找回原命令，来源删除后仍有效 |
+| history.resume | commandId、expectedExperienceRevision | protocolVersion、datasetId、experienceId；显式 paused→awaiting，无模型调用 |
 
-方法名在Zod/实现评审时冻结；所有方法当前implemented=false。分页实际限制需实施前压测和冻结，服务端始终有上限，不提供无限all查询。
-
-`history.getSavepoint`既可以读取当前经历自己的SP，也可以读取通过origin及显式前缀引用授权的祖先SP；不允许据此遍历源经历SP之后的节点。experienceId表示当前查看的经历作用域，savepointId可为其授权前缀中的源点；响应须含实际sourceExperienceId/sourceSavepointId及kind，用于明确fork目标。fork_base本身首版不可再分叉；折叠展示时不得隐去原来源生命周期限制。根路线软删除不隐藏本owner的存活child或清空scope；列表可返回已删除祖先的最小占位而非其全文。
-
-单纯owner相同不是“继承源未来剧情”的依据。
-
-## 3. ForkCommand
+完整类型和解析器：[history.ts](../../apps/runtime/src/contracts/history.ts)。`experienceId` 是当前授权查看的路线；选中点可以来自其显式继承前缀。返回 `sourceExperienceId` 是实际源点所在路线，不能假定与发起路线相同。
 
 ```typescript
-type ForkCommand = {
-  commandId: string;
-  sourceExperienceId: string;
-  sourceSavepointId: string;
-  expectedSnapshotHash: string;
-  branchBudgetLimitMicros: string;
-  currency: string;
-};
 type ForkReceipt = {
   data: {
-    experienceId: string;
-    rootExperienceId: string;
-    sourceExperienceId: string;
-    sourceSavepointId: string;
-    initialSavepointId: string;
-    initialInteractionEventId: string;
-    budgetScopeId: string;
+    protocolVersion: 1; datasetId: string; experienceId: string;
+    rootExperienceId: string; sourceExperienceId: string;
+    sourceSavepointId: string; initialSavepointId: string;
+    initialInteractionEventId: string; budgetScopeId: string;
     acceptedAt: string;
   };
   replayed: boolean;
 };
 ```
 
-这是回执引用，不包含会被误当成当前状态的“仍处于paused”快照。收到回执后用现有经历快照操作读取child最新状态。首次成功的child必为paused，后续重放不把已经继续的child倒回初始状态。
+回执只包含稳定引用，客户端随后用 generation.get 读取 child 当前阶段。服务端保存 `{input, data}`，摘要绑定原始规范化命令。同 commandId 同载荷返回原 child；异载荷冲突。入口先查回执，文件预检失败及最终写事务内再次查回执。已经创建成功后，来源删除或文件故障不会把原命令变成“未创建”。
 
-鉴权与规范化输入后先检查回执，未命中才执行来源/文件预检；预检失败返回前及最终创建事务内均复查回执。已提交成功后即使源素材丢失，原键重放仍返回同一child，不把当前素材故障当成原命令失败。
+## 恢复与交互
 
-source SP不可变，fork不要求source当前剧情revision还停留在B；否则原路线已经走到C就无法从B分叉。用source SP身份/hash防错目标，以生命周期、owner、素材与scope事务检查保证准入。切换之前的SaveAndPause仍使用正在操作经历的rowRevision/草稿版本，不能用fork省略。
+原回应先保存成功，再发 fork。URL 只记录 `fork=commandId`，刷新不重发 mutation。恢复按钮先 GET recover：命中进入原 child；当前页面仍持有完整原命令且未命中时，显式点击可以重试同一命令。刷新后若仅持有 ID 且未命中，保持待核对或返回原路线，不构造新命令。即使源路线删除、未知或读取失败，恢复入口仍显示。
 
-## 4. 快照与错误扩展
+child 初始 paused、逻辑 revision=1；resume 仅增加 rowRevision，逻辑修订保持1。generation.get 使用明确的 inherited 媒体投影，turn=null；不伪造子路线生成/播放。继续后重新选建议或自由回应，生成仍须单独报价与确认。
 
-经历快照需设计origin、rootExperienceId、currentSavepointId、scope预算摘要，以及fork_base只读媒体的明确来源。existing media不能伪装为child新生成且已播放。旧客户端不认识fork_base证据模式时拒绝推进并提示升级，不把它当普通setup重新start。
+## 授权、额度和限制
 
-forkEligibility仅为提示，包含eligible及有限阻断原因。实际mutation复查；读取到eligible后素材可能被删除或scope状态改变。
+- 来源必须是合格 played_segment，快照哈希、owner/dataset、固定剧本/绑定、媒体和素材均复核；源路线已删除/归档时禁止新 fork。
+- 只继承到选中点为止的已确认前缀，最多1000点，超出明确拒绝、不截断。A→B→C 从 B 分叉只继承 A/B。
+- 源路线删除后，已创建 child 通过持久引用读取其获准前缀；不获得源 C 的权限。
+- 所有 child 共用根 BudgetScope，子上限不大于 scope 上限且币种相同。回看/fork 不收费；同 scope 未知责任阻止新付费阶段。
+- GENERATION_CONTEXT_LIMIT 在报价及接受阶段、资金预留之前检查，按实际导演输入序列化上限65536字符，不静默删历史。
+- 参数、身份、CAS、幂等和媒体错误复用 generation 公开错误映射；任意底层异常不会返回私有路径或凭证。canFork 为生命周期提示，最终资格以命令校验为准。
 
-新增候选错误：SOURCE_UNAVAILABLE（含越权/不存在/来源删除的对外同类结果）、SAVEPOINT_NOT_FORKABLE、SNAPSHOT_MISMATCH、SNAPSHOT_VERSION_UNSUPPORTED、SOURCE_MEDIA_UNAVAILABLE、BUDGET_SCOPE_UNAVAILABLE、SCOPE_RECONCILIATION_REQUIRED。身份、CAS、幂等、额度和参数错误复用现有语义。具体tRPC code与可重试策略在实现契约中逐项映射，不直接泄露底层错误。
-
-SCOPE_RECONCILIATION_REQUIRED阻止新付费派发，而非阻止零生成的回看/fork；前端用allowedActions区分“可另存分支”和“现在可生成”。所有客户端提示仍需服务端验证。
-
-## 5. 引用与消费保护
-
-新child的decision/建议ID重新生成；引用相同建议文字不复用已消费source节点的身份。scope、root、绑定等从source真值解析，客户端不可选择不相干的账户范围。
-
-普通媒体读取与回看媒体读取的区别主要在授权来源和禁止写副作用；复用AssetStore/Range基础，不新建公开直链。新媒体片段的播放证据仍走原流程；来源继承媒体的回看不走reportPlayback。
-
-## 6. 上线门槛
-
-先有受保护会话、正式经历快照/Savepoint、scope预算、事务与资产GC测试，再注册方法。随后同步客户端类型、输入输出Zod、兼容版本、鉴权/幂等/恢复/分页/模型零调用测试；不提前修改历史47操作的implemented标识。
+验收使用真实本机 Host、SQLite、私有 MP4 和隔离测试传输；不代表供应商付费验收已通过。

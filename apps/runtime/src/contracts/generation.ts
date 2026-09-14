@@ -19,7 +19,7 @@ export type GetPlayInput = StoryProtocol & {experienceId: string};
 export type GetQuoteInput = GetPlayInput & {quoteId: string};
 export type QuoteState = {quote: QuoteDTO; acceptedTurnId: string | null};
 export type CompletePlaybackInput = GetPlayInput & {commandId: string; expectedExperienceRevision: number; turnId: string; mediaId: string};
-export type PlayDTO = StoryProtocol & {experienceId: string; title: string; revision: number; status: string;
+export type PlayDTO = StoryProtocol & {inherited?:{savepointId:string;turnId:string;mediaId:string;duration:number};experienceId: string; title: string; revision: number; status: string;
  turn: {id: string; status: string; media: {id: string; duration: number} | null; errorCode: string | null} | null;
  interaction: {id: string; summary: string; choices: {id: string; title: string; text: string}[]} | null};
 export function parseGenerationQuote(value: unknown): GenerationQuoteInput {

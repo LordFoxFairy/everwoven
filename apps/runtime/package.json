@@ -98,6 +98,10 @@
     "./contracts/generation-output": {
       "types": "./src/contracts/generation-output.ts",
       "default": "./dist/contracts/generation-output.js"
+    },
+    "./contracts/history": {
+      "types": "./src/contracts/history.ts",
+      "default": "./dist/contracts/history.js"
     }
   }
 }

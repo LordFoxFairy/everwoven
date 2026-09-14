@@ -31,10 +31,10 @@ const errors = ['GENERATION_RESULT_UNKNOWN', 'GENERATION_READ_INTERRUPTED', 'PRO
 /** Only application facts cross the boundary: no provider URLs, paths, credentials or raw errors. */
 export function parsePlayDTO(value: unknown): PlayDTO {
   try {
-    fields(value, ['protocolVersion', 'datasetId', 'experienceId', 'title', 'revision', 'status', 'turn', 'interaction']);
+    fields(value, ['protocolVersion', 'datasetId', 'experienceId', 'title', 'revision', 'status', 'turn', 'interaction'],['inherited']);
     const protocol = parseProtocol(value), experienceId = parseId(value.experienceId), revision = parseRevision(value.revision);
     const title = text(value.title, 240);
-    if (!['preparing', 'generating', 'playing', 'awaiting', 'unknown', 'failed'].includes(value.status as string)) throw invalid();
+    if (!['preparing', 'paused', 'generating', 'playing', 'awaiting', 'unknown', 'failed'].includes(value.status as string)) throw invalid();
     let turn: PlayDTO['turn'] = null, interaction: PlayDTO['interaction'] = null;
     if (value.turn !== null) {
       fields(value.turn, ['id', 'status', 'media', 'errorCode']);
@@ -54,13 +54,18 @@ export function parsePlayDTO(value: unknown): PlayDTO {
       fields(value.interaction, ['id', 'summary', 'choices']);
       interaction = {id: parseId(value.interaction.id), ...parseSceneResult({summary: value.interaction.summary, choices: value.interaction.choices})};
     }
-    if (value.status === 'preparing' ? turn !== null : turn === null) throw invalid();
+    let inherited:PlayDTO['inherited'];
+    if(value.inherited!==undefined){fields(value.inherited,['savepointId','turnId','mediaId','duration']);const m=value.inherited;
+      if(turn!==null||revision!==1||!['paused','awaiting'].includes(value.status as string)||typeof m.duration!=='number'||m.duration<=0||m.duration>120)throw invalid();
+      inherited={savepointId:parseId(m.savepointId),turnId:parseId(m.turnId),mediaId:parseId(m.mediaId),duration:m.duration};}
+    if(value.status==='paused'&&!inherited)throw invalid();
+    if (value.status === 'preparing' ? turn !== null || Boolean(inherited) : turn === null && !inherited) throw invalid();
     if ((value.status === 'awaiting') !== Boolean(interaction)) throw invalid();
     const expected = {playing: 'ready', awaiting: 'viewed', unknown: 'unknown', failed: 'failed'} as const;
-    if (Object.hasOwn(expected, value.status as string) && turn?.status !== expected[value.status as keyof typeof expected]) throw invalid();
+    if (Object.hasOwn(expected, value.status as string) && !(value.status==='awaiting'&&inherited) && turn?.status !== expected[value.status as keyof typeof expected]) throw invalid();
     if (value.status === 'generating' && !generating.includes(turn!.status)) throw invalid();
-    if (['playing', 'awaiting'].includes(value.status as string) && turn?.errorCode !== null) throw invalid();
-    return {...protocol, experienceId, title, revision, status: value.status as string, turn, interaction};
+    if (['playing', 'awaiting'].includes(value.status as string) && turn && turn.errorCode !== null) throw invalid();
+    return {...protocol, experienceId, title, revision, status: value.status as string, turn, interaction,...(inherited?{inherited}:{})};
   } catch {throw invalid();}
 }
 

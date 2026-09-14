@@ -1,3 +1,4 @@
+import {readForkBase,readPlayedScene} from './saved-scene.js';
 import type {PrismaClient} from '../generated/prisma/client.js';
 import type {InternalOwnerContext} from '../contracts/story-draft.js';
 import {parseOwner} from '../contracts/story-draft-validation.js';
@@ -16,7 +17,13 @@ export async function openGenerationMedia(db: PrismaClient, owner: InternalOwner
     const root = await tx.experience.findFirst({where: {id: query.experienceId, ownerId: owner.ownerId, deletedAt: null, archivedAt: null}});
     if (!root) throw Error('GENERATION_MEDIA_NOT_FOUND');
     const turn = await tx.generationTurn.findFirst({where: {id: query.turnId, ownerId: owner.ownerId, experienceId: root.id, status: {in: ['ready', 'viewed']}}});
-    if (!turn) throw Error('GENERATION_MEDIA_NOT_FOUND');
+    if (!turn) {
+      const point=await tx.savepoint.findUnique({where:{sourceTurnId:query.turnId}});
+      const ref=point&&await tx.experienceSceneRef.findUnique({where:{experienceId_savepointId:{experienceId:root.id,savepointId:point.id}}});
+      if(!point||!ref||ref.ownerId!==owner.ownerId||ref.datasetId!==owner.datasetId)throw Error('GENERATION_MEDIA_NOT_FOUND');
+      await readForkBase(tx,owner,root);const scene=await readPlayedScene(tx,owner,point.id);
+      if(scene.state.media.id!==query.mediaId)throw Error('GENERATION_MEDIA_NOT_FOUND');return scene.state.media;
+    }
     const quote = await tx.generationQuote.findFirst({where: {id: turn.quoteId, ownerId: owner.ownerId, datasetId: owner.datasetId,
       experienceId: root.id, acceptedTurnId: turn.id, interactionEventId: turn.interactionEventId, schemaVersion: 1}});
     if (!quote) throw Error('GENERATION_MEDIA_NOT_FOUND');

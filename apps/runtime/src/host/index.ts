@@ -1,3 +1,5 @@
+import {createExperienceHistory} from '../application/experience-history.js';
+export type HistoryService=ReturnType<typeof createExperienceHistory>;
 import {createGenerationPlayback} from '../application/generation-playback.js';
 import {createGenerationService} from '../application/generation.js';
 import {localGenerationRuntime} from './generation-runtime.js';
@@ -136,7 +138,7 @@ export function maintainLocalAssets(directory: string, environment: LocalEnviron
 
 const playbackErrors = new Set(['CLIENT_RELOAD_REQUIRED', 'DATASET_CHANGED', 'OWNER_UNAVAILABLE', 'REVISION_CONFLICT',
   'IDEMPOTENCY_CONFLICT', 'REVISION_EXHAUSTED', 'INVALID_GENERATION_COMMAND', 'INVALID_GENERATION_QUERY',
-  'PLAYBACK_MEDIA_UNAVAILABLE','PLAYBACK_SESSION_UNAVAILABLE','PLAYBACK_PROGRESS_CONFLICT','PLAYBACK_COVERAGE_INCOMPLETE','SAVEPOINT_SOURCE_UNAVAILABLE',
+  'GENERATION_CONTEXT_LIMIT','SCOPE_RECONCILIATION_REQUIRED','SNAPSHOT_MISMATCH','HISTORY_PREFIX_LIMIT','GENERATION_BUDGET_INVALID','PLAYBACK_MEDIA_UNAVAILABLE','PLAYBACK_SESSION_UNAVAILABLE','PLAYBACK_PROGRESS_CONFLICT','PLAYBACK_COVERAGE_INCOMPLETE','SAVEPOINT_SOURCE_UNAVAILABLE',
   'EXPERIENCE_NOT_FOUND', 'GENERATION_NOT_PLAYABLE', 'GENERATION_CONTENT_UNCONFIRMED', 'STORE_AUTHORITY_UNAVAILABLE']);
 const generationErrors = new Set([...playbackErrors, 'GENERATION_QUOTE_NOT_FOUND', 'GENERATION_QUOTE_STALE', 'GENERATION_QUOTE_EXPIRED', 'GENERATION_QUOTE_CONSUMED',
  'GENERATION_NOT_AWAITING', 'GENERATION_BUDGET_EXCEEDED', 'GENERATION_STAGE_BUDGET_EXCEEDED', 'GENERATION_POLICY_UNAVAILABLE', 'GENERATION_PRICE_UNAVAILABLE',
@@ -172,4 +174,15 @@ export async function openLocalGenerationMedia(directory: string, environment: L
         reader = await openGenerationMedia(db, owner, input, files, revalidate);return reader;
       }, true);
   } catch (error) {await reader?.close();throw error;}
+}
+
+export function withLocalHistory<T>(directory:string,environment:LocalEnvironment,token:string,work:(service:HistoryService,owner:InternalOwnerContext)=>Promise<T>):Promise<T>{
+ return withLocalDatabase(directory,environment,token,new Set([...playbackErrors,'STORY_ASSET_NOT_READY']),'LOCAL_GENERATION_FAILED',async(db,owner,{host,revalidate})=>{
+  const captured=await acquireLocalStoreAuthority(directory,environment),authority={...captured,revalidate:async()=>{await revalidate();await captured.revalidate();}};
+  const videos=await createPrivateVideoReader(host,owner,authority.revalidate),assets=bindAssets(db,owner,host,authority.revalidate);
+  return work(createExperienceHistory(db,owner,authority,{
+   verifyVideo:async metadata=>{try{const reader=await videos.open(metadata);await reader.close();}catch{throw Error('PLAYBACK_MEDIA_UNAVAILABLE');}},
+   verifyAsset:async assetId=>{await assets.getBytes({datasetId:owner.datasetId,assetId});},
+  }),owner);
+ },true);
 }

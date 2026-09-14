@@ -1,3 +1,4 @@
+import {SCENE_TEXT_LIMIT} from '../application/scene-input.js';
 import {parseExecutionBinding, canonicalBindingJson} from '../contracts/provider-binding-validation.js';
 import {fields} from '../contracts/story-draft-validation.js';
 import {generationBindingHash} from '../application/generation.js';
@@ -40,7 +41,7 @@ export function createOpenRouterText(raw: unknown, {apiKey, fetchImpl = fetch, t
     let body: string;
     try {
       fields(input, ['system', 'text', 'schemaName', 'schema', 'images']);
-      if (typeof input.system !== 'string' || !input.system || input.system.length > 16000 || typeof input.text !== 'string' || !input.text || input.text.length > 65536 ||
+      if (typeof input.system !== 'string' || !input.system || input.system.length > 16000 || typeof input.text !== 'string' || !input.text || input.text.length > SCENE_TEXT_LIMIT ||
         typeof input.schemaName !== 'string' || !/^[a-z][a-z0-9_]{0,63}$/.test(input.schemaName) || !Array.isArray(input.images) || input.images.length > 16 ||
         (input.images.length && (!caps.imageInput || !generation.inputModalities.some(modality => modality === 'image')))) throw Error();
       const schema = canonicalBindingJson(input.schema);
