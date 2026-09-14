@@ -69,3 +69,7 @@ BudgetReservation.id 和 RuntimeOutbox.id 分别复用本次 turnId，表示本�
 累计 **28主键、18真实业务唯一、零FK**。`ExperienceSceneRef(experienceId,savepointId)` / `uq_experience_scene_ref`：同一子路线对同一已确认点仅保留一条授权引用，字段均非空，不软删除复用。不同child可以引用同一源点，相同child可引用多个不同点；owner/dataset由应用检查，引用随存活路线保留。
 
 ExperienceFork.id即child身份，一份child只有一个不可变来源，以主键表达，不再增加sourceSavepointId或rootExperienceId伪唯一。许多child可以来自同一源点和根。Savepoint.sourceTurnId现可空，仅fork_base为空；NULL不约束基点数量，基点身份由origin和原子初始化确定。普通played_segment仍需真实sourceTurn/playback证据并保持一回合一存档约束。
+
+## 分幕费用证据增量（2026-09-14，最新总数）
+
+累计 **29主键、19业务唯一、零FK**。`StageCostEvidence(turnId,stage)` / `uq_stage_cost_turn_stage`：当前固定图每阶段最多一次付费调用，一个已接受回合的某阶段只有一份不可变首次费用证据。字段非空、不软删除或复用占号；异证据冲突拒绝，后续更正须独立追加分录。不同回合可以同responseId/内容/金额，故这些字段不唯一。owner/dataset/storeEpoch在应用内校验，不以冗余唯一或外键表达。整回合首次结算使用现有BudgetReservation主键身份和状态转换，未堆叠另一份同义账本。

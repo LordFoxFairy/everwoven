@@ -1,7 +1,8 @@
+import type {AccountCost} from '../contracts/account-cost.js';
 import type {TextBindingSpec} from '../contracts/provider-binding.js';
 export type StructuredTextInput = {system: string; text: string; schemaName: string; schema: Record<string, unknown>;
   images: {mimeType: 'image/jpeg'; bytes: Uint8Array}[]};
-export type TextObservation = {providerId: string; modelId: string; bindingHash: string; responseId: string;
+export type TextObservation = {providerId: string; modelId: string; bindingHash: string; responseId: string;accountCost?:AccountCost;
   usage: {inputTokens?: number; outputTokens?: number; totalTokens?: number}};
 export type StructuredTextResult = {value: unknown; observation: TextObservation};
 export interface StructuredTextModel {

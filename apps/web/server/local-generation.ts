@@ -1,3 +1,4 @@
+import type {CostQuery,CostDTO} from 'runtime/contracts/generation-cost';
 import type {GetResponseDraftInput,SaveResponseDraftInput,ResponseDraftDTO,BeginPlaybackInput,PlaybackProgressInput,PlaybackSessionDTO} from 'runtime/contracts/generation';
 import {TRPCError} from '@trpc/server';
 import type {InternalOwnerContext} from 'runtime/contracts/story-draft';
@@ -8,6 +9,7 @@ import {generationHTTPStatus, generationTRPCCode} from '../contracts/generation-
 import {guardLocalRequest, localRuntimeConfig, sessionToken} from './local-boundary';
 
 export type PlaybackService = {
+ cost(input:CostQuery):Promise<CostDTO>;
  beginPlayback(input:BeginPlaybackInput):Promise<PlaybackSessionDTO>; reportPlayback(input:PlaybackProgressInput):Promise<PlaybackSessionDTO>;
   get(input: GetPlayInput): Promise<PlayDTO>;
   completePlayback(input: CompletePlaybackInput): Promise<PlaybackResult>;

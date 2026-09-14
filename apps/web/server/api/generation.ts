@@ -1,3 +1,4 @@
+import {parseCostQuery,parseCostDTO} from 'runtime/contracts/generation-cost';
 import {parseGetResponseDraft,parseSaveResponseDraft,parseResponseDraft,parsePlaybackProgress,parsePlaybackSession} from 'runtime/contracts/generation';
 import {z} from 'zod';
 import {parseGetPlay, parseCompletePlayback, parseGenerationQuote, parseAcceptGeneration, parseGetQuote} from 'runtime/contracts/generation';
@@ -33,6 +34,9 @@ const generationProcedure = publicMetadataProcedure.use(async ({ctx, next, type}
  } catch (error) {throw localGenerationError(error);}
 });
 export const generationRouter = createTRPCRouter({
+ cost:playbackProcedure.input(parser(parseCostQuery)).query(async({ctx,input})=>{
+  try{if(input.datasetId!==ctx.owner.datasetId)throw Error('DATASET_CHANGED');const data=parseCostDTO(await ctx.playback.cost(input));if(data.datasetId!==input.datasetId||data.experienceId!==input.experienceId||data.turnId!==input.turnId)throw Error('INVALID_GENERATION_DTO');return data;}catch(error){throw localGenerationError(error);}
+ }),
  beginPlayback:playbackProcedure.input(parser(parseCompletePlayback)).mutation(async({ctx,input})=>{
   try{if(input.datasetId!==ctx.owner.datasetId)throw Error('DATASET_CHANGED');const data=parsePlaybackSession(await ctx.playback.beginPlayback(input));
    if(data.datasetId!==input.datasetId||data.experienceId!==input.experienceId||data.turnId!==input.turnId||data.mediaId!==input.mediaId||data.experienceRevision!==input.expectedExperienceRevision)throw Error('INVALID_GENERATION_DTO');return data;

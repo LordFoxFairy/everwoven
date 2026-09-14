@@ -1,3 +1,4 @@
+import {createGenerationCostReader} from './generation-cost.js';
 import {readForkBase} from './saved-scene.js';
 import {createPlaybackSessions,type VerifyPlaybackMedia} from './playback-sessions.js';
 import {recordPlayedSavepoint} from './played-savepoints.js';
@@ -52,6 +53,7 @@ export function createGenerationPlayback(db: PrismaClient, owner: InternalOwnerC
    interaction: event && (turn?.status === 'viewed'||inherited) ? {id: event.id, summary: inherited?.state.result.summary??(turn!.result as {summary: string}).summary, choices: event.options as NonNullable<PlayDTO['interaction']>['choices']} : null});
  }
  return {
+  cost:createGenerationCostReader(db,owner,authority),
   ...createPlaybackSessions(db,owner,authority,services,verifyMedia),
   async get(input: GetPlayInput): Promise<PlayDTO> {
    const v = parseGetPlay(input); dataset(v); await authority.revalidate();

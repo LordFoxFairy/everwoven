@@ -1,4 +1,5 @@
 'use client';
+import {SceneCost} from './scene-cost';
 import {SceneHistory} from './scene-history';
 import {createGenerationClient} from '../lib/experience/playback-client';
 import type {SavedSceneDetail} from 'runtime/contracts/history';
@@ -37,7 +38,7 @@ export function GenerationStage({controller, state, onExit}: {controller: PlayCo
   phase={phase} simulated={false} mediaRevision={mediaRevision} recoveryLabel={state.draftUnknown || controller.draftDirty() ? '保存原回应' : state.acceptUnknown ? '核对原确认' : state.playbackUnknown ? '确认已看完' : '重新读取'} media={shown && state.datasetId && state.experienceId ? {kind: 'video', url: generationMediaURL({datasetId: state.datasetId,
    experienceId: state.experienceId, turnId: shown.turnId, mediaId: shown.mediaId})} : {kind: 'empty', url: ''}}
   choices={play?.interaction?.choices ?? []} initialResponseDraft={state.draft} managedResponse responseDirty={controller.draftDirty()} responsePending={resuming || Boolean(state.busy) || state.reading || state.draftUnknown || Boolean(state.draftConflict)}
-  tools={container=>recoveringFork||['awaiting','paused'].includes(play?.status??'')?<SceneHistory key={`${state.datasetId}:${state.experienceId}`} controller={controller} state={state} container={container} onPreview={scene=>{setPreview(scene);setMediaRevision(n=>n+1);}} onOpenChange={setHistoryOpen}/>:null}
+  tools={container=><>{recoveringFork||['awaiting','paused'].includes(play?.status??'')?<SceneHistory key={`${state.datasetId}:${state.experienceId}`} controller={controller} state={state} container={container} onPreview={scene=>{setPreview(scene);setMediaRevision(n=>n+1);}} onOpenChange={setHistoryOpen}/>:null}{play?.turn&&state.datasetId&&state.experienceId?<SceneCost key={play.turn.id} query={{protocolVersion:1,datasetId:state.datasetId,experienceId:state.experienceId,turnId:play.turn.id}} container={container}/>:null}</>}
   onDraftChange={text => controller.draft(text)} onRespond={text => controller.quote(text)}
   onPlaybackStart={()=>controller.beginViewing()} onPlaybackProgress={progress=>controller.reportCoverage(progress)}
   onEnded={progress => {if (saved) void controller.ended(saved.turnId, saved.mediaId,progress);}} onMediaError={() => controller.mediaFailed()}

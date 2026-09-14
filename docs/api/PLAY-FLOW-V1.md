@@ -134,3 +134,7 @@ PlaybackSessionDTO除公共字段外含id、turnId、mediaId、experienceRevisio
 舞台工具栏“足迹”打开可收纳浮层，历史预览复用唯一视频且不写播放进度。从已播点另开路线前保存原回应；创建暂停的独立child，显式继续后给出新建议/自由回应。刷新只读找回原fork结果，来源删除后仍可找回已创建child。完整契约见[分支API](BRANCH-CONTRACT-DRAFT.md)，架构/时序与数据映射见[专项设计](../architecture/BRANCH-SAVEPOINTS-DESIGN.md)。
 
 本地验收覆盖A/B/C→B分叉→D，只继承A/B；费用仍共用一个scope。历史和分支不调用模型。真实付费模型及实际结算仍为未完成项。
+
+## 本幕费用
+
+原舞台工具栏以可收纳浮层展示报价、预留、已结算与阶段依据。真实实现及证据边界见[结算契约](GENERATION-SETTLEMENT-V1.md)。费用GET不调用供应商；三个阶段证据齐全才释放多余预留。未决/超额继续保留责任，不显示成免费。

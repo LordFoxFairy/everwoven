@@ -1,3 +1,4 @@
+import {recordStageCost,settleTurnCost} from './generation-settlement.js';
 import {isDeepStrictEqual} from 'node:util';
 import {readInputScene,type ConfirmedScene} from './saved-scene.js';
 import {createHash} from 'node:crypto';
@@ -74,6 +75,7 @@ export function createGenerationWorker(db: PrismaClient, owner: InternalOwnerCon
     await tx.generationTurn.update({where: {id: turn.id}, data: {status: 'unknown', errorCode: 'GENERATION_RESULT_UNKNOWN', updatedAt: now, revision: {increment: 1}}});
     await tx.runtimeOutbox.update({where: {id: wake.id}, data: {status: 'blocked', leaseToken: null, leaseUntil: null, updatedAt: now, revision: {increment: 1}}});
     await tx.experience.updateMany({where: {id: turn.experienceId, ownerId: owner.ownerId, status: 'generating'}, data: {status: 'unknown', schedulingPaused: true, updatedAt: now, rowRevision: {increment: 1}}});
+    await settleTurnCost(tx,owner,authority,turn.id,services);
     return {stopped: true as const};
    }
    const q = await tx.generationQuote.findFirst({where: {id: turn.quoteId, ownerId: owner.ownerId}}),
@@ -100,7 +102,7 @@ export function createGenerationWorker(db: PrismaClient, owner: InternalOwnerCon
    const stage = turn.status === 'queued' ? 'planning' : turn.status === 'prepared' ? 'submitting' : turn.status === 'checking' ? 'validating' : turn.status;
    // The persisted paid-stage marker serializes new sends across workers in a scope.
    // Unknown and still-running (including crashed, unrecovered) sends block only new paid work.
-   if(paidInFlight.has(stage)&&await tx.generationTurn.count({where:{budgetScopeId:turn.budgetScopeId,id:{not:turn.id},status:{in:['unknown',...paidInFlight]}}})){
+   if(paidInFlight.has(stage)&&(await tx.budgetReservation.count({where:{budgetScopeId:turn.budgetScopeId,reviewRequired:true}})||await tx.generationTurn.count({where:{budgetScopeId:turn.budgetScopeId,id:{not:turn.id},status:{in:['unknown',...paidInFlight]}}}))){
     await tx.runtimeOutbox.update({where:{id:wake.id},data:{availableAt:new Date(now.getTime()+3000),updatedAt:now,revision:{increment:1}}});
     return{stopped:true as const};
    }
@@ -149,6 +151,12 @@ export function createGenerationWorker(db: PrismaClient, owner: InternalOwnerCon
     checkDeadline();
     const updatedAt = currentTime(services), wake = await tx.runtimeOutbox.findFirst({where: {id: turn.id, ownerId: owner.ownerId, status: 'leased', leaseToken: token}});
     if (!wake) return false; // A late callback must not replace recovery/another lease's result.
+    if(stage==='polling'&&patch.result&&['materializing','failed'].includes(status)){
+     const result=parseVideoJobSnapshot(patch.result),{video:_video,...snapshot}=result;
+     await recordStageCost(tx,owner,authority,turn.id,'video',{kind:'video',reference:turn.providerReference as unknown as VideoTaskReference,snapshot},services);
+    }
+    const costState=await tx.budgetReservation.findUniqueOrThrow({where:{id:turn.id}});
+    if(costState.reviewRequired&&!['failed','unknown'].includes(status)){status='unknown';patch={...patch,errorCode:'GENERATION_RESULT_UNKNOWN'};}
     const changed = await tx.generationTurn.updateMany({where: {id: turn.id, ownerId: owner.ownerId, status: stage}, data: {
      errorCode: null, ...patch, status, updatedAt, revision: {increment: 1}} as Prisma.GenerationTurnUpdateManyMutationInput});
     if (changed.count !== 1) return false;
@@ -156,6 +164,7 @@ export function createGenerationWorker(db: PrismaClient, owner: InternalOwnerCon
      availableAt: new Date(updatedAt.getTime() + delayMs), leaseUntil: null, leaseToken: null, updatedAt, revision: {increment: 1}}});
     if (['ready', 'failed', 'unknown'].includes(status)) await tx.experience.update({where: {id: turn.experienceId}, data: {
      status: status === 'ready' ? 'playing' : status, schedulingPaused: true, updatedAt, rowRevision: {increment: 1}}});
+    if(['ready','failed','unknown'].includes(status))await settleTurnCost(tx,owner,authority,turn.id,services);
     checkDeadline();
     return true;
    });

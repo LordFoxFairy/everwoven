@@ -102,6 +102,10 @@
     "./contracts/history": {
       "types": "./src/contracts/history.ts",
       "default": "./dist/contracts/history.js"
+    },
+    "./contracts/generation-cost": {
+      "types": "./src/contracts/generation-cost.ts",
+      "default": "./dist/contracts/generation-cost.js"
     }
   }
 }

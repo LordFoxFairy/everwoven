@@ -221,7 +221,7 @@ export function createGenerationService(db: PrismaClient, owner: InternalOwnerCo
     if (!root.budgetScopeId) await tx.budgetScope.create({data: {id: scopeId, ownerId: owner.ownerId, limitMicros: root.budgetLimitMicros, currency: root.budgetCurrency, createdAt: now}});
     const budget = await tx.budgetScope.findFirst({where: {id: scopeId, ownerId: owner.ownerId}});
     if (!budget || budget.currency !== q.currency || root.budgetCurrency !== q.currency) throw Error('GENERATION_BUDGET_INVALID');
-    if(await tx.generationTurn.count({where:{budgetScopeId:scopeId,status:'unknown'}}))throw Error('SCOPE_RECONCILIATION_REQUIRED');
+    if(await tx.budgetReservation.count({where:{budgetScopeId:scopeId,reviewRequired:true}})||await tx.generationTurn.count({where:{budgetScopeId:scopeId,status:'unknown'}}))throw Error('SCOPE_RECONCILIATION_REQUIRED');
     // Unknown outcomes remain reserved. A reservation may only be released by definitive settlement.
     async function liability(where: Prisma.BudgetReservationWhereInput) {
      const rows = await tx.budgetReservation.findMany({where});

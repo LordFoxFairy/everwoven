@@ -1,3 +1,6 @@
+import {createGenerationWorker} from '../../../apps/runtime/dist/application/generation-worker.js';
+import {createPersistedGenerationExecutor} from '../../../apps/runtime/dist/composition/generation-executor.js';
+import {createMiniMaxVideoJobs} from '../../../apps/runtime/dist/providers/minimax-jobs.js';
 // Only used with withLocalBrowser's disposable host. No supplier credentials or requests.
 import {readFile} from 'node:fs/promises';
 import {join} from 'node:path';
@@ -15,7 +18,7 @@ import {createPrivateVideoStore} from '../../../apps/runtime/dist/infrastructure
 import {createVideoProbe} from '../../../apps/runtime/dist/infrastructure/media/video-probe.js';
 import {sceneArtifacts} from '../../../apps/runtime/dist/application/scene-artifacts.js';
 const {v7}=createRequire(new URL('../../../apps/runtime/package.json',import.meta.url))('uuid');
-export async function seedQualifiedScene(directory){
+export async function seedQualifiedScene(directory,{costEvidence=false}={}){
  if(!directory.includes('everwoven-character-browser-'))throw Error('Disposable host required');
  const host=await validatedHost(directory,'dev'),owner={ownerId:host.manifest.ownerId,datasetId:host.manifest.datasetId},protocol={protocolVersion:1,datasetId:owner.datasetId};
  const db=await openRuntimeDatabase(join(directory,'runtime.db'));
@@ -34,7 +37,18 @@ export async function seedQualifiedScene(directory){
   const filename=join(host.target.parent,'qualified-fixture.mp4');execFileSync('ffmpeg',['-nostdin','-v','error','-f','lavfi','-i','color=c=skyblue:s=1366x768:r=24:d=5','-c:v','libx264','-pix_fmt','yuv420p',filename],{timeout:15000,stdio:'pipe'});
   const bytes=await readFile(filename),files=await createPrivateVideoStore(host,owner,{revalidate:async()=>{},probe:createVideoProbe(()=>({width:1366,height:768})),source:{open:async()=>({length:bytes.length,close(){},body:(async function*(){yield bytes;})()})}});
   const media=await files.materialize(turn.id,{url:'https://fixture.example/video',duration:5,resolution:'768P',ratio:'16:9'});
-  await db.$transaction(async tx=>{
+  if(costEvidence){
+   const authority=await acquireLocalStoreAuthority(directory,'dev');
+   const executor=createPersistedGenerationExecutor(db,owner,authority,{
+    assertVideoProfile(){},text:binding=>({bindingHash:generationBindingHash(binding),invoke:async()=>({
+     value:binding.bindingKey==='planner'?{prompt:'本地测试画面。'}:{verdict:'confirmed',summary:'本地测试画面，非模型内容。',choices:[{id:'ask',title:'问一句',text:'你在想什么？'},{id:'look',title:'看向远方',text:'我望向天空。'}],evidenceFrameIndices:[0]},
+     observation:{providerId:binding.providerId,modelId:binding.modelId,bindingHash:generationBindingHash(binding),responseId:'fixture-'+binding.bindingKey,usage:{inputTokens:20,outputTokens:10},accountCost:{currency:'USD',amount:'0.0000301'}}
+    })}),
+    jobs:binding=>createMiniMaxVideoJobs(binding,{apiKey:'TEST_ONLY',fetchImpl:async(_url,init)=>Response.json(init?.method==='POST'?{task_id:'fixture-cost'}:{task:{id:'fixture-cost',model:'MiniMax-H3-Max',status:'succeeded',task_type:'generation',modality:'video',ratio:'16:9',resolution:'768P',duration:5,content:{url:'https://fixture.example/video'},usage:{output_seconds:5,input_image_count:0}}})}),
+    materialize:async()=>media,sample:async()=>({mediaId:media.id,mediaSha256:media.sha256,frames:[{atMs:0,jpeg:Uint8Array.from([255,216,255,217])}]})
+   });
+   const worker=createGenerationWorker(db,owner,authority,executor);for(let i=0;i<5;i++)await worker.tick();
+  }else await db.$transaction(async tx=>{
    await tx.generationTurn.update({where:{id:turn.id},data:{status:'ready',media,result:{summary:'本地测试画面，非模型内容。',choices:[{id:'ask',title:'问一句',text:'你在想什么？'},{id:'look',title:'看向远方',text:'我望向天空。'}]}}});
    await tx.runtimeOutbox.update({where:{id:turn.id},data:{status:'done'}});
    await tx.experience.update({where:{id:opening.id},data:{status:'playing',schedulingPaused:true}});

@@ -1,3 +1,4 @@
+import {parseAccountCost} from '../contracts/account-cost.js';
 import {SCENE_TEXT_LIMIT} from '../application/scene-input.js';
 import {parseExecutionBinding, canonicalBindingJson} from '../contracts/provider-binding-validation.js';
 import {fields} from '../contracts/story-draft-validation.js';
@@ -10,7 +11,7 @@ type Dependencies = {apiKey: string; fetchImpl?: typeof fetch; timeoutMs?: numbe
   countInputTokens(input: StructuredTextInput): number};
 const record = (raw: unknown): Record<string, unknown> => raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
 const tokenCount = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
-async function readJSON(response: Response, signal: AbortSignal): Promise<unknown> {
+async function readJSON(response: Response, signal: AbortSignal): Promise<{value:unknown;accountCostDecimal?:string}> {
   const reader = response.body?.getReader();if (!reader) throw Error();
   let size = 0, complete = false;const chunks: Uint8Array[] = [];
   const cancel = () => {void reader.cancel().catch(() => {});};signal.addEventListener('abort', cancel, {once: true});
@@ -19,7 +20,12 @@ async function readJSON(response: Response, signal: AbortSignal): Promise<unknow
       signal.throwIfAborted();const next = await reader.read();signal.throwIfAborted();
       if (next.done) {complete = true;break;}size += next.value.byteLength;if (size > 262144) throw Error();chunks.push(next.value);
     }
-    return JSON.parse(new TextDecoder('utf-8', {fatal: true}).decode(Buffer.concat(chunks)));
+    const decimals=new WeakMap<object,string>();
+    const value=JSON.parse(new TextDecoder('utf-8', {fatal: true}).decode(Buffer.concat(chunks)),function(this:object,key:string,value:unknown,context?:{source?:string}){
+      if(key==='cost'&&typeof value==='number'&&context?.source)decimals.set(this,context.source);
+      return value;
+    });
+    return{value,accountCostDecimal:decimals.get(record(record(value).usage))};
   } finally {signal.removeEventListener('abort', cancel);if (!complete) await reader.cancel().catch(() => {});reader.releaseLock();}
 }
 /** Official OpenRouter endpoint only; credentials are never forwarded to a user-supplied base URL. */
@@ -65,7 +71,7 @@ export function createOpenRouterText(raw: unknown, {apiKey, fetchImpl = fetch, t
       const response = await fetchImpl('https://openrouter.ai/api/v1/chat/completions', {method: 'POST', redirect: 'error', signal,
         headers: {Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'Cache-Control': 'no-store'}, body});
       if (response.status !== 200) {await response.body?.cancel().catch(() => {});throw Error();}
-      const result = record(await readJSON(response, signal)), choices = result.choices;
+      const decoded=await readJSON(response,signal),result = record(decoded.value), choices = result.choices;
       if (result.object !== 'chat.completion' || result.model !== binding.modelId || typeof result.id !== 'string' ||
         !/^[a-zA-Z0-9_-]{1,200}$/.test(result.id) || !Array.isArray(choices) || choices.length !== 1) throw Error();
       const choice = record(choices[0]), message = record(choice.message);
@@ -78,8 +84,10 @@ export function createOpenRouterText(raw: unknown, {apiKey, fetchImpl = fetch, t
       }
       if ((usage.inputTokens !== undefined && usage.inputTokens > generation.maxInputTokens) ||
         (usage.outputTokens !== undefined && usage.outputTokens > generation.maxOutputTokens)) throw Error();
+      // This is the charge to the configured OpenRouter account, not an external BYOK invoice.
+      const accountCost=supplied.cost===undefined||supplied.cost===null?undefined:parseAccountCost({currency:'USD',amount:typeof supplied.cost==='number'&&Number.isFinite(supplied.cost)&&supplied.cost>=0?decoded.accountCostDecimal:'invalid'});
       return {value: JSON.parse(message.content), observation: {providerId: binding.providerId, modelId: binding.modelId, bindingHash,
-        responseId: result.id, usage}};
+        responseId: result.id, usage,...(accountCost?{accountCost}:{})}};
     } catch {throw Error('OPENROUTER_RESULT_UNKNOWN');}
   }};
 }

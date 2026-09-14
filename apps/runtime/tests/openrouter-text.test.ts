@@ -66,3 +66,19 @@ it('cancels an over-limit response body and never retries', async () => {
   const cancel = vi.fn(), send = vi.fn<typeof fetch>(async () => new Response(new ReadableStream({pull(controller) {controller.enqueue(new Uint8Array(262145));}, cancel})));
   await expect(adapter(send).invoke(input())).rejects.toThrow('OPENROUTER_RESULT_UNKNOWN');expect(cancel).toHaveBeenCalled();expect(send).toHaveBeenCalledOnce();
 });
+
+it('retains explicit account charge separately from token counts, including zero and missing',async()=>{
+ for(const cost of [undefined,null,0,0.0000301]){
+  const value=payload();Object.assign(value.usage,{cost});const send=vi.fn<typeof fetch>(async()=>Response.json(value));
+  expect((await adapter(send).invoke(input())).observation.accountCost).toEqual(cost==null?undefined:{currency:'USD',amount:String(cost)});expect(send).toHaveBeenCalledOnce();
+ }
+});
+it.each([-1,'0.5',1e30])('rejects malformed account charge %s without another request',async cost=>{
+ const value=payload();Object.assign(value.usage,{cost});const send=vi.fn<typeof fetch>(async()=>Response.json(value));await expect(adapter(send).invoke(input())).rejects.toThrow('OPENROUTER_RESULT_UNKNOWN');expect(send).toHaveBeenCalledOnce();
+});
+
+it('preserves the exact JSON decimal before binary floating point loses the last digit',async()=>{
+ const raw=JSON.stringify(payload()).replace('"prompt_tokens":50','"cost":0.000030000000000000001,"prompt_tokens":50');
+ const send=vi.fn<typeof fetch>(async()=>new Response(raw));
+ expect((await adapter(send).invoke(input())).observation.accountCost).toEqual({currency:'USD',amount:'0.000030000000000000001'});
+});

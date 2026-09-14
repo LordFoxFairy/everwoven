@@ -1,3 +1,5 @@
+import {parseAccountCost} from '../contracts/account-cost.js';
+import {recordStageCost} from './generation-settlement.js';
 import {createHash} from 'node:crypto';
 import {isDeepStrictEqual} from 'node:util';
 import {Prisma, type PrismaClient, type TextUsageObservation} from '../generated/prisma/client.js';
@@ -17,7 +19,7 @@ type Stage = 'planner' | 'validator';
 const sha = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 function normalized(input: TextObservation): TextObservation {
  try {
-  const v = canonicalBindingJson(input);fields(v, ['providerId', 'modelId', 'bindingHash', 'responseId', 'usage']);
+  const v = canonicalBindingJson(input);fields(v, ['providerId', 'modelId', 'bindingHash', 'responseId', 'usage'],['accountCost']);
   const providerId = bindingLabel(v.providerId), modelId = modelIdentifier(v.modelId);
   if (typeof v.bindingHash !== 'string' || !/^[a-f0-9]{64}$/.test(v.bindingHash) ||
    typeof v.responseId !== 'string' || !/^[a-zA-Z0-9_-]{1,200}$/.test(v.responseId)) throw Error();
@@ -27,7 +29,7 @@ function normalized(input: TextObservation): TextObservation {
    if (!Object.hasOwn(v.usage, key)) continue;
    const value = v.usage[key];if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) throw Error();usage[key] = value;
   }
-  return {providerId, modelId, bindingHash: v.bindingHash, responseId: v.responseId, usage};
+  return {providerId, modelId, bindingHash: v.bindingHash, responseId: v.responseId, usage,...(v.accountCost!==undefined?{accountCost:parseAccountCost(v.accountCost)}:{})};
  } catch {throw Error('INVALID_TEXT_OBSERVATION');}
 }
 function digest(row: Omit<TextUsageObservation, 'contentHash'>): string {
@@ -90,6 +92,7 @@ export function createTextObservationRecorder(db: PrismaClient, owner: InternalO
     quoteId: quote.id, profileId: profile.id, stage, bindingHash: observation.bindingHash, observation: observation as unknown as Prisma.InputJsonValue,
     schemaVersion: 1, createdAt: currentTime(services, turn.createdAt)};
    await tx.textUsageObservation.create({data: {...row, contentHash: digest(row as Omit<TextUsageObservation, 'contentHash'>)}});
+   await recordStageCost(tx,owner,authority,turn.id,stage,{kind:'text',observation},services);
    checkActive();
   });
  };

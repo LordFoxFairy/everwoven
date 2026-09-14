@@ -379,6 +379,7 @@ model BudgetReservation {
  @@index([budgetScopeId, status], map:"ix_budget_reservation_scope")
  @@index([ownerId, experienceId], map:"ix_budget_reservation_experience")
  @@map("budget_reservations")
+ reviewRequired Boolean @default(false) @map("review_required")
 }
 model RuntimeOutbox {
  id String @id
@@ -493,4 +494,27 @@ model ExperienceSceneRef {
  @@unique([experienceId, savepointId], map:"uq_experience_scene_ref")
  @@index([savepointId], map:"ix_scene_refs_savepoint")
  @@map("experience_scene_refs")
+}
+
+
+// Immutable first supplier cost evidence per paid stage. Corrections must be append-only.
+model StageCostEvidence {
+ id String @id
+ ownerId String @map("owner_id")
+ datasetId String @map("dataset_id")
+ storeEpoch String @map("store_epoch")
+ turnId String @map("turn_id")
+ quoteId String @map("quote_id")
+ stage String
+ bindingHash String @map("binding_hash")
+ basis String
+ amountMicros BigInt? @map("amount_micros")
+ currency String
+ evidence Json
+ contentHash String @map("content_hash")
+ createdAt DateTime @map("created_at")
+ schemaVersion Int @default(1) @map("schema_version")
+ @@unique([turnId, stage], map:"uq_stage_cost_turn_stage")
+ @@index([ownerId, createdAt, id], map:"ix_stage_cost_owner")
+ @@map("stage_cost_evidence")
 }

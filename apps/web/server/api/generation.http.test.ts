@@ -13,24 +13,24 @@ const dto: PlayDTO = {...protocol, experienceId: id, revision: 2, title: '雨后
   turn: {id, status: 'viewed', media: {id: other, duration: 5}, errorCode: null},
   interaction: {id, summary: '雨停了，两人望向窗外。', choices: [{id: 'ask', title: '问问他', text: '要出去走走吗？'}, {id: 'look', title: '看看窗外', text: '我看向窗外。'}]}};
 const proof={...protocol,experienceId:id,id:other,turnId:id,mediaId:other,experienceRevision:1,durationMs:5000,coveredMs:0,sequence:0,status:'active',expiresAt:new Date(Date.now()+1800000).toISOString()};
-const service = {get: vi.fn(), completePlayback: vi.fn(),beginPlayback:vi.fn(),reportPlayback:vi.fn()};
-const inputs = {get: {...protocol, experienceId: id}, completePlayback: command,beginPlayback:command,reportPlayback:{...protocol,experienceId:id,playbackSessionId:other,commandId:id,sequence:1,positionMs:1000,coveredMs:1000}};
+const service = {cost:vi.fn(),get: vi.fn(), completePlayback: vi.fn(),beginPlayback:vi.fn(),reportPlayback:vi.fn()};
+const inputs = {cost:{...protocol,experienceId:id,turnId:id},get: {...protocol, experienceId: id}, completePlayback: command,beginPlayback:command,reportPlayback:{...protocol,experienceId:id,playbackSessionId:other,commandId:id,sequence:1,positionMs:1000,coveredMs:1000}};
 beforeEach(() => {
-  vi.resetAllMocks();service.beginPlayback.mockResolvedValue(proof);service.reportPlayback.mockResolvedValue({...proof,sequence:1,coveredMs:1000}); service.get.mockResolvedValue(dto); service.completePlayback.mockResolvedValue({data: dto, replayed: false});
+  vi.resetAllMocks();service.cost.mockResolvedValue({...inputs.cost,currency:"USD",quotedMicros:"1000",reservedMicros:"1000",settledMicros:"0",status:"held",reviewRequired:false,stages:["planner","video","validator"].map(stage=>({stage,basis:stage==="video"?"metered-tariff":"account-charge",amountMicros:null}))});service.beginPlayback.mockResolvedValue(proof);service.reportPlayback.mockResolvedValue({...proof,sequence:1,coveredMs:1000}); service.get.mockResolvedValue(dto); service.completePlayback.mockResolvedValue({data: dto, replayed: false});
   host.withLocalGenerationPlayback.mockImplementation((_d, _e, _t, work) => work(service, owner));
 });
 function request(method: keyof typeof inputs, input: unknown = inputs[method], overrides?: HeadersInit) {
   const h = new Headers(headers); if (overrides) new Headers(overrides).forEach((v, k) => h.set(k, v));
-  return new Request(`${origin}/api/trpc/generation.${method}${method === 'get' ? `?input=${encodeURIComponent(JSON.stringify(input))}` : ''}`, {
-    method: method === 'get' ? 'GET' : 'POST', headers: h, ...(method === 'get' ? {} : {body: JSON.stringify(input)}),
+  return new Request(`${origin}/api/trpc/generation.${method}${(method === 'get'||method==='cost') ? `?input=${encodeURIComponent(JSON.stringify(input))}` : ''}`, {
+    method: (method === 'get'||method==='cost') ? 'GET' : 'POST', headers: h, ...((method === 'get'||method==='cost') ? {} : {body: JSON.stringify(input)}),
   });
 }
-it.each(['get', 'completePlayback','beginPlayback','reportPlayback'] as const)('%s uses the authenticated host and a non-cacheable response', async method => {
+it.each(['get','cost', 'completePlayback','beginPlayback','reportPlayback'] as const)('%s uses the authenticated host and a non-cacheable response', async method => {
   const response = await handleTRPCRequest(request(method), env);
   expect(response.status).toBe(200); expect(response.headers.get('cache-control')).toBe('no-store');
   expect(host.withLocalGenerationPlayback).toHaveBeenCalledTimes(1); expect(service[method]).toHaveBeenCalledWith(inputs[method]);
 });
-it.each(['get', 'completePlayback','beginPlayback','reportPlayback'] as const)('%s rejects wrong protocol, dataset, IDs and injected owner before application work', async method => {
+it.each(['get','cost', 'completePlayback','beginPlayback','reportPlayback'] as const)('%s rejects wrong protocol, dataset, IDs and injected owner before application work', async method => {
   for (const [patch, status] of [[{protocolVersion: 2}, 412], [{datasetId: other}, 412], [{datasetId: 'bad'}, 400], [{ownerId: other}, 400], [{experienceId: 'bad'}, 400]] as const)
     expect((await handleTRPCRequest(request(method, {...inputs[method], ...patch}), env)).status).toBe(status);
   expect(service[method]).not.toHaveBeenCalled();
@@ -73,4 +73,8 @@ it('validates output shape, dataset, experience and exact playback receipt corre
     service.completePlayback.mockResolvedValue({data: {...dto, ...patch}, replayed: true});
     expect((await handleTRPCRequest(request('completePlayback'), env)).status).toBe(500);
   }
+});
+
+it('cost GET rejects a different turn response and never performs settlement',async()=>{
+ service.cost.mockResolvedValueOnce({...inputs.cost,turnId:other});expect((await handleTRPCRequest(request('cost'),env)).status).toBe(500);expect(service.completePlayback).not.toHaveBeenCalled();
 });
