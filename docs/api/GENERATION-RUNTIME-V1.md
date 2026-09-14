@@ -99,6 +99,36 @@ planning/submitting/validating 在调用前已持久化。租约过期后发现�
 
 `GenerationExecutor.assertProfile` 必须验证安装的 graph/prompt/schema/adapter；`plan` 不接收或输出模型选择和任意图像 URL。图像 URL 由独立的受信素材解析步骤提供，须只解析本次报价已同意的素材。正式图像解析与私有媒体落地尚待接入，不能用外部 URL 直接充当私有视频。
 
+### 供应商无关的视频任务端口
+
+`GenerationExecutor.jobs(binding)` 返回 `VideoJobAdapter`，Worker 不再导入 MiniMax 模型枚举、请求构造器或供应商结果类型。接口位于 `apps/runtime/src/ports/video-jobs.ts`：
+
+| 操作 | 边界 |
+|---|---|
+| prepare(plan) | 纯函数；只接收提示词与已经同意的首/尾帧，模型、规格从封存 binding 获取 |
+| validatePrepared(unknown) | 纯函数；对 SQLite 中恢复的请求重新做供应商规格校验，不能只信 TS 类型 |
+| reference(unknown) | 纯函数；校验已保存任务所属的供应商、固定账户、模型、地区及配置摘要 |
+| submit(operationId, prepared, signal?) | 一次提交；前面必须已经完成预算接受与持久阶段写入 |
+| read(reference, signal?) | 查询原供应商原账户的任务，不切换账户或自动重新提交 |
+
+适配器必须暴露绑定 ID 和摘要，Worker 在规划/提交/查询/下载恢复之前与封存 binding 比较。任务引用含显式 `providerId`，并由适配器及 Worker 双重核对 operationId、bindingId/hash、connectionId、accountScopeId、region、modelId。不存在按模型名称自动挑选供应商的回退。当前 MiniMax 官方适配器已实现该端口；POLLO 适配器仍待实际协议和模型 ID 确认，不把内部测试供应商注册为产品能力。
+
+归一化结果由 `parseVideoJobSnapshot` 在收到和重新读取 SQLite 时校验：succeeded 必须有 HTTPS 视频、正数时长与规格；非成功状态不携带视频；未知字段、凭据 URL、非有限/负费用计量被拒绝。结果 taskId 要匹配保存的任务引用，素材下载前再次核对报价规格，落地媒体时长也须匹配。缺少 usage 保持缺少，不变为零费用；实际结算仍待完成。
+
+固定身份错误（适配器错配、任务引用无效、任务关联不匹配）以及下载恢复时已经损坏的存储结果会进入 unknown/blocked，保留预算、不再每十秒重试。临时网络查询中断仍只重查原任务。引用中的 providerId 为必填，当前未发布的开发协议不添加旧格式兼容；上线生成前要完整验证正式执行器。2026-09-14 只读核实原用户库生成任务为零，本次不迁移或删除用户数据。
+
+```mermaid
+flowchart LR
+    W[GenerationWorker / 预算与恢复] --> P[VideoJobAdapter 统一端口]
+    P --> M[MiniMax 官方适配器]
+    P -.协议待确认.-> N[POLLO 或后续供应商适配器]
+    M --> R[纯请求准备与固定账户引用校验]
+    M --> H[官方提交 / 查询]
+    H --> O[归一化任务结果]
+    O --> W
+    W --> D[私有媒体落地接口 / 正式实现待完成]
+```
+
 ## 存储与费用
 
 - 新增 generation_quotes、budget_scopes、generation_turns、budget_reservations、runtime_outbox 五表；全部没有物理外键。

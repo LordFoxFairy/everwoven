@@ -4,9 +4,9 @@ import type {InternalOwnerContext} from '../contracts/story-draft.js';
 import type {StoryVersionDTO} from '../contracts/story-version.js';
 import type {BindingRecord} from '../contracts/provider-binding.js';
 import type {LocalStoreAuthority} from '../host/store-epoch.js';
-import type {MiniMaxRequestInput} from '../providers/minimax-request.js';
-import {buildMiniMaxRequest} from '../providers/minimax-request.js';
-import type {OfficialJobSnapshot, ProviderTaskReference, createMiniMaxVideoJobs} from '../providers/minimax-jobs.js';
+import type {VideoJobAdapter, GeneratedVideo, VideoTaskReference} from '../ports/video-jobs.js';
+import {parseVideoJobSnapshot} from '../contracts/video-job-output.js';
+import {canonicalBindingJson} from '../contracts/provider-binding-validation.js';
 import type {PinnedProfile} from '../ports/execution-profile-store.js';
 import {withOwnerWrite} from '../infrastructure/db/write-gate.js';
 import {createExperienceOpeningReadScope} from '../infrastructure/db/prisma-experience-opening-store.js';
@@ -30,8 +30,8 @@ export type GenerationExecutor = {
  plan(context: GenerationContext): Promise<PreparedScene>;
  /** Resolve only quote-approved private assets; never accept frame URLs from model output. */
  frames?(context: GenerationContext): Promise<{first?: string; last?: string}>;
- jobs(binding: BindingRecord): ReturnType<typeof createMiniMaxVideoJobs>;
- materialize(context: GenerationContext, video: NonNullable<OfficialJobSnapshot['video']>): Promise<PrivateSceneMedia>;
+ jobs(binding: BindingRecord): VideoJobAdapter;
+ materialize(context: GenerationContext, video: GeneratedVideo): Promise<PrivateSceneMedia>;
  validate(context: GenerationContext, media: PrivateSceneMedia): Promise<SceneResult>;
 };
 const json = (value: unknown) => value as Prisma.InputJsonValue;
@@ -85,6 +85,26 @@ export function createGenerationWorker(db: PrismaClient, owner: InternalOwnerCon
   if (!claimed) return false;
   if (claimed.stopped) return true;
   const {stage, turn, context, binding} = claimed;
+  const {id: bindingId, createdAt: _createdAt, ...bindingSpec} = binding;
+  const bindingHash = hash(canonicalBindingJson(bindingSpec));
+  function videoAdapter(): VideoJobAdapter {
+   const adapter = executor.jobs(binding);
+   if (adapter.mode !== 'job' || adapter.bindingId !== bindingId || adapter.bindingHash !== bindingHash) throw Error('GENERATION_ADAPTER_MISMATCH');
+   return adapter;
+  }
+  function checkedReference(adapter: VideoJobAdapter, raw: unknown): VideoTaskReference {
+   const ref = adapter.reference(raw), p = binding.parameters;
+   if (ref.operationId !== turn.id || ref.bindingId !== bindingId || ref.bindingHash !== bindingHash ||
+    ref.providerId !== binding.providerId || ref.modelId !== binding.modelId || ref.connectionId !== p.connectionId ||
+    ref.accountScopeId !== p.providerAccountScopeId || ref.region !== p.region) throw Error('GENERATION_REFERENCE_MISMATCH');
+   return ref;
+  }
+  function deliveredVideo(video: GeneratedVideo | undefined): GeneratedVideo {
+   const approved = context.quote.summary;
+   if (!video || video.duration !== approved.duration || video.resolution !== approved.resolution ||
+    (approved.ratio !== 'adaptive' && video.ratio !== approved.ratio)) throw Error('GENERATION_MEDIA_INVALID');
+   return video;
+  }
   async function finish(status: string, patch: Prisma.GenerationTurnUpdateInput = {}, delayMs = 0) {
    await authority.revalidate();
    return withOwnerWrite(db, owner.ownerId, async tx => {
@@ -102,40 +122,46 @@ export function createGenerationWorker(db: PrismaClient, owner: InternalOwnerCon
   }
   try {
    if (stage === 'planning') {
-    const prepared = await executor.plan(context), g = binding.parameters.generation;
-    // Build the real provider body before persisting; prevents planner overrides of bound specs.
+    const adapter = videoAdapter();
+    const plan = await executor.plan(context);
     const frames = binding.parameters.operationKind === 'image-to-video' ? await executor.frames?.(context) : undefined;
-    const input = {prompt: prepared.prompt, ...(frames ? {frames} : {}),
-     duration: g.duration, resolution: g.resolution, ratio: g.ratio} as Omit<MiniMaxRequestInput, 'model'>;
-    buildMiniMaxRequest({...input, model: binding.modelId as MiniMaxRequestInput['model']});
     if (Boolean(frames) !== (binding.parameters.operationKind === 'image-to-video')) throw Error('GENERATION_PLAN_INVALID');
+    const input = adapter.validatePrepared(adapter.prepare({prompt: plan.prompt, ...(frames ? {frames} : {})}));
     await finish('prepared', {prepared: json(input)});
    } else if (stage === 'submitting') {
-    const ref = await executor.jobs(binding).submit(turn.id, turn.prepared as unknown as Omit<MiniMaxRequestInput, 'model'>);
+    const adapter = videoAdapter(), input = adapter.validatePrepared(turn.prepared);
+    const ref = checkedReference(adapter, await adapter.submit(turn.id, input));
     await finish('polling', {providerReference: json(ref)});
    } else if (stage === 'polling') {
-    const result = await executor.jobs(binding).read(turn.providerReference as unknown as ProviderTaskReference);
+    const adapter = videoAdapter(), ref = checkedReference(adapter, turn.providerReference);
+    const result = parseVideoJobSnapshot(await adapter.read(ref));
+    if (result.taskId !== ref.taskId) throw Error('GENERATION_REFERENCE_MISMATCH');
     if (result.status === 'succeeded') {
-     if (!result.video || result.video.duration !== context.quote.summary.duration || result.video.resolution !== context.quote.summary.resolution ||
-      (context.quote.summary.ratio !== 'adaptive' && result.video.ratio !== context.quote.summary.ratio)) throw Error('GENERATION_MEDIA_INVALID');
+     deliveredVideo(result.video);
      await finish('materializing', {result: json(result)});
     } else if (['failed', 'cancelled'].includes(result.status)) await finish('failed', {errorCode: 'PROVIDER_GENERATION_FAILED', result: json(result)});
     else await finish('polling', {}, 3000);
    } else if (stage === 'materializing') {
-    const result = turn.result as unknown as OfficialJobSnapshot;
-    if (!result.video) throw Error('GENERATION_MEDIA_INVALID');
-    const media = await executor.materialize(context, result.video);
+    const adapter = videoAdapter(), ref = checkedReference(adapter, turn.providerReference);
+    const result = parseVideoJobSnapshot(turn.result);
+    if (ref.operationId !== turn.id || result.taskId !== ref.taskId || result.status !== 'succeeded') throw Error('GENERATION_REFERENCE_MISMATCH');
+    const video = deliveredVideo(result.video);
+    const media = await executor.materialize(context, video);
     parseId(media?.id);
-    if (!media || typeof media.id !== 'string' || !/^[a-f0-9]{64}$/.test(media.sha256) || !Number.isFinite(media.duration) || media.duration <= 0) throw Error('GENERATION_MEDIA_INVALID');
+    if (!media || typeof media.id !== 'string' || !/^[a-f0-9]{64}$/.test(media.sha256) || media.duration !== video.duration) throw Error('GENERATION_MEDIA_INVALID');
     await finish('checking', {media: json(media)});
    } else if (stage === 'validating') {
     const result = parseSceneResult(await executor.validate(context, turn.media as unknown as PrivateSceneMedia));
     // The media is playable; result remains a candidate until a separate playback-complete command.
     await finish('ready', {result: json(result)});
    }
-  } catch {
+  } catch (error) {
    // The conservative reservation stays held for failed/unknown usage too. No zero-cost inference.
-   if (paidInFlight.has(stage)) await finish('unknown', {errorCode: 'GENERATION_RESULT_UNKNOWN'});
+   // A broken fixed identity cannot heal by repeatedly querying the same saved record.
+   const code = error instanceof Error ? error.message : '';
+   const invalidIdentity = ['INVALID_PROVIDER_TASK_REFERENCE', 'GENERATION_REFERENCE_MISMATCH', 'GENERATION_ADAPTER_MISMATCH'].includes(code);
+   const invalidSavedResult = stage === 'materializing' && ['INVALID_VIDEO_JOB_RESULT', 'GENERATION_MEDIA_INVALID'].includes(code);
+   if (paidInFlight.has(stage) || invalidIdentity || invalidSavedResult) await finish('unknown', {errorCode: 'GENERATION_RESULT_UNKNOWN'});
    else await finish(stage, {errorCode: 'GENERATION_READ_INTERRUPTED'}, 10000);
   }
   return true;

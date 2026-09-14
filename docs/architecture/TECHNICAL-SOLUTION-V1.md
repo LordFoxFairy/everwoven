@@ -2,6 +2,8 @@
 
 > **2026-09-14 主链实施：** [分段生成与播放 API 契约/时序](../api/GENERATION-RUNTIME-V1.md)覆盖报价、原子接受、可恢复执行、播放后节点和下一幕来源关系。播放 GET/完成回执已接原 Host/tRPC 和浏览器客户端；当前幕依据已接受报价的逻辑修订定位，不依赖系统时间。正式 executor、媒体服务与原页面绑定待继续，不代表产品闭环完成。
 
+> **视频供应商边界：** Worker 已通过 `VideoJobAdapter` 调用纯 prepare/validatePrepared/reference 与异步 submit/read；供应商协议与模型枚举留在适配器内。固定 binding ID/hash 和账户身份在每次执行/恢复时校验。正式 MiniMax 传输支持该端口，其他供应商需独立实现和准入，不能仅替换 URL。
+
 > **最新实施设计入口（2026-09-12）：** [M1 原页面前后端贯通](INTEGRATED-AUTHORING-M1.md)补齐前端状态、统一契约、角色/图片事务、新baseline、重置边界及验收。用户已明确不要旧数据兼容，允许清空本项目业务数据重建。当前进度以 [PROGRESS](../PROGRESS.md) 为准，下方历史设计不是当前功能完成声明。
 
 > **2026-09-12 实施更新：** M0-C2/C3 已接入显式本机初始化、会话和同一页面的 SQLite 世界设定 CRUD；当前契约/验收以[实施记录](../implementation/M0-C2-C3-LOCAL-AUTHORING-2026-09-12.md)为准。下方此前状态保留为阶段记录，不代表新增能力仍未接入，也不代表角色、素材、模型和分支已完成。

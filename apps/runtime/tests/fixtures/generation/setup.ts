@@ -5,19 +5,21 @@ import {createVideoBindingRegistry} from '../../../src/application/video-binding
 import {createExperienceOpeningService} from '../../../src/composition/experience-opening-service.js';
 import {createGenerationService, generationBindingHash} from '../../../src/application/generation.js';
 import {parseExecutionProfile} from '../../../src/contracts/execution-profile.js';
+import type {BindingSpec} from '../../../src/contracts/provider-binding.js';
 import type {GenerationPolicy, StagePrice} from '../../../src/ports/generation-policy.js';
-export async function setup(budget = '1000000', withImage = false) {
+export async function setup(budget = '1000000', withImage = false, customizeVideo: (binding: BindingSpec) => BindingSpec = value => value) {
  const f = await fixture();
  const registry = createVideoBindingRegistry({schemaVersion: 1, connections: [{id: 'personal', providerId: 'minimax', region: 'cn', accountScopeId: 'fixture', credentialRef: 'env:TEST_ONLY'}],
   bindings: [{bindingKey: 'video', versionNo: 1, connectionId: 'personal', catalogId: 'minimax-h3-max', operationKind: 'text-to-video', generation: {duration: 5, resolution: '768P', ratio: '16:9'}}]});
+ const resolver = {resolve: (owner: typeof f.owner, selection: {bindingKey: string; versionNo: number}) => customizeVideo(registry.resolve(owner, selection))};
  const storyInput = f.create('雨后的天台'), image = withImage ? await f.asset() : null;
  if (image) Object.assign(storyInput.assetSlots, {opening: image.id});
  const story = (await f.service.create(f.owner, storyInput)).data;
- const opening = (await createExperienceOpeningService(f.db, registry).create(f.owner, {...f.protocol, commandId: v7(), storyDraftId: story.id,
+ const opening = (await createExperienceOpeningService(f.db, resolver).create(f.owner, {...f.protocol, commandId: v7(), storyDraftId: story.id,
   expectedStoryRevision: 1, bindingKey: 'video', expectedBindingVersion: 1, budget: {limitMicros: budget, currency: 'USD'}})).data;
  let now = new Date(Date.now() + 1000);
  const authority = { ...f.owner, storeEpoch: v7(), revalidate: vi.fn(async () => {})};
- const video = registry.resolve(f.owner, {bindingKey: 'video', versionNo: 1});
+ const video = resolver.resolve(f.owner, {bindingKey: 'video', versionNo: 1});
  const text = (key: string) => ({...video, bindingKey: key, modelId: 'fixture-text', mode: 'text',
   parameters: {...video.parameters, catalogId: 'fixture-text', operationKind: 'structured-generation', protocolVersion: 'text-v1',
    generation: {inputModalities: ['text', 'image'], maxInputTokens: 4096, maxOutputTokens: 1024, temperature: 0.5}}});

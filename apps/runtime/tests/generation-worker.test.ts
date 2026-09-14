@@ -3,12 +3,15 @@ import {v7} from 'uuid';
 import {prepare, dispose} from './fixtures/story-aggregate/setup.js';
 import {setup} from './fixtures/generation/setup.js';
 import {createGenerationWorker, type GenerationExecutor} from '../src/application/generation-worker.js';
+import {generationBindingHash} from '../src/application/generation.js';
+import type {BindingSpec} from '../src/contracts/provider-binding.js';
+import type {VideoTaskReference, PreparedVideoInput} from '../src/ports/video-jobs.js';
 import {createMiniMaxVideoJobs} from '../src/providers/minimax-jobs.js';
 import {openRuntimeDatabase} from '../src/infrastructure/db/client.js';
 import {createGenerationPlayback} from '../src/application/generation-playback.js';
 beforeAll(prepare); afterAll(dispose);
-async function workerFixture() {
- const f = await setup(), quote = await f.generation.quote(f.quoteInput), accepted = await f.generation.accept(f.acceptInput(quote.data.id));
+async function workerFixture(customizeVideo?: (binding: BindingSpec) => BindingSpec) {
+ const f = await setup(undefined, false, customizeVideo), quote = await f.generation.quote(f.quoteInput), accepted = await f.generation.accept(f.acceptInput(quote.data.id));
  const transport = vi.fn<typeof fetch>(async (_url, init) => new Response(JSON.stringify(init?.method === 'POST' ? {task_id: 'fixture-task'} : {
   task: {id: 'fixture-task', model: 'MiniMax-H3-Max', status: 'succeeded', task_type: 'generation', modality: 'video',
    ratio: '16:9', resolution: '768P', duration: 5, content: {url: 'https://media.example/fixture.mp4'}}})));
@@ -178,5 +181,92 @@ it('keeps the logical current turn and parent across clock rollback through thre
   const third = await finishAndRespond();
   expect((await get()).turn?.id).toBe(third.data.id);
   expect((await f.db.generationTurn.findUniqueOrThrow({where: {id: third.data.id}})).parentTurnId).toBe(second.data.id);
+ } finally {await f.close();}
+});
+
+it('runs another supplier/model/spec through the same durable worker using only the normalized port', async () => {
+ const f = await workerFixture(binding => ({...binding, providerId: 'fixture-video', modelId: 'fixture-model', adapterVersion: 'fixture-v1',
+  capabilities: {schemaVersion: 1, fixture: true}, parameters: {...binding.parameters, endpointProfileId: 'fixture-endpoint',
+   generation: {duration: 8, resolution: '1080p', ratio: '16:9'}}}));
+ const submit = vi.fn(), read = vi.fn();
+ try {
+  // This alternate supplier exists only in tests; no production fallback is registered.
+  f.executor.jobs = binding => {
+   const {id, createdAt: _, ...spec} = binding, bindingHash = generationBindingHash(spec);
+   return {mode: 'job', bindingId: id, bindingHash,
+    prepare: plan => ({...plan, duration: 8, resolution: '1080p', ratio: '16:9'}),
+    validatePrepared: raw => raw as PreparedVideoInput,
+    reference: raw => raw as VideoTaskReference,
+    submit: async operationId => {submit(operationId);return {operationId, taskId: 'other-task', providerId: binding.providerId, modelId: binding.modelId,
+     bindingId: id, bindingHash, connectionId: binding.parameters.connectionId, accountScopeId: binding.parameters.providerAccountScopeId,
+     region: binding.parameters.region, requestHash: 'b'.repeat(64), firstSubmittedAt: f.services.clock.now().toISOString()};},
+    read: async raw => {read(raw);return {taskId: 'other-task', status: 'succeeded', video: {url: 'https://media.example/other.mp4', duration: 8, resolution: '1080p', ratio: '16:9'}};},
+   };
+  };
+  f.executor.materialize = vi.fn(async () => ({id: v7(), sha256: 'c'.repeat(64), duration: 8}));
+  for (let i = 0; i < 5; i++) expect(await f.worker.tick()).toBe(true);
+  expect((await f.generation.get({...f.protocol, experienceId: f.opening.id})).turn).toMatchObject({status: 'ready', media: {duration: 8}});
+  expect(submit).toHaveBeenCalledTimes(1);expect(read).toHaveBeenCalledTimes(1);expect(f.transport).not.toHaveBeenCalled();
+  expect((await f.db.generationTurn.findUniqueOrThrow({where: {id: f.turn.id}})).providerReference).toMatchObject({providerId: 'fixture-video', modelId: 'fixture-model'});
+ } finally {await f.close();}
+});
+it('rejects a misrouted adapter before planning or submitting', async () => {
+ const f = await workerFixture();
+ try {
+  const original = f.executor.jobs;
+  f.executor.jobs = binding => ({...original(binding), bindingId: v7()});
+  await f.worker.tick();
+  expect(f.executor.plan).not.toHaveBeenCalled();expect(f.transport).not.toHaveBeenCalled();
+  expect((await f.db.generationTurn.findUniqueOrThrow({where: {id: f.turn.id}})).status).toBe('unknown');
+ } finally {await f.close();}
+});
+it('revalidates persisted preparation before submitting and retains the reservation on corruption', async () => {
+ const f = await workerFixture();
+ try {
+  await f.worker.tick();
+  const turn = await f.db.generationTurn.findUniqueOrThrow({where: {id: f.turn.id}});
+  await f.db.generationTurn.update({where: {id: f.turn.id}, data: {prepared: {...turn.prepared as object, duration: 60}}});
+  await f.worker.tick();
+  expect(f.transport).not.toHaveBeenCalled();expect(await f.worker.tick()).toBe(false);
+  expect((await f.db.budgetReservation.findUniqueOrThrow({where: {id: f.turn.id}})).status).toBe('held');
+ } finally {await f.close();}
+});
+it('does not download a task result belonging to another generation', async () => {
+ const f = await workerFixture();
+ try {
+  await f.worker.tick();await f.worker.tick();
+  const original = f.executor.jobs;
+  f.executor.jobs = binding => ({...original(binding), read: async () => ({taskId: 'wrong-task', status: 'succeeded', video: {url: 'https://media.example/wrong.mp4', duration: 5, resolution: '768P', ratio: '16:9'}})});
+  await f.worker.tick();
+  expect(f.executor.materialize).not.toHaveBeenCalled();
+  expect((await f.db.generationTurn.findUniqueOrThrow({where: {id: f.turn.id}})).status).toBe('unknown');
+  expect(await f.worker.tick()).toBe(false);
+  expect(f.transport.mock.calls.filter(call => call[1]?.method === 'POST')).toHaveLength(1);
+ } finally {await f.close();}
+});
+it('checks saved delivered specifications again when resuming materialization', async () => {
+ const f = await workerFixture();
+ try {
+  await f.worker.tick();await f.worker.tick();await f.worker.tick();
+  const row = await f.db.generationTurn.findUniqueOrThrow({where: {id: f.turn.id}});
+  const result = row.result as {taskId: string; status: string; video: {url: string; duration: number; ratio: string; resolution: string}};
+  await f.db.generationTurn.update({where: {id: row.id}, data: {result: {...result, video: {...result.video, duration: 60}}}});
+  await f.worker.tick();expect(f.executor.materialize).not.toHaveBeenCalled();
+  expect((await f.db.generationTurn.findUniqueOrThrow({where: {id: row.id}})).status).toBe('unknown');
+  expect(await f.worker.tick()).toBe(false);
+ } finally {await f.close();}
+});
+it('quarantines an invalid saved reference without retrying or guessing its supplier', async () => {
+ const f = await workerFixture();
+ try {
+  await f.worker.tick();await f.worker.tick();
+  const row = await f.db.generationTurn.findUniqueOrThrow({where: {id: f.turn.id}});
+  const {providerId: _, ...invalid} = row.providerReference as unknown as VideoTaskReference;
+  await f.db.generationTurn.update({where: {id: row.id}, data: {providerReference: invalid}});
+  f.transport.mockClear();
+  await f.worker.tick();f.tick(60000);expect(await f.worker.tick()).toBe(false);
+  expect(f.transport).not.toHaveBeenCalled();
+  expect((await f.db.runtimeOutbox.findUniqueOrThrow({where: {id: row.id}})).status).toBe('blocked');
+  expect((await f.db.budgetReservation.findUniqueOrThrow({where: {id: row.id}})).status).toBe('held');
  } finally {await f.close();}
 });

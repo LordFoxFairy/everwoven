@@ -12,6 +12,18 @@ function setup(region:'cn'|'international'='cn'){
  return {spec,fetchImpl,jobs,operationId:v7()};
 }
 describe('fixed-account official MiniMax job transport',()=>{
+ it('prepares a detached request from the sealed specification without any network',()=>{
+  const f=setup(),plan={prompt:'  一起看看窗外。  '};
+  const prepared=f.jobs.prepare(plan);
+  expect(prepared).toEqual({...input,prompt:'一起看看窗外。'});
+  plan.prompt='changed';expect(prepared.prompt).toBe('一起看看窗外。');
+  expect(f.jobs.validatePrepared(JSON.parse(JSON.stringify(prepared)))).toEqual(prepared);
+  expect(f.jobs.bindingId).toBe(f.spec.id);expect(f.jobs.bindingHash).toMatch(/^[a-f0-9]{64}$/);
+  expect(()=>f.jobs.prepare({...plan,model:'MiniMax-H3'} as never)).toThrow();
+  expect(()=>f.jobs.prepare({...plan,frames:null} as never)).toThrow();
+  expect(()=>f.jobs.validatePrepared({...prepared,ratio:'9:16'})).toThrow('PREPARED_REQUEST_OUTSIDE_BINDING');
+  expect(f.fetchImpl).not.toHaveBeenCalled();
+ });
  it.each(['cn','international'] as const)('submits exactly once in %s and carries operation/binding/account in the receipt',async region=>{
   const f=setup(region);f.fetchImpl.mockResolvedValue(json({task_id:'task-1'}));
   const ref=await f.jobs.submit(f.operationId,input);
@@ -43,7 +55,7 @@ describe('fixed-account official MiniMax job transport',()=>{
  });
  it('rejects another fixed account or modified binding when resuming, before transport',async()=>{
   const f=setup();f.fetchImpl.mockResolvedValue(json({task_id:'task-1'}));const ref=await f.jobs.submit(f.operationId,input);f.fetchImpl.mockClear();
-  for(const patch of [{accountScopeId:'another'},{bindingId:v7()},{region:'international'},{modelId:'MiniMax-H3'},{connectionId:'another'}]){
+  for(const patch of [{providerId:'another'},{accountScopeId:'another'},{bindingId:v7()},{region:'international'},{modelId:'MiniMax-H3'},{connectionId:'another'}]){
    await expect(f.jobs.read({...ref,...patch})).rejects.toThrow('INVALID_PROVIDER_TASK_REFERENCE');
   }
   expect(f.fetchImpl).not.toHaveBeenCalled();

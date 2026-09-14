@@ -552,3 +552,19 @@ transport自检补adapter版本RED，改为复用已有validateMiniMaxBinding/mi
 验证记录：聚焦6文件63项通过；主仓完整125文件1939项、runtime/Web源码及测试类型检查均exit0（/tmp/everwoven-playback-main.log、*-types.log）。初次类型检查发现测试 Header fixture 推导带 undefined，修为显式 HeadersInit[] 后通过，未放宽断言。独立稳定树 /tmp/everwoven-verify.zRVKTD 覆盖当前显式源码，production build exit0（/tmp/everwoven-playback-production.log）。原3100核对PID4287/cwd后温和退出exit0，同数据目录重启为session30446/PID9207，无迁移/用户业务写入。真实Chrome原入口、自动会话、原角色/剧本编辑器、我的游玩、刷新复用与认证 generation GET 到真实Host全部exit0（/tmp/everwoven-playback-current3100.log）；该GET验证不冒充浏览器已播放视频。
 
 API文档与技术方案已更新架构/时序/状态/回执边界。仍待落实：正式供应商执行与价格准入/调度、私有媒体与播放凭据、原准备费用确认及舞台绑定、响应草稿编辑、实际费用结算、合格存档与fork；然后在明确预算授权后验收两幕真实生成和重启恢复。POLLO完整公开地址/文档/模型ID仍待用户提供；不得凭截图变量名把POLLO当官方MiniMax。全程付费调用0，goal保持active。
+
+本切片已commit并push eb2bd816b878fe7af02100b28dc152b30b0ea9ea（同时带上此前本地57d327b），精确CI34817574585已启动，watch会话14921仍在运行；没有发tag/发布镜像。后续只跟踪该作业，不重复触发。
+
+接供应商前的只读检查另确认一个下一步工作：GenerationExecutor.jobs 目前直接使用 createMiniMaxVideoJobs 返回类型，Worker.planning 调用 buildMiniMaxRequest，ProviderTaskReference/model/ratio/resolution也来自官方适配器。正式POLLO接入前须抽出供应商无关的视频任务port，由各适配器负责prepare/submit/read与固定账户引用验证，Worker保留预算/持久阶段/unknown语义；不能把官方适配器仅改baseURL冒充POLLO。此项尚未实施。
+
+公开资料复核（2026-09-14，仅匿名网页）：Pollo的 https://api.pollo.ai/minimax/minimax-h3 明确存在MiniMax H3提交API，文档展示pollo.ai域名、x-api-key及taskId；https://docs.pollo.ai/llms.txt 也列H3与H3 Ref。本轮未取得H3 Max同等API证据，尝试对应Max页面未成功，不能据此断言Max无API，也不能用H3价格/接口替代Max。用户截图POLLO_BASE仍被截断，实际账号供应商/协议待确认。未下载/使用页面skill或执行其示例命令。
+
+2026-09-14 视频供应商端口切片：上一goal轮为实码progress（eb2bd81）；精确CI34817574585已completed/success。继续解除Worker对MiniMax枚举/请求构造器/结果类型的直接依赖：新增 VideoJobAdapter 端口，prepare/validatePrepared/reference纯操作由供应商实现；submit/read保留单次提交及原任务查询。MiniMax官方适配器实现该端口，端点和请求规格仍严格受原官方binding限制；没有添加POLLO假实现或回退供应商。
+
+每个适配器携带bindingId/hash，Worker在执行/恢复前核对封存绑定；任务reference显式providerId并双重校验operation/binding/account/region/model。归一化结果独立校验，成功才带视频，保留usage缺失，不将其当0；下载恢复时重新校验任务与报价规格、落地时长。真实SQLite测试用仅测试目录的第二供应商/model/1080p/8s驱动同一Worker完成，证明业务流程无MiniMax枚举限制；不代表注册第二个生产供应商。补错配adapter在planner前阻断、prepared篡改不提交、错误task不下载、坏持久结果不落地。
+
+Aquinas独立先提出旧reference兼容与无限10秒重试。按用户明确“不做旧协议兼容”不加入旧格式分支；只读核实原用户库generation_turns为0，正式生成入口本来尚未发布，不迁移/删除用户数据。无限重试意见采纳：固定身份错误和materializing坏持久结果转unknown/blocked，暂停经历、清租约、持有预算，之后不自动重试；临时query错误仍只重查原任务。坏引用测试推进60秒后仍无传输；Aquinas复核撤回不适用兼容建议，3文件35项通过，当前该切片P1/P2=0。
+
+最终验证：主仓126文件1948项、runtime/Web源码及测试types均exit0（/tmp/everwoven-video-port-final-main.log、*-types.log）；稳定树当前源码production build exit0（/tmp/everwoven-video-port-final-build.log）。早期1947项是新增坏引用用例前结果，不作为最后版本。原3100真实Chrome自动连接、角色/剧本编辑、我的游玩、认证generation GET与刷新复用只读检查exit0（/tmp/everwoven-video-port-current3100.log）。没有新迁移、用户业务写入、Key读取或付费调用；原站保持运行。
+
+下一具体实施为生成视频的私有落地/读取：当前AssetDTO固定image/webp、10MB图片限额和Sharp归一化，不能把视频塞进图片流程。需要视频独立元数据与下载/文件验证/恢复，复用宿主owner/dataset与私有目录身份边界；浏览器只拿媒体ID，经已认证的受限流式读取供单video播放。随后接正式executor/调度、费用确认UI、播放凭据及回应草稿/存档fork/结算。POLLO公开base/协议与model仍待确认，不能凭变量名猜地址。整体goal active，尚无真实两幕验收。

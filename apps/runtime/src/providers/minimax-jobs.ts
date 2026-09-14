@@ -5,11 +5,7 @@ import {isBusinessId, isTimestamp} from '../contracts/primitives.js';
 import {fields} from '../contracts/story-draft-validation.js';
 import {buildMiniMaxRequest,type MiniMaxModel,type MiniMaxRequestInput,type MiniMaxRatio} from './minimax-request.js';
 
-export type OfficialJobSnapshot={
- taskId:string;status:'queued'|'running'|'succeeded'|'failed'|'cancelled';
- video?:{url:string;ratio:MiniMaxRatio;resolution:MiniMaxRequestInput['resolution'];duration:number};
- usage?:Partial<Record<'output_seconds'|'input_seconds'|'total_seconds'|'input_image_count'|'input_audio_seconds'|'total_tokens'|'prompt_tokens'|'completion_tokens',number>>;
-};
+import type {VideoJobAdapter, VideoJobSnapshot, VideoTaskReference, PreparedVideoInput, VideoPlanInput} from '../ports/video-jobs.js';
 type ErrorCode='not-submitted'|'submission-unknown'|'invalid-response'|'query-unavailable';
 export class OfficialJobError extends Error {
  constructor(readonly code:ErrorCode,message:string,readonly submission:'not-submitted'|'unknown'|null=null,readonly httpStatus?:number){super(message);this.name='OfficialJobError';}
@@ -19,10 +15,6 @@ const validId=(value:unknown):value is string=>typeof value==='string'&&/^[a-zA-
 const record=(value:unknown):Record<string,unknown>=>value!==null&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{};
 const finitePositive=(value:unknown):value is number=>typeof value==='number'&&Number.isFinite(value)&&value>0;
 const ratios:readonly string[]=['21:9','16:9','4:3','1:1','3:4','9:16'];
-export type ProviderTaskReference={
- operationId:string;taskId:string;bindingId:string;bindingHash:string;connectionId:string;accountScopeId:string;
- region:'cn'|'international';modelId:MiniMaxModel;requestHash:string;firstSubmittedAt:string;
-};
 async function boundedJSON(response:Response,signal:AbortSignal):Promise<unknown>{
  if(!response.body)throw Error();
  const reader=response.body.getReader(),chunks:Uint8Array[]=[];let size=0,complete=false;
@@ -40,21 +32,21 @@ async function boundedJSON(response:Response,signal:AbortSignal):Promise<unknown
  * Call only after ownership, media consent and server budget reservation checks.
  * No import-time calls, polling, paid retries, deletion or supplier fallbacks.
  */
-export function createMiniMaxVideoJobs(raw:unknown,{apiKey,fetchImpl=fetch,timeoutMs=15000}:Dependencies){
+export function createMiniMaxVideoJobs(raw:unknown,{apiKey,fetchImpl=fetch,timeoutMs=15000}:Dependencies):VideoJobAdapter{
  if(!raw||typeof raw!=='object')throw Error('INVALID_PROVIDER_BINDING');
  const {id,createdAt,...value}=raw as Record<string,unknown>,binding=validateMiniMaxBinding(value);
  if(!isBusinessId(id)||!(createdAt instanceof Date)||!isTimestamp(createdAt.toISOString()))throw Error('INVALID_PROVIDER_BINDING');
  const model=binding.modelId as MiniMaxModel,region=binding.parameters.region as 'cn'|'international';
  const base=minimaxEndpoints[region].origin;
  const bindingHash=createHash('sha256').update(JSON.stringify(canonicalBindingJson(binding))).digest('hex');
- const identity={bindingId:id,bindingHash,connectionId:binding.parameters.connectionId,accountScopeId:binding.parameters.providerAccountScopeId,region,modelId:model};
- function reference(raw:unknown):ProviderTaskReference{
+ const identity={providerId:binding.providerId,bindingId:id,bindingHash,connectionId:binding.parameters.connectionId,accountScopeId:binding.parameters.providerAccountScopeId,region,modelId:model};
+ function reference(raw:unknown):VideoTaskReference{
   try{
-   fields(raw,['operationId','taskId','bindingId','bindingHash','connectionId','accountScopeId','region','modelId','requestHash','firstSubmittedAt']);
+   fields(raw,['providerId','operationId','taskId','bindingId','bindingHash','connectionId','accountScopeId','region','modelId','requestHash','firstSubmittedAt']);
    if(!isBusinessId(raw.operationId)||!validId(raw.taskId)||!isTimestamp(raw.firstSubmittedAt)||
     typeof raw.requestHash!=='string'||!/^[a-f0-9]{64}$/.test(raw.requestHash)||
     Object.entries(identity).some(([k,v])=>raw[k]!==v))throw Error();
-   return {...raw} as ProviderTaskReference;
+   return {...raw} as VideoTaskReference;
   }catch{throw Error('INVALID_PROVIDER_TASK_REFERENCE');}
  }
  if(typeof apiKey!=='string'||!apiKey.trim()||/[\r\n]/.test(apiKey))throw Error('服务端凭据未就绪');
@@ -84,27 +76,38 @@ export function createMiniMaxVideoJobs(raw:unknown,{apiKey,fetchImpl=fetch,timeo
     creating?'提交结果尚未确认，未自动重复提交':'查询暂时中断，原生成任务状态仍未知',creating?'unknown':null);
   }
  }
+ function validatePrepared(raw:unknown):PreparedVideoInput{
+  fields(raw,['prompt','duration','resolution','ratio'],['frames']);
+  const input=raw as unknown as Omit<MiniMaxRequestInput,'model'>;
+  const body=buildMiniMaxRequest({...input,model}),g=binding.parameters.generation;
+  if(body.duration!==g.duration||body.resolution!==g.resolution||body.ratio!==g.ratio||
+   (Boolean(input.frames)!==(binding.parameters.operationKind==='image-to-video')))throw Error('PREPARED_REQUEST_OUTSIDE_BINDING');
+  return {prompt:input.prompt.trim(),duration:body.duration,resolution:body.resolution,ratio:body.ratio,
+   ...(input.frames?{frames:{...input.frames}}:{})};
+ }
+ function prepare(input:VideoPlanInput):PreparedVideoInput{
+  fields(input,['prompt'],['frames']);
+  const g=binding.parameters.generation;
+  return validatePrepared({prompt:input.prompt,...(Object.hasOwn(input,'frames')?{frames:input.frames}:{}),duration:g.duration,resolution:g.resolution,ratio:g.ratio});
+ }
  return {
-  mode:'job' as const,
-  async submit(operationId:string,input:Omit<MiniMaxRequestInput,'model'>,signal?:AbortSignal):Promise<ProviderTaskReference>{
+  mode:'job',bindingId:id,bindingHash,prepare,validatePrepared,reference,
+  async submit(operationId:string,raw:unknown,signal?:AbortSignal):Promise<VideoTaskReference>{
    if(!isBusinessId(operationId))throw Error('INVALID_PROVIDER_OPERATION');
-   if(!input||Object.hasOwn(input,'model'))throw Error('模型由已选供应商部署绑定');
-   const body=buildMiniMaxRequest({...input,model});
-   const g=binding.parameters.generation;
-   if(body.duration!==g.duration||body.resolution!==g.resolution||body.ratio!==(g.ratio)||
-    (Boolean(input.frames)!==(binding.parameters.operationKind==='image-to-video')))throw Error('PREPARED_REQUEST_OUTSIDE_BINDING');
+   const input=validatePrepared(raw);
+   const body=buildMiniMaxRequest({...input,model} as MiniMaxRequestInput);
    const firstSubmittedAt=new Date().toISOString(),requestHash=createHash('sha256').update(JSON.stringify(body)).digest('hex');
    const response=record(await request('POST','/v2/video_generation',JSON.stringify(body),signal));
    if(!validId(response.task_id))throw new OfficialJobError('submission-unknown','返回的任务编号未确认，请先核对任务记录','unknown');
    return {...identity,operationId,taskId:response.task_id,firstSubmittedAt,requestHash};
   },
-  async read(raw:unknown,signal?:AbortSignal):Promise<OfficialJobSnapshot>{
+  async read(raw:unknown,signal?:AbortSignal):Promise<VideoJobSnapshot>{
    const ref=reference(raw),taskId=ref.taskId;
    if(Date.now()-Date.parse(ref.firstSubmittedAt)>7*86400000)throw new OfficialJobError('query-unavailable','供应商查询保留期已过，原任务责任仍需核对');
    const task=record(record(await request('GET',`/v2/query/video_generation/${encodeURIComponent(taskId)}`,undefined,signal)).task);
    const invalid=()=>new OfficialJobError('invalid-response','供应商任务结果尚未通过结构校验');
    if(task.id!==taskId||task.model!==model||task.task_type!=='generation'||task.modality!=='video'||typeof task.status!=='string'||!['queued','running','succeeded','failed','cancelled'].includes(task.status))throw invalid();
-   const result:OfficialJobSnapshot={taskId,status:task.status as OfficialJobSnapshot['status']};
+   const result:VideoJobSnapshot={taskId,status:task.status as VideoJobSnapshot['status']};
    if(task.status==='succeeded'){
     const content=record(task.content);
     let url:URL;try{if(typeof content.url!=='string'||content.url.length>8192)throw Error();url=new URL(content.url);}catch{throw invalid();}
@@ -113,7 +116,7 @@ export function createMiniMaxVideoJobs(raw:unknown,{apiKey,fetchImpl=fetch,timeo
     result.video={url:content.url as string,ratio:task.ratio as MiniMaxRatio,resolution:task.resolution as MiniMaxRequestInput['resolution'],duration:task.duration};
    }
    if(task.usage!==undefined){
-    const usage=record(task.usage);const normalized:NonNullable<OfficialJobSnapshot['usage']>={};
+    const usage=record(task.usage);const normalized:NonNullable<VideoJobSnapshot['usage']>={};
     for(const source of ['output_seconds','input_seconds','total_seconds','input_image_count','input_audio_seconds','total_tokens','prompt_tokens','completion_tokens'] as const){
      if(usage[source]===undefined)continue;
      const value=usage[source];if(typeof value!=='number'||!Number.isFinite(value)||value<0)throw invalid();
