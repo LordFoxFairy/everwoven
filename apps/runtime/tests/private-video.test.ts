@@ -11,6 +11,8 @@ import type {GeneratedVideo} from '../src/ports/video-jobs.js';
 import type {VideoDownloadSource} from '../src/ports/private-video.js';
 import {createPrivateVideoStore} from '../src/infrastructure/media/private-video-store.js';
 import {createVideoProbe} from '../src/infrastructure/media/video-probe.js';
+import {samplePrivateVideo} from '../src/infrastructure/media/video-frame-sampler.js';
+import sharp from 'sharp';
 
 // Locally rendered, zero supplier calls. ffmpeg/ffprobe are required, never silently skipped.
 let fixtures: string, bytes: Buffer, unsupported: Buffer, longAudio: Buffer, base: string, host: ValidatedHost;
@@ -149,4 +151,22 @@ it('requires installed exact pixel dimensions and rejects output below the seale
   const store = await createPrivateVideoStore(host, owner(), {source: source(), revalidate: async () => {},
     probe: createVideoProbe(() => ({width: 1366, height: 768}))});
   await expect(store.materialize(v7(), {...video, resolution: '768P'})).rejects.toThrow('VIDEO_CONTENT_INVALID');
+});
+it('samples chronological JPEG evidence from the verified FD, bounds image dimensions and closes the reader', async () => {
+  const store = await create(), media = await store.materialize(v7(), video), reader = await store.open(media);
+  const close = vi.spyOn(reader, 'close'), samples = await samplePrivateVideo(reader, 3);
+  expect(samples).toMatchObject({mediaId: media.id, mediaSha256: media.sha256});expect(samples.frames.map(frame => frame.atMs)).toEqual([0, 333, 666]);
+  for (const frame of samples.frames) {
+    const metadata = await sharp(frame.jpeg).metadata();expect(metadata.format).toBe('jpeg');expect(metadata.width).toBeLessThanOrEqual(640);expect(metadata.height).toBeLessThanOrEqual(640);
+    await expect(sharp(frame.jpeg).raw().toBuffer()).resolves.toBeInstanceOf(Buffer);expect(frame.jpeg.length).toBeLessThanOrEqual(262144);
+  }
+  expect(close).toHaveBeenCalledOnce();await expect(reader.file.stat()).rejects.toThrow();
+});
+it('closes a sample reader on invalid count, missing extractor and pre-abort', async () => {
+  const store = await create(), media = await store.materialize(v7(), video);
+  for (const kind of ['count', 'extractor', 'abort']) {
+    const reader = await store.open(media), close = vi.spyOn(reader, 'close'), controller = new AbortController();if (kind === 'abort') controller.abort();
+    await expect(samplePrivateVideo(reader, kind === 'count' ? 17 : 1, controller.signal, kind === 'extractor' ? join(base, 'absent') : 'ffmpeg')).rejects.toThrow();
+    expect(close).toHaveBeenCalledOnce();
+  }
 });

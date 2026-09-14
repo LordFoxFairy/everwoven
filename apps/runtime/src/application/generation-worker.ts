@@ -23,7 +23,7 @@ export type PreparedScene = {prompt: string};
 export type PrivateSceneMedia = {id: string; sha256: string; duration: number};
 import {parseSceneResult, type SceneResult} from '../contracts/generation-output.js';
 export type {SceneResult} from '../contracts/generation-output.js';
-export type GenerationContext = {turnId: string; story: StoryVersionDTO; profile: PinnedProfile; quote: QuoteDTO; action: string; parentSummary: string; validatorImageLimit: number};
+export type GenerationContext = {turnId: string; story: StoryVersionDTO; profile: PinnedProfile; quote: QuoteDTO; action: string; parentSummary: string; validatorImageLimit: number; signal?: AbortSignal};
 /** Only trusted runtime adapters implement these operations; there is no request-time injection. */
 export type GenerationExecutor = {
  /** Validate installed graph/prompt/schema and adapter versions before acquiring a paid stage. */
@@ -40,6 +40,16 @@ const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(valu
 const paidInFlight = new Set(['planning', 'submitting', 'validating']);
 const runnable = new Set(['queued', 'prepared', 'polling', 'materializing', 'checking', ...paidInFlight]);
 const leaseMs = 120000;
+/** A whole step, including sampling/text/observation, finishes before the 120s lease; timeout never authorizes a paid retry. */
+const stepTimeoutMs = 100000;
+async function boundedStep<T>(signal: AbortSignal, work: () => Promise<T>): Promise<T> {
+ return new Promise((resolve, reject) => {
+  const abort = () => {signal.removeEventListener('abort', abort);reject(Error('GENERATION_STEP_TIMEOUT'));};
+  signal.addEventListener('abort', abort, {once: true});
+  if (signal.aborted) {abort();return;}
+  work().then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+ });
+}
 
 /** One durable step per call. A scheduler may repeat tick; it must never retry a paid HTTP POST itself. */
 export function createGenerationWorker(db: PrismaClient, owner: InternalOwnerContext, authority: LocalStoreAuthority,
@@ -85,7 +95,10 @@ export function createGenerationWorker(db: PrismaClient, owner: InternalOwnerCon
   });
   if (!claimed) return false;
   if (claimed.stopped) return true;
-  const {stage, turn, context, binding} = claimed;
+  const {stage, turn, binding} = claimed;
+  const elapsed = Math.max(0, currentTime(services).getTime() - now.getTime());
+  const signal = elapsed >= stepTimeoutMs ? AbortSignal.abort() : AbortSignal.timeout(stepTimeoutMs - elapsed);
+  const context: GenerationContext = {...claimed.context, signal};
   const {id: bindingId, createdAt: _createdAt, ...bindingSpec} = binding;
   const bindingHash = hash(canonicalBindingJson(bindingSpec));
   function videoAdapter(): VideoJobAdapter {
@@ -106,9 +119,17 @@ export function createGenerationWorker(db: PrismaClient, owner: InternalOwnerCon
     (approved.ratio !== 'adaptive' && video.ratio !== approved.ratio)) throw Error('GENERATION_MEDIA_INVALID');
    return video;
   }
-  async function finish(status: string, patch: Prisma.GenerationTurnUpdateInput = {}, delayMs = 0) {
+  async function finish(status: string, patch: Prisma.GenerationTurnUpdateInput = {}, delayMs = 0, advancing = false) {
    await authority.revalidate();
    return withOwnerWrite(db, owner.ownerId, async tx => {
+    // Recheck after authority/SQLite queue waits, and before returning the transaction.
+    // Expired progress rolls back every write; the separate unknown transition remains allowed.
+    const checkDeadline = () => {
+     if (!advancing) return;
+     signal.throwIfAborted();
+     if (currentTime(services).getTime() >= now.getTime() + stepTimeoutMs) throw Error('GENERATION_STEP_TIMEOUT');
+    };
+    checkDeadline();
     const updatedAt = currentTime(services), wake = await tx.runtimeOutbox.findFirst({where: {id: turn.id, ownerId: owner.ownerId, status: 'leased', leaseToken: token}});
     if (!wake) return false; // A late callback must not replace recovery/another lease's result.
     const changed = await tx.generationTurn.updateMany({where: {id: turn.id, ownerId: owner.ownerId, status: stage}, data: {
@@ -118,30 +139,36 @@ export function createGenerationWorker(db: PrismaClient, owner: InternalOwnerCon
      availableAt: new Date(updatedAt.getTime() + delayMs), leaseUntil: null, leaseToken: null, updatedAt, revision: {increment: 1}}});
     if (['ready', 'failed', 'unknown'].includes(status)) await tx.experience.update({where: {id: turn.experienceId}, data: {
      status: status === 'ready' ? 'playing' : status, schedulingPaused: true, updatedAt, rowRevision: {increment: 1}}});
+    checkDeadline();
     return true;
    });
   }
+  async function progress(status: string, patch: Record<string, unknown> = {}, delayMs = 0) {
+   signal.throwIfAborted();return finish(status, patch, delayMs, true);
+  }
   try {
+   await boundedStep(signal, async () => {
    if (stage === 'planning') {
     const adapter = videoAdapter();
     const plan = await executor.plan(context);
+    signal.throwIfAborted();
     const frames = binding.parameters.operationKind === 'image-to-video' ? await executor.frames?.(context) : undefined;
     if (Boolean(frames) !== (binding.parameters.operationKind === 'image-to-video')) throw Error('GENERATION_PLAN_INVALID');
     const input = adapter.validatePrepared(adapter.prepare({prompt: plan.prompt, ...(frames ? {frames} : {})}));
-    await finish('prepared', {prepared: json(input)});
+    await progress('prepared', {prepared: json(input)});
    } else if (stage === 'submitting') {
     const adapter = videoAdapter(), input = adapter.validatePrepared(turn.prepared);
-    const ref = checkedReference(adapter, await adapter.submit(turn.id, input));
-    await finish('polling', {providerReference: json(ref)});
+    const ref = checkedReference(adapter, await adapter.submit(turn.id, input, signal));
+    await progress('polling', {providerReference: json(ref)});
    } else if (stage === 'polling') {
     const adapter = videoAdapter(), ref = checkedReference(adapter, turn.providerReference);
-    const result = parseVideoJobSnapshot(await adapter.read(ref));
+    const result = parseVideoJobSnapshot(await adapter.read(ref, signal));
     if (result.taskId !== ref.taskId) throw Error('GENERATION_REFERENCE_MISMATCH');
     if (result.status === 'succeeded') {
      deliveredVideo(result.video);
-     await finish('materializing', {result: json(result)});
-    } else if (['failed', 'cancelled'].includes(result.status)) await finish('failed', {errorCode: 'PROVIDER_GENERATION_FAILED', result: json(result)});
-    else await finish('polling', {}, 3000);
+     await progress('materializing', {result: json(result)});
+    } else if (['failed', 'cancelled'].includes(result.status)) await progress('failed', {errorCode: 'PROVIDER_GENERATION_FAILED', result: json(result)});
+    else await progress('polling', {}, 3000);
    } else if (stage === 'materializing') {
     const adapter = videoAdapter(), ref = checkedReference(adapter, turn.providerReference);
     const result = parseVideoJobSnapshot(turn.result);
@@ -150,12 +177,13 @@ export function createGenerationWorker(db: PrismaClient, owner: InternalOwnerCon
     const media = await executor.materialize(context, video);
     parseId(media?.id);
     if (!media || typeof media.id !== 'string' || !/^[a-f0-9]{64}$/.test(media.sha256) || media.duration !== video.duration) throw Error('GENERATION_MEDIA_INVALID');
-    await finish('checking', {media: json(media)});
+    await progress('checking', {media: json(media)});
    } else if (stage === 'validating') {
     const result = parseSceneResult(await executor.validate(context, turn.media as unknown as PrivateSceneMedia));
     // The media is playable; result remains a candidate until a separate playback-complete command.
-    await finish('ready', {result: json(result)});
+    await progress('ready', {result: json(result)});
    }
+   });
   } catch (error) {
    // The conservative reservation stays held for failed/unknown usage too. No zero-cost inference.
    // A broken fixed identity cannot heal by repeatedly querying the same saved record.

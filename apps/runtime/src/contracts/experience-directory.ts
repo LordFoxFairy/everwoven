@@ -2,7 +2,7 @@ import type {StoryProtocol} from './story-draft.js';
 import type {ExperienceBudget} from './experience-opening.js';
 import {fields, parseProtocol, parseId, parseTitle, parseRevision} from './story-draft-validation.js';
 import {parseBudget} from './experience-opening-validation.js';
-import {bindingLabel} from './provider-binding-validation.js';
+import {bindingLabel, modelIdentifier} from './provider-binding-validation.js';
 import {isTimestamp} from './primitives.js';
 export type ExperienceList = StoryProtocol & {limit?: number; cursor?: string};
 export type ExperienceSummary = {id: string; storyVersionId: string; title: string; sourceRevision: number; status: string;
@@ -25,7 +25,7 @@ export function parseExperienceSummary(value: unknown): ExperienceSummary {
   if (typeof value.status !== 'string' || !/^[a-z][a-z0-9_]{0,39}$/.test(value.status) || typeof value.schedulingPaused !== 'boolean' ||
     !isTimestamp(value.createdAt) || !isTimestamp(value.updatedAt) || value.updatedAt < value.createdAt) throw Error('INVALID_EXPERIENCE_DTO');
   return {id: parseId(value.id), storyVersionId: parseId(value.storyVersionId), title: parseTitle(value.title), sourceRevision: parseRevision(value.sourceRevision),
-    status: value.status, schedulingPaused: value.schedulingPaused, modelId: bindingLabel(value.modelId), region: bindingLabel(value.region), budget: parseBudget(value.budget), createdAt: value.createdAt, updatedAt: value.updatedAt};
+    status: value.status, schedulingPaused: value.schedulingPaused, modelId: modelIdentifier(value.modelId), region: bindingLabel(value.region), budget: parseBudget(value.budget), createdAt: value.createdAt, updatedAt: value.updatedAt};
 }
 export function parseExperiencePage(value: unknown): ExperiencePage {
   try {

@@ -6,6 +6,11 @@ export function bindingLabel(v: unknown): string {
   if (typeof v !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(v)) throw Error(code);
   return v;
 }
+/** Providers may namespace model IDs (for example publisher/model); these are identifiers, never paths. */
+export function modelIdentifier(v: unknown): string {
+  if (typeof v !== 'string' || v.length > 256 || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}(?:\/[A-Za-z0-9][A-Za-z0-9._:-]{0,127}){0,2}$/.test(v)) throw Error(code);
+  return v;
+}
 /** Bounded, detached canonical JSON: no prototypes, accessors, undefined, sparse arrays or nonfinite values. */
 export function canonicalBindingJson(input: unknown): BindingJson {
   let nodes = 0;
@@ -55,7 +60,7 @@ function parseCommonBinding(input: unknown) {
     if (p.schemaVersion !== 1 || caps.schemaVersion !== 1) throw Error(code);
     return {
       ownerId: parseId(input.ownerId), bindingKey: bindingLabel(input.bindingKey), versionNo: parseRevision(input.versionNo),
-      providerId: bindingLabel(input.providerId), modelId: bindingLabel(input.modelId),
+      providerId: bindingLabel(input.providerId), modelId: modelIdentifier(input.modelId),
       adapterVersion: bindingLabel(input.adapterVersion), capabilityVersion: bindingLabel(input.capabilityVersion),
       mode: input.mode as ExecutionBindingSpec['mode'], credentialRef: bindingLabel(input.credentialRef),
       parameters: {

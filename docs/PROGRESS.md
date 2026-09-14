@@ -583,3 +583,18 @@ Aquinas独立评审发现并修复三项：1)低像素视频不能只凭resoluti
 实施中隔离验证的临时根node_modules软链被pnpm拒绝，改用已有独立依赖树；一次并行pnpm任务触发auto-install竞争导致types启动失败，任务结束后顺序执行types成功。没有通过删除用户目录解决；最终以实际exit0结果为准。
 
 剩余主链保持原范围：生产供应商/文本/媒体执行器组合、受信价格与精确尺寸/CDN准入、调度、原页面费用确认及Stage绑定、播放覆盖凭据、回应草稿编辑、费用结算、合格存档及fork，最后明确预算授权下两幕真实生成/重启验收。POLLO完整公开base/协议/model仍待确认；没有请求或读取Key值，付费模型调用0。整体goal保持active，不能宣称产品闭环。
+
+本切片已commit并push fce0afd147e45f43e7f3b63857a2f32d5c08663a（feat(runtime): persist and serve private generated video）；精确CI34822086173当前in_progress，watch跟踪同一作业，日志/tmp/everwoven-private-video-ci.log。最终本地production媒体浏览器smoke再次exit0（/tmp/everwoven-private-video-browser.log）。尚不将本切片CI标成功；下一轮核验此作业，不重复触发。不合并main、不发tag、不发布镜像。
+
+
+2026-09-14 有界导演/文字供应商实施：fce0afd的精确CI34822086173已completed/success。本轮安装@langchain/core 1.2.11，加入单次Runnable导演、固定prompt/schema/hash、供应商无关StructuredTextModel、官方OpenRouter结构化请求适配器，以及GenerationExecutor组合与已授权私有视频FD采样。模型ID允许合法publisher/model命名空间，内部连接/账户ID规则保持独立。OpenRouter固定模型和端点偏好、不fallback、不自动修复或付费重试；模型输入token上界计算器必须显式安装。成功文字观察要求注入observe持久完成，正式观察/结算服务尚待落地，无生产no-op默认。未读取Key或调用付费供应商。
+
+视觉核验按实际视频JPEG样本生成summary和2–4个回应候选，拒绝不确定结果、错媒体/错hash/越界帧、无证据和重复建议；不将未核验音频或未采样事件作为事实。候选仍遵循原Worker：视频ready不产生decision，播放完成回执后才出现交互。内部测试以明确的HTTP/模型替身覆盖，尚未接入原舞台生产操作。
+
+Aquinas独立评审修复：遗漏LANGSMITH_TRACING_V2可能使LangChain自动导出剧情，现五个tracing/verbose标志均前置阻断；采样90秒+文字60秒可能跨越120秒租约，现Worker整个阶段共享100秒期限并扣除领取耗时，传给采样/文本/observe。进一步复现身份重校验/事务等待后的迟到成功，现writer事务入口和最后写入后检查signal与时钟，超时推进回滚、unknown独立落库、预算held。真实SQLite两类提交窗口回归通过；独立只读复核已关闭该P2，所审范围无遗留阻塞。
+
+本轮主仓132文件2079测试与runtime/Web源代码及测试类型检查均exit0（/tmp/everwoven-director-final-main.log、*-types.log）。隔离独立依赖树更新lock后production build exit0（/tmp/everwoven-director-final-build.log），原3100真实Chrome自动连接/认证generation GET/角色剧本/MyPlay及刷新复用只读检查exit0（/tmp/everwoven-director-current3100.log）。无新迁移、用户数据seed或原站重启；采样使用一次性本地视频素材，付费模型调用0。
+
+架构/执行时序/供应商限制记录于docs/api/SCENE-DIRECTOR-V1.md。下一实施仍为持久文字观察与结算、受信模型计量/价格/尺寸/CDN与凭据解析、Host executor/scheduler、原页面quote/accept/单视频Stage/异步草稿及播放覆盖凭据、存档fork。POLLO完整公开base/协议/model仍待确认，不能将截图变量名推断为MiniMax官方API。总goal active；当前组件和通过的离线验证不构成完整产品或两幕真实生成验收。
+
+隔离production媒体浏览器smoke也已exit0（/tmp/everwoven-director-media-browser.log）：真实Chrome解码/seek/ended、HEAD/Range、进程重启和hash保持，测试fixture清理完成；不代表正式舞台或模型内容验收。

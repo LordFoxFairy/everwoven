@@ -4,6 +4,8 @@
 
 ## 输入与回执
 
+内部执行组合增量见[有界剧情与视觉校验](SCENE-DIRECTOR-V1.md)：LangChain单次阶段、OpenRouter官方适配、私有FD JPEG采样和原Worker组合已进入代码；Host正式安装、持久观察/结算、价格计量准入及原Stage接线尚未完成。
+
 所有操作由已认证宿主注入 owner、dataset、storeEpoch；请求不能提供 owner、账户、价格、密钥、执行器或费用证明。标识为 UUIDv7，金额用最小货币单位的百万分之一整数字符串。
 
 | 操作 | 输入（除 protocolVersion=1、datasetId 外） | 返回及副作用 |

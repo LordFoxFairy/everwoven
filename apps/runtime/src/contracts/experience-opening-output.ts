@@ -1,5 +1,5 @@
 import {fields, parseId, parseProtocol, parseRevision} from './story-draft-validation.js';
-import {bindingLabel} from './provider-binding-validation.js';
+import {bindingLabel, modelIdentifier} from './provider-binding-validation.js';
 import {parseStoryVersionDTO} from './story-version-validation.js';
 import {parseBudget} from './experience-opening-validation.js';
 import {isTimestamp} from './primitives.js';
@@ -14,7 +14,7 @@ function publicBinding(v: unknown): PublicBinding {
   fields(v, ['id', 'bindingKey', 'versionNo', 'providerId', 'modelId', 'mode', 'connectionId', 'region', 'adapterVersion', 'capabilityVersion', 'snapshotHash']);
   if (!['job', 'realtime'].includes(v.mode as string) || typeof v.snapshotHash !== 'string' || !/^[a-f0-9]{64}$/.test(v.snapshotHash)) throw invalid();
   return {id: parseId(v.id), bindingKey: bindingLabel(v.bindingKey), versionNo: parseRevision(v.versionNo),
-    providerId: bindingLabel(v.providerId), modelId: bindingLabel(v.modelId), mode: v.mode as PublicBinding['mode'],
+    providerId: bindingLabel(v.providerId), modelId: modelIdentifier(v.modelId), mode: v.mode as PublicBinding['mode'],
     connectionId: bindingLabel(v.connectionId), region: bindingLabel(v.region), adapterVersion: bindingLabel(v.adapterVersion),
     capabilityVersion: bindingLabel(v.capabilityVersion), snapshotHash: v.snapshotHash};
 }
@@ -47,7 +47,7 @@ function choice(v: unknown): VideoBindingChoice {
   fields(v, ['bindingKey', 'versionNo', 'providerId', 'modelId', 'catalogId', 'connectionId', 'region', 'mode', 'operationKind', 'generation', 'canPrepare', 'canDispatch', 'accountVerification']);
   if (v.canPrepare !== true || v.canDispatch !== false || v.accountVerification !== 'unknown' || v.mode !== 'job' ||
     !['text-to-video', 'image-to-video'].includes(v.operationKind as string)) throw invalid();
-  const providerId = bindingLabel(v.providerId), catalogId = bindingLabel(v.catalogId), modelId = bindingLabel(v.modelId);
+  const providerId = bindingLabel(v.providerId), catalogId = bindingLabel(v.catalogId), modelId = modelIdentifier(v.modelId);
   const deployment = getDeployment(providerId, catalogId);
   if (deployment.mode !== 'job' || deployment.endpoint !== modelId) throw invalid();
   const generation = validateMiniMaxGeneration(modelId, v.operationKind as string, v.generation), region = miniMaxRegion(v.region);
