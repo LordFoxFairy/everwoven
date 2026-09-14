@@ -26,6 +26,10 @@
     "typescript": "7.0.2"
   },
   "exports": {
+    "./contracts/generation-media": {
+      "types": "./src/contracts/generation-media.ts",
+      "default": "./dist/contracts/generation-media.js"
+    },
     "./host": {
       "types": "./src/host/index.ts",
       "default": "./dist/host/index.js"

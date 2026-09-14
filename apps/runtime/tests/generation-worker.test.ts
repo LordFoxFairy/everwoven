@@ -9,7 +9,42 @@ import type {VideoTaskReference, PreparedVideoInput} from '../src/ports/video-jo
 import {createMiniMaxVideoJobs} from '../src/providers/minimax-jobs.js';
 import {openRuntimeDatabase} from '../src/infrastructure/db/client.js';
 import {createGenerationPlayback} from '../src/application/generation-playback.js';
+import {lstat, writeFile} from 'node:fs/promises';
+import {join, dirname} from 'node:path';
+import {createHash} from 'node:crypto';
+import {createPrivateVideoStore} from '../src/infrastructure/media/private-video-store.js';
 beforeAll(prepare); afterAll(dispose);
+it.each(['fields', 'json', 'utf8'])('blocks actual malformed %s recovery hint before any download', async kind => {
+ const f = await workerFixture(), source = {open: vi.fn(async () => {throw Error('DOWNLOAD_MUST_NOT_RUN');})};
+ try {
+  const rows = await f.db.$queryRawUnsafe<Array<{file: string}>>('PRAGMA database_list'), directory = dirname(rows[0]!.file), parent = dirname(directory);
+  const store = await createPrivateVideoStore({target: {directory, parent, parentIdentity: await lstat(parent)}, identity: await lstat(directory),
+   manifest: {version: 1, ...f.owner, environment: 'dev', createdAt: new Date().toISOString()}}, f.owner,
+   {source, probe: async () => {throw Error('PROBE_MUST_NOT_RUN');}, revalidate: async () => {}});
+  f.executor.materialize = vi.fn(async (context, video) => {
+   const sourceHash = createHash('sha256').update(JSON.stringify([context.turnId, video])).digest('hex');
+   await writeFile(join(directory, 'assets', f.owner.datasetId, `.video-${context.turnId}-${sourceHash}.json`),
+    kind === 'utf8' ? Buffer.from([0xff, 0xff]) : kind === 'json' ? '{!' : '{}', {mode: 0o600});
+   return store.materialize(context.turnId, video);
+  });
+  for (let i = 0; i < 4; i++) await f.worker.tick();
+  expect(await f.db.generationTurn.findUnique({where: {id: f.turn.id}})).toMatchObject({status: 'unknown'});
+  expect(await f.db.runtimeOutbox.findUnique({where: {id: f.turn.id}})).toMatchObject({status: 'blocked'});
+  expect(await f.db.budgetReservation.findUnique({where: {id: f.turn.id}})).toMatchObject({status: 'held'});
+  f.tick(60000);expect(await f.worker.tick()).toBe(false);expect(source.open).not.toHaveBeenCalled();expect(f.executor.materialize).toHaveBeenCalledOnce();
+ } finally {await f.close();}
+});
+it.each(['VIDEO_CONTENT_INVALID', 'VIDEO_DIMENSIONS_UNAVAILABLE', 'PRIVATE_VIDEO_CACHE_INVALID', 'VIDEO_DOWNLOAD_SOURCE_DENIED'])('blocks permanent media failure %s and preserves the paid reservation without repeated downloads', async code => {
+ const f = await workerFixture();
+ try {
+  f.executor.materialize = vi.fn(async () => {throw Error(code);});
+  await f.worker.tick();await f.worker.tick();await f.worker.tick();await f.worker.tick();
+  expect(await f.db.generationTurn.findUnique({where: {id: f.turn.id}})).toMatchObject({status: 'unknown', errorCode: 'GENERATION_RESULT_UNKNOWN'});
+  expect(await f.db.runtimeOutbox.findUnique({where: {id: f.turn.id}})).toMatchObject({status: 'blocked'});
+  expect(await f.db.budgetReservation.findUnique({where: {id: f.turn.id}})).toMatchObject({status: 'held'});
+  f.tick(60000);expect(await f.worker.tick()).toBe(false);expect(f.executor.materialize).toHaveBeenCalledOnce();
+ } finally {await f.close();}
+});
 async function workerFixture(customizeVideo?: (binding: BindingSpec) => BindingSpec) {
  const f = await setup(undefined, false, customizeVideo), quote = await f.generation.quote(f.quoteInput), accepted = await f.generation.accept(f.acceptInput(quote.data.id));
  const transport = vi.fn<typeof fetch>(async (_url, init) => new Response(JSON.stringify(init?.method === 'POST' ? {task_id: 'fixture-task'} : {

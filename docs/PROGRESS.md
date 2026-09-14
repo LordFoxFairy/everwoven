@@ -568,3 +568,18 @@ Aquinas独立先提出旧reference兼容与无限10秒重试。按用户明确�
 最终验证：主仓126文件1948项、runtime/Web源码及测试types均exit0（/tmp/everwoven-video-port-final-main.log、*-types.log）；稳定树当前源码production build exit0（/tmp/everwoven-video-port-final-build.log）。早期1947项是新增坏引用用例前结果，不作为最后版本。原3100真实Chrome自动连接、角色/剧本编辑、我的游玩、认证generation GET与刷新复用只读检查exit0（/tmp/everwoven-video-port-current3100.log）。没有新迁移、用户业务写入、Key读取或付费调用；原站保持运行。
 
 下一具体实施为生成视频的私有落地/读取：当前AssetDTO固定image/webp、10MB图片限额和Sharp归一化，不能把视频塞进图片流程。需要视频独立元数据与下载/文件验证/恢复，复用宿主owner/dataset与私有目录身份边界；浏览器只拿媒体ID，经已认证的受限流式读取供单video播放。随后接正式executor/调度、费用确认UI、播放凭据及回应草稿/存档fork/结算。POLLO公开base/协议与model仍待确认，不能凭变量名猜地址。整体goal active，尚无真实两幕验收。
+
+视频端口切片已提交并push b0f3dc94e87ac45644c06f1b577a0597b832495c。精确CI34818989885当前in_progress；此前eb2bd81的CI34817574585已completed/success。下一轮核验同一作业，不重新触发；main/tag/镜像未改。主仓代码已提交，仅这条后续进度记录留待下一次同步。
+
+
+2026-09-14 私有视频落地/读取切片：上一goal轮主要回复截图供应商映射，未新增实现，按no-progress重新核验；b0f3dc9精确CI34818989885已completed/success。本轮继续代码：独立VideoDownloadSource/VideoProbe/PrivateVideoStore，严格MP4元数据，不复用WebP图片管线。目录身份复用，owner/dataset绑定；128MiB流限额、固定公网IPv4/HTTPS主机白名单、不跟随重定向或发送供应商Key、下载/DNS取消及response关闭。文件独占UUID/0600、同FD完整hash与ffprobe、sync后原子发布非权威hint；重启优先复核文件/视频轨，DB最终media决定播放授权，候选清理未实现。
+
+新增原应用/api/local-generation-media/[turnId] GET/HEAD/Range，以及严格query和浏览器URL构造器。真实Host会话、owner/dataset/经历/ready或viewed回合/accepted quote双向关系授权后，返回同一已校验FD；HTTP负责完成/取消/超时释放，不保留SQLite连接。元数据/源URL/私有路径不传前端，GET不会提交生成、触发选项或播放回执。支持200/206/416/If-Range，强ETag但no-store，每次请求完整hash。默认本地读取维持同站；HEAD按只读方法校验，不要求mutation头。
+
+Aquinas独立评审发现并修复三项：1)低像素视频不能只凭resolution标签通过，probe必须从受信封存规格获取精确width/height，未安装尺寸映射拒绝；2)不能用长音轨/容器时长掩盖短视频轨，校验视频轨duration/start_time及容器/音频一致性；3)坏hint的UTF8/JSON/字段错误归一为PRIVATE_VIDEO_CACHE_INVALID，使实际Store→Worker暂停unknown/blocked并保留预算，不每10秒反复读取。真实坏hint测试覆盖字段/JSON/UTF8三种且60秒后无再次执行，确定错误不自动重试。最终独立复核49/49，所审范围P1/P2=0。
+
+主仓最新验证130文件2039测试exit0、runtime/Web及测试types exit0，证据/tmp/everwoven-private-video-final-main.log与*-types.log。isolated当前源码production build exit0（/tmp/everwoven-private-video-final-build.log）。原3100Chrome自动连接、认证读取及剧本/角色/MyPlay与刷新复用只读验证exit0（/tmp/everwoven-private-video-current3100.log），没有业务seed/用户库写入。媒体专用真实浏览器smoke使用同一应用生产构建+一次性host，验证本地ffmpeg视频解码/seek/ended、HEAD/Range/来源拒绝、应用进程重启和原文件hash；明确是测试素材，不是模型结果或正式Stage接线。CI新增ffmpeg依赖及该smoke。技术方案/API架构和时序同步于PRIVATE-GENERATION-MEDIA.md。
+
+实施中隔离验证的临时根node_modules软链被pnpm拒绝，改用已有独立依赖树；一次并行pnpm任务触发auto-install竞争导致types启动失败，任务结束后顺序执行types成功。没有通过删除用户目录解决；最终以实际exit0结果为准。
+
+剩余主链保持原范围：生产供应商/文本/媒体执行器组合、受信价格与精确尺寸/CDN准入、调度、原页面费用确认及Stage绑定、播放覆盖凭据、回应草稿编辑、费用结算、合格存档及fork，最后明确预算授权下两幕真实生成/重启验收。POLLO完整公开base/协议/model仍待确认；没有请求或读取Key值，付费模型调用0。整体goal保持active，不能宣称产品闭环。

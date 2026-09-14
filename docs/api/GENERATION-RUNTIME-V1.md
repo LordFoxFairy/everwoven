@@ -1,6 +1,6 @@
 # 分段生成主链与播放 API 契约
 
-2026-09-14。生成实现位于 `apps/runtime/src/application/generation.ts` 和 `generation-worker.ts`；播放读取/回执独立位于 `generation-playback.ts`。`generation.get` 与 `generation.completePlayback` 已注册到原应用的 Host/tRPC，并有浏览器客户端。报价与接受仍是内部契约，**正式导演、私有视频、校验适配组合、调度及原页面绑定尚未完成**。测试用显式假传输验证协议和数据库行为，不是付费模型验收。
+2026-09-14。生成实现位于 `apps/runtime/src/application/generation.ts` 和 `generation-worker.ts`；播放读取/回执独立位于 `generation-playback.ts`。`generation.get` 与 `generation.completePlayback` 已注册到原应用的 Host/tRPC，并有浏览器客户端。[私有视频落地与认证读取](PRIVATE-GENERATION-MEDIA.md)已实现独立端口和原应用 GET/HEAD/Range。报价与接受仍是内部契约，**正式导演、供应商/私有媒体执行组合、内容校验适配、调度及原舞台绑定尚未完成**。测试用显式假传输及本地渲染视频验证协议、文件与数据库行为，不是付费模型验收。
 
 ## 输入与回执
 

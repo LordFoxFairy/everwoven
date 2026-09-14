@@ -27,6 +27,8 @@ jobs:
         run: node scripts/release/metadata.mjs
       - run: corepack enable && corepack prepare pnpm@12.3.4 --activate
       - run: pnpm install --frozen-lockfile
+      - name: Install local media verification tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - run: pnpm test
       - run: pnpm typecheck
       - run: pnpm build
@@ -84,6 +86,9 @@ jobs:
 
       - name: Verify original image controls and uncertain command recovery
         run: node scripts/smoke/local-asset-ui.mjs
+
+      - name: Verify private video decode, range and process restart with a local fixture
+        run: node scripts/smoke/local-generation-media.mjs
 
       - name: Save the tested image
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')

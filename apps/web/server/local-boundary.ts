@@ -36,7 +36,7 @@ export function guardLocalRequest(request: Request, config: LocalRuntimeConfig):
   )
     throw Error('LOCAL_ORIGIN_DENIED');
   if (
-    request.method !== 'GET' &&
+    !['GET', 'HEAD'].includes(request.method) &&
     (origin !== expected.origin || request.headers.get('x-everwoven-request') !== '1')
   )
     throw Error('LOCAL_ORIGIN_DENIED');

@@ -1,4 +1,9 @@
 import {createGenerationPlayback} from '../application/generation-playback.js';
+import {openGenerationMedia} from '../application/generation-media.js';
+import {createPrivateVideoReader} from '../infrastructure/media/private-video-store.js';
+import type {GetGenerationMedia} from '../contracts/generation-media.js';
+import type {PrivateVideoReader} from '../ports/private-video.js';
+export type {PrivateVideoReader} from '../ports/private-video.js';
 import {acquireLocalStoreAuthority} from './store-epoch.js';
 import {createCharacterService} from '../composition/character-service.js';
 import type {PrismaClient} from '../generated/prisma/client.js';
@@ -136,4 +141,19 @@ export function withLocalGenerationPlayback<T>(directory: string, environment: L
       const authority = {...captured, revalidate: async () => {await revalidate(); await captured.revalidate();}};
       return work(createGenerationPlayback(db, owner, authority), owner);
     }, true);
+}
+
+const mediaErrors = new Set(['DATASET_CHANGED', 'OWNER_UNAVAILABLE', 'INVALID_GENERATION_MEDIA_QUERY', 'GENERATION_MEDIA_NOT_FOUND']);
+/** The returned verified descriptor outlives SQLite. Its HTTP owner must close it on end/cancel/error. */
+export async function openLocalGenerationMedia(directory: string, environment: LocalEnvironment, token: string,
+  input: GetGenerationMedia): Promise<PrivateVideoReader> {
+  let reader: PrivateVideoReader | undefined;
+  try {
+    return await withLocalDatabase(directory, environment, token, mediaErrors, 'LOCAL_GENERATION_MEDIA_FAILED',
+      async (db, owner, {host, revalidate}) => {
+        const files = {open: async (metadata: import('../ports/private-video.js').PrivateVideoMetadata) =>
+          (await createPrivateVideoReader(host, owner, revalidate)).open(metadata)};
+        reader = await openGenerationMedia(db, owner, input, files, revalidate);return reader;
+      }, true);
+  } catch (error) {await reader?.close();throw error;}
 }

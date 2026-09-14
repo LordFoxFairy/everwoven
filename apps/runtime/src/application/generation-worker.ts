@@ -5,6 +5,7 @@ import type {StoryVersionDTO} from '../contracts/story-version.js';
 import type {BindingRecord} from '../contracts/provider-binding.js';
 import type {LocalStoreAuthority} from '../host/store-epoch.js';
 import type {VideoJobAdapter, GeneratedVideo, VideoTaskReference} from '../ports/video-jobs.js';
+import {isPermanentVideoFailure} from '../ports/private-video.js';
 import {parseVideoJobSnapshot} from '../contracts/video-job-output.js';
 import {canonicalBindingJson} from '../contracts/provider-binding-validation.js';
 import type {PinnedProfile} from '../ports/execution-profile-store.js';
@@ -160,7 +161,7 @@ export function createGenerationWorker(db: PrismaClient, owner: InternalOwnerCon
    // A broken fixed identity cannot heal by repeatedly querying the same saved record.
    const code = error instanceof Error ? error.message : '';
    const invalidIdentity = ['INVALID_PROVIDER_TASK_REFERENCE', 'GENERATION_REFERENCE_MISMATCH', 'GENERATION_ADAPTER_MISMATCH'].includes(code);
-   const invalidSavedResult = stage === 'materializing' && ['INVALID_VIDEO_JOB_RESULT', 'GENERATION_MEDIA_INVALID'].includes(code);
+   const invalidSavedResult = stage === 'materializing' && (['INVALID_VIDEO_JOB_RESULT', 'GENERATION_MEDIA_INVALID'].includes(code) || isPermanentVideoFailure(error));
    if (paidInFlight.has(stage) || invalidIdentity || invalidSavedResult) await finish('unknown', {errorCode: 'GENERATION_RESULT_UNKNOWN'});
    else await finish(stage, {errorCode: 'GENERATION_READ_INTERRUPTED'}, 10000);
   }
