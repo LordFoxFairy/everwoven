@@ -508,3 +508,19 @@ Cicero发现Profile hash envelope的P2（合法65500长度/深度snapshot被再�
 用户库升级过程已如实记录：确认原3100 PID/cwd后SIGTERM退出0；使用私有SQLite backup API备份。首个临时维护脚本忘记显式close Python连接（with不关闭连接），Prisma报database locked、没有完成迁移；错误后提前重启造成短暂authoring读取500，已立即停机纠正，不作为可用状态。临时脚本修为关闭所有备份句柄后重跑，增量迁移成功；16张原业务表值摘要完全相同、原migration记录完全相同、0条新Profile、integrity_check=ok、所有表FK为空。正式runtime --check实际exit0，之后才重启同目录同3100。备份位置受限记录于/tmp/everwoven-profile-upgrade.json，不写入仓库或公开数据；原图片目录未动。当前Chrome只读验证进行中。
 
 M2-B1最终主仓117文件1863/1863＋runtime/Web源码/测试types实际exit0（/tmp/everwoven-profile-final-main.log）。修正后稳定树production build、原准备UI真实提交/丢响应/重启/冷浏览器恢复、完整opening HTTP、原Studio四图/聚合/unknown/重启/冷浏览器均exit0（/tmp/everwoven-profile-final-*.log）。当前唯一3100在用户原目录运行，迁移后原自动连接/无连接码/原我的游玩/原角色剧本编辑器/刷新复用真实Chrome只读通过、业务seed/模型调用为0（/tmp/everwoven-profile-current3100.log）。独立Cicero P1/P2=0，Profile合法边界hash问题已RED/GREEN关闭。此片只完成固定执行身份，不宣称Quote/视频/两幕/整个产品完成；下一主线storeEpoch+Quote及预算/任务依赖继续。无main/tag/镜像发布。
+
+B1已commit753c928b5e4fa7e5853deb7b67537d94a491e18b（23文件）并push既有开发分支。精确CI34747523380当前in_progress，下一轮查询同作业，不重新触发；上一74f9eed CI34746646130已success。唯一3100运行PID30345（session56847），用户库已审查增量升级并保留私有备份，业务行/owner/dataset未改。当前goal保持active；本轮实码progress，不将1863测试/内部Profile当全产品完成。
+
+Cicero下一B2具体切口已读码确认：host/store-epoch独立严格状态文件，旧库停机显式登记/新库ready前写入，普通启动缺失不自动生成；恢复标记与file+dir持久化、authority从Host注入而非body或writeEpoch。首幕Quote仅收protocol/dataset/command/experience/revision/kind=opening，复用真实preparing封存事实。沿现有provider-startup同一快照补Profile解析和窄quote-evidence端口，不新建第二registry。价格能力/artifact任缺阻断，整数/有理数向上取整覆盖三阶段总调用；Quote一表+receipt同Gate，历史回放不续期/不代表可接受。随后首次接受一次实现BudgetScope/双预算/TurnRun/Reservation/Quote消费/Outbox，不扩展报价管理CRUD。未有付费授权继续仅实现与有界fixture验收，不读key/付费。
+
+上一goal轮为实码progress（753c928/Profile、正式增量迁移、1863/生产/当前3100验证并push）。本轮读当前worktree，CI34747523380仍in_progress，继续原作业。按已记录B2切口开始storeEpoch实际宿主来源，不把它冒充dataset/writeEpoch；随后首幕Quote主线，不扩展管理CRUD。
+
+2026-09-14用户纠偏：基础设施拆分过细，必须优先真正可玩的主流程。收紧实施，不再新增管理CRUD/通用抽象或长方案评审；同3100、已存配置、官方任务、私有媒体、播后回应为主线。此前epoch实码13RED→17GREEN、既有host集57GREEN、独立复核PASS保留并收尾。B1精确CI34747523380 success已核验。
+
+当前直接处理实际阻点：旧Web minimax-jobs无正式调用点且硬编码CN、仅凭HTTP状态声称拒绝，迁到runtime统一固定BindingVersion，CN/io明确路由、回执带operation/binding/account/region/model/hash、按原ref查询，同账户换key可查而跨账号拒绝；完整保留官方8个usage字段、响应有界、不自动重发POST。官方query文档本轮重新读取核验task_type/modality/usage/最近7天，create页本次timeout未假称成功。新15行为RED→GREEN；删旧无人使用实现，不保留兼容包装。仍未读密钥或调用付费模型，尚未完成持久worker及UI。
+
+transport自检补adapter版本RED，改为复用已有validateMiniMaxBinding/minimaxEndpoints统一约束，不再维护第二套地区/型号判断或兼容参数别名。测试直接由真实registry生成绑定，16项transport＋17项epoch及双端types通过。独立agent服务两次返回认证失败（外部审查服务故障，非MiniMax任务故障）；停止重复派发，不读取凭据修复，transport独立审查标记待补，不能声称已PASS。epoch上轮独立PASS保持其已审范围。
+
+当前原3100启动句柄已不存在且端口无监听，权威检查确认服务停止后才执行旧host显式init-epoch，实际exit0且不打印epoch/凭据，runtime --check通过，然后启动同目录同3100。上次完整主仓/production+原开局UI已通过，adapter约束最后小改后聚焦/类型也通过；最后全量/构建及当前原页面验证在继续。没有视频付费调用、没有新增用户剧情/图片业务数据。
+
+本轮最后主仓118文件1866/1866及runtime/Web类型exit0（/tmp/everwoven-transport-final-main.log）；最后production build及原开局/unknown/冷浏览器重入UI smoke exit0，当前3100原页面只读检查exit0。原连接码表单仍不存在。真实视频尚未在原页面播放，明确未闭环。transport独立复核因外部agent认证错误待补，不把主会话自检当独立PASS；现有epoch独立PASS限其范围。下一步按用户纠偏以完整纵向切片直接接start/任务/播放器/播后第二幕，不继续增加孤立管理能力。

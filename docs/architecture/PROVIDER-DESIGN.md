@@ -170,3 +170,7 @@ M2测试清单（每项记录输入证据、结果、版本，不只写pass）�
 ## M2-B1实施补记 · 2026-09-13
 
 ExecutionProfile内部固定原语已进入实现：同一BindingVersion表明确text/job判别，原视频parser仍拒绝text；planner/validator固定参数、输入模态、提示/输出schema版本摘要及阶段总调用/总费用上限，validator要求图像输入声明但不将其当已验证画面能力。一张不可变Profile表与同WriteGate三阶段引用核对，不新增第二registry/管理CRUD。[具体契约](../api/EXECUTION-PROFILE-M2-B.md)。这不是text供应商适配、报价、实际视频语义校验或费用授权完成；未知能力/价格仍需后续Quote阻断。
+
+## 2026-09-14 主流程接线修订
+
+旧Web端无调用点的minimax-jobs实现已移除，runtime版本消费固定BindingRecord，复用已有约束/地区目录；提交回执带原operation/binding/account/region/request摘要，原账户查询与key轮换分别处理。HTTP状态不作为确定未受理证据，响应有界，官方usage字段完整保留。该改动解决任务链的协议阻点，不代表Worker/付费/媒体闭环。[实施边界](../api/LOCAL-STORE-AUTHORITY.md)。用户要求优先可玩主流程，暂停额外管理界面和通用抽象。

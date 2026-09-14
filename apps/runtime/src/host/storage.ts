@@ -114,9 +114,15 @@ export async function recheckTarget(target: Target, identity?: Stats) {
   if (!sameFile(fresh.parentIdentity, target.parentIdentity)) throw new Error('LOCAL_HOST_INVALID');
   if (identity && !sameFile(await checkedDirectory(target.directory), identity)) throw new Error('LOCAL_HOST_INVALID');
 }
+async function assertNoRecoveryMarker(directory: string) {
+  if (await lstat(join(directory, 'recovery-pending.json')).catch(error => {if (error.code === 'ENOENT') return null; throw error;}))
+    throw Error('LOCAL_HOST_RECOVERY_REQUIRED');
+}
 export type ValidatedHost = {target: Target; identity: Stats; manifest: HostManifest};
 export async function validatedHost(directory: string, environment: LocalEnvironment): Promise<ValidatedHost> {
   const target = await targetDirectory(directory, environment), identity = await checkedDirectory(target.directory);
+  // Any recovery marker, including a partial file or symlink, quarantines normal host access.
+  await assertNoRecoveryMarker(target.directory);
   const manifest = parseManifest(await readSecureJSON(join(target.directory, 'manifest.json')), environment);
   await checkedFile(join(target.directory, 'runtime.db'));
   for (const suffix of ['-wal', '-shm', '-journal']) {
@@ -124,6 +130,7 @@ export async function validatedHost(directory: string, environment: LocalEnviron
   }
   for (const name of ['security', 'security/codes', 'security/sessions', 'security/claims']) await checkedDirectory(join(target.directory, name));
   await recheckTarget(target, identity);
+  await assertNoRecoveryMarker(target.directory);
   return {target, identity, manifest};
 }
 export async function readLocalHost(directory: string, environment: LocalEnvironment): Promise<HostManifest> {
@@ -175,6 +182,9 @@ export async function initializeHost(directory: string, environment: LocalEnviro
       const now = new Date(manifest.createdAt);
       await db.localProfile.create({data: {id: manifest.ownerId, displayName: 'Local owner', createdAt: now, updatedAt: now}});
     } finally {await db.$disconnect();}
+    // Persist generation authority before publishing the new host ready manifest.
+    const {createInitialStoreEpoch} = await import('./store-epoch.js');
+    await createInitialStoreEpoch({target, identity, manifest});
     await options.beforePublish?.();
     await recheckTarget(target, identity); await checkedFile(databasePath);
     for (const name of ['security', 'security/codes', 'security/sessions', 'security/claims']) await checkedDirectory(join(target.directory, name));

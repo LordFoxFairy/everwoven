@@ -9,6 +9,6 @@
 - [x] RED：严格契约、绑定模态、真实SQLite复用/漂移/跨owner/回滚/重启测试。
 - [x] GREEN：纯契约、窄in-scope原语与Prisma存储。没有网络、密钥读取、公开管理CRUD。
 - [x] 正式增量migration；完整批准迁移链+精确DDL指纹；只增一个真唯一键，零外键。不重写旧migration，不reset用户库。
-- [ ] 主仓测试/类型，生产构建/原页面回归，独立复核，文档、明确路径提交、精确CI（主仓1863/双端types、生产build/UI/HTTP/Studio、原3100只读和独立审查已通过；提交/CI待核验）。
+- [x] 主仓测试/类型，生产构建/原页面回归，独立复核，文档、明确路径提交、精确CI（主仓1863/双端types、生产build/UI/HTTP/Studio、原3100只读和独立审查已通过；753c928精确CI34747523380 completed/success）。
 
 Profile不是费用授权。下片紧接受控宿主storeEpoch与Quote，之后BudgetScope/原子接受/Outbox，再持久Worker和视频链。未有付费批准不调用模型。当前用户数据库若需升级，先停原进程、只应用已审查的增量迁移、核验再重启，不在HTTP中自动迁移。
