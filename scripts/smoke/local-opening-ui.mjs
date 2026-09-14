@@ -72,14 +72,17 @@ await withLocalBrowser(async ({page, origin, directory, datasetId, restart}) => 
     await cold.addInitScript(() => {Storage.prototype.getItem = Storage.prototype.setItem = () => {throw Error('Business storage disabled');}; IDBFactory.prototype.open = () => {throw Error('IndexedDB disabled');};});
     await cold.goto(origin, {waitUntil: 'networkidle'}); await cold.getByRole('status').filter({hasText: '已连接本机'}).waitFor();
     await cold.getByRole('button', {name: '我的游玩', exact: true}).click();
-    const entry = cold.getByRole('button', {name: '查看准备 海边的下一句话', exact: true}); await entry.waitFor();
+    const entry = cold.getByRole('button', {name: '进入故事 海边的下一句话', exact: true}); await entry.waitFor();
     if (process.env.SMOKE_LIBRARY_SCREENSHOT) await cold.screenshot({path: process.env.SMOKE_LIBRARY_SCREENSHOT});
-    await entry.click(); const reopened = cold.getByRole('dialog', {name: '正式故事准备', exact: true}); await reopened.waitFor();
-    await reopened.getByText('窗外的雨停了，画架旁的人转过身，看向你。', {exact: true}).waitFor();
-    await reopened.getByText('0 USD', {exact: true}).waitFor(); assert.equal(await reopened.getByRole('button', {name: '确认开局配置', exact: true}).count(), 0);
+    await entry.click(); const reopened = cold.getByRole('main', {name: '分段互动现场', exact: true}); await reopened.waitFor();
+    await reopened.getByText('故事已准备好', {exact: true}).waitFor();
+    await reopened.getByRole('heading', {name: '海边的下一句话', exact: true}).waitFor();
+    const sealedResponse = await cold.request.get(`${origin}/api/trpc/openings.getPreparing?input=${encodeURIComponent(JSON.stringify({protocolVersion:1,datasetId,id:accepted.data.id}))}`, {headers});
+    assert.equal(sealedResponse.status(),200);assert.deepEqual((await sealedResponse.json()).result.data,accepted.data);
+    assert.equal(await cold.locator('video').count(),0);
     await reopened.getByRole('button', {name: '返回我的游玩', exact: true}).click(); await expect(entry).toBeFocused();
     assert.deepEqual(writes, []); assert.deepEqual(bindings, []); assert.deepEqual(errors, []);
   } finally {await fresh.close();}
   console.log('Original preparation UI smoke passed: saved story -> authenticated provider choices -> explicit zero-budget opening -> committed/lost response -> close/reentry/navigation guard -> process restart -> exact original command replay -> separate current-state read. No browser business storage, no model request or fake video.');
-  console.log('Cold-browser experience reentry passed: original My Play library finds sealed preparation after source rename/deletion and provider config removal; exact world/budget, read-only reentry and focus return, zero CREATE or provider-directory requests.');
+  console.log('Cold-browser experience reentry passed: original My Play library finds sealed preparation after source rename/deletion and provider config removal; exact sealed world/budget via authenticated read, current stage reentry and focus return, zero CREATE or provider-directory requests.');
 });

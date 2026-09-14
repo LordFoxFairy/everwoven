@@ -1,3 +1,5 @@
+import {createPlaybackSessions,type VerifyPlaybackMedia} from './playback-sessions.js';
+import {recordPlayedSavepoint} from './played-savepoints.js';
 import {createHash} from 'node:crypto';
 import {Prisma, type PrismaClient} from '../generated/prisma/client.js';
 import {parseGetPlay, parseCompletePlayback, type GetPlayInput, type PlayDTO, type CompletePlaybackInput} from '../contracts/generation.js';
@@ -13,7 +15,7 @@ import {currentGenerationTurn} from './generation-current.js';
 
 /** Playback is available from persisted facts without loading today's provider configuration. */
 export function createGenerationPlayback(db: PrismaClient, owner: InternalOwnerContext, authority: LocalStoreAuthority,
- services: RuntimeServices = systemServices) {
+ services: RuntimeServices = systemServices, verifyMedia?:VerifyPlaybackMedia) {
  parseOwner(owner); parseId(authority.storeEpoch);
  if (authority.ownerId !== owner.ownerId || authority.datasetId !== owner.datasetId) throw Error('OWNER_UNAVAILABLE');
  const MAX_REVISION = 2147483647;
@@ -48,7 +50,7 @@ export function createGenerationPlayback(db: PrismaClient, owner: InternalOwnerC
    interaction: event && turn?.status === 'viewed' ? {id: event.id, summary: (turn.result as {summary: string}).summary, choices: event.options as NonNullable<PlayDTO['interaction']>['choices']} : null});
  }
  return {
-
+  ...createPlaybackSessions(db,owner,authority,services,verifyMedia),
   async get(input: GetPlayInput): Promise<PlayDTO> {
    const v = parseGetPlay(input); dataset(v); await authority.revalidate();
    return db.$transaction(tx => readPlay(tx, v.experienceId));
@@ -69,6 +71,11 @@ export function createGenerationPlayback(db: PrismaClient, owner: InternalOwnerC
     const now = currentTime(services, root.updatedAt), eventId = nextId(services), revision = root.revision + 1;
     let result: ReturnType<typeof parseSceneResult>;
     try {result = parseSceneResult(turn.result);} catch {throw Error('GENERATION_CONTENT_UNCONFIRMED');}
+    const proof=await tx.playbackSession.findFirst({where:{ownerId:owner.ownerId,datasetId:owner.datasetId,storeEpoch:authority.storeEpoch,
+     experienceId:root.id,experienceRevision:root.revision,turnId:turn.id,mediaId:v.mediaId,status:'complete'},orderBy:{updatedAt:'desc'}});
+    if(!proof||proof.expiresAt<=now||proof.coveredMs<proof.durationMs-250||proof.mediaHash!==(turn.media as {sha256?:unknown})?.sha256)throw Error('PLAYBACK_COVERAGE_INCOMPLETE');
+    if(proof.revision>=MAX_REVISION)throw Error('REVISION_EXHAUSTED');
+    await recordPlayedSavepoint(tx,owner,root,turn,proof,eventId,now,services);
     await tx.generationTurn.update({where: {id: turn.id}, data: {status: 'viewed', updatedAt: now, revision: {increment: 1}}});
     await tx.experience.update({where: {id: root.id}, data: {status: 'awaiting', revision, rowRevision: {increment: 1}, schedulingPaused: true, updatedAt: now}});
     await tx.interactionEvent.create({data: {id: eventId, ownerId: owner.ownerId, experienceId: root.id, kind: 'decision', experienceRevision: revision, options: json(result.choices), createdAt: now}});

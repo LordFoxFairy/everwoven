@@ -1,17 +1,19 @@
 import {v7} from 'uuid';
-import type {PlayDTO, QuoteDTO, AcceptGenerationInput, CompletePlaybackInput, ResponseDraftDTO, SaveResponseDraftInput} from 'runtime/contracts/generation';
+import type {PlayDTO, QuoteDTO, AcceptGenerationInput, CompletePlaybackInput, ResponseDraftDTO, SaveResponseDraftInput, PlaybackSessionDTO, PlaybackProgressInput} from 'runtime/contracts/generation';
 import {PlaybackClientError, type GenerationClient} from './playback-client';
 import type {PlayRoute} from './play-route';
 
 type Binding = {client: GenerationClient; connected: boolean; datasetId: string | null; invalidate: () => void};
 export type PlayState = {
  visible: boolean; connected: boolean; datasetChanged: boolean; experienceId: string | null; datasetId: string | null;
- play: PlayDTO | null; quote: QuoteDTO | null; reading: boolean; busy: 'quote' | 'accept' | 'playback' | 'draft' | null;
+ play: PlayDTO | null; quote: QuoteDTO | null; reading: boolean; busy: 'quote' | 'accept' | 'playback' | 'draft' | 'viewing' | 'progress' | null;
  acceptUnknown: boolean; playbackUnknown: boolean; error: string; draft: string; draftRecord: ResponseDraftDTO | null; draftUnknown: boolean; draftConflict: ResponseDraftDTO | null;
  lastMedia: {turnId: string; mediaId: string; duration: number} | null;
 };
 function message(error: unknown): string {
  const messages: Record<string, string> = {
+  PLAYBACK_COVERAGE_INCOMPLETE:'播放进度尚未完整确认，请重新播放这一幕后继续。',
+  PLAYBACK_SESSION_UNAVAILABLE:'播放会话已失效，请重新播放当前片段。',PLAYBACK_MEDIA_UNAVAILABLE:'本机视频暂时不可读，请检查文件后重新播放。',
   GENERATION_RUNTIME_UNAVAILABLE: '视频生成配置尚未就绪。请完成本机供应商与模型配置后重新开始，当前故事已保存。',
   GENERATION_PRICE_UNAVAILABLE: '这组模型的费用信息尚未就绪，暂时不能确认生成。',
   GENERATION_POLICY_UNAVAILABLE: '当前模型配置暂不可用，请检查本机设置。',
@@ -30,6 +32,8 @@ export class PlayController {
  private state: PlayState = {visible: false, connected: false, datasetChanged: false, experienceId: null, datasetId: null, play: null, quote: null,
   reading: false, busy: null, acceptUnknown: false, playbackUnknown: false, error: '', draft: '', draftRecord: null, draftUnknown: false, draftConflict: null, lastMedia: null};
  private binding: Binding | null = null;private epoch = 0;private sequence = 0;private flight: Promise<boolean> | null = null;
+ private viewSession:PlaybackSessionDTO|null=null;private lastProgressAt=0;
+ private progressCommand:PlaybackProgressInput|null=null;
  private draftCommand: SaveResponseDraftInput | null = null;
  private acceptCommand: AcceptGenerationInput | null = null;private playbackCommand: CompletePlaybackInput | null = null;
  private listeners = new Set<() => void>();
@@ -51,6 +55,7 @@ export class PlayController {
   if (this.flight || ((this.acceptCommand || this.draftCommand) && this.state.experienceId !== experienceId)) {this.publish({visible: true});return false;}
   const datasetId = restored?.datasetId ?? this.binding?.datasetId;if (!datasetId) return false;
   const different = this.state.experienceId !== experienceId || this.state.datasetId !== datasetId;
+  if (different) {this.viewSession=null;this.progressCommand=null;this.lastProgressAt=0;}
   this.sequence++;
   this.publish({visible: true, experienceId, datasetId, datasetChanged: datasetId !== this.binding?.datasetId, error: '',
    ...(different ? {play: null, quote: null, draft: '', draftRecord: null, draftUnknown: false, draftConflict: null, lastMedia: null, playbackUnknown: false} : {})});
@@ -78,6 +83,7 @@ export class PlayController {
  async close() {
   if (this.flight || this.state.draftConflict) return false;
   if (this.draftDirty() && !await this.saveDraft()) return false;
+  this.viewSession=null;this.progressCommand=null;this.lastProgressAt=0;
   this.sequence++;this.publish({visible: false, reading: false});
   if (!this.acceptCommand && !this.playbackCommand) this.route(null);
   return true;
@@ -203,10 +209,45 @@ export class PlayController {
   });
   await this.refresh();return accepted;
  }
- async ended(turnId: string, mediaId: string): Promise<boolean> {
+ async beginViewing():Promise<boolean> {
+  const play=this.state.play;if(!this.usable()||play?.status!=='playing'||!play.turn?.media||this.state.busy)return false;
+  if(this.viewSession?.turnId===play.turn.id&&this.viewSession.mediaId===play.turn.media.id)return true;
+  return this.command('viewing',async current=>{
+   const result=await this.binding!.client.beginPlayback({protocolVersion:1,datasetId:play.datasetId,experienceId:play.experienceId,expectedExperienceRevision:play.revision,turnId:play.turn!.id,mediaId:play.turn!.media!.id,commandId:v7()});
+   if(!current())return false;this.viewSession=result;this.lastProgressAt=0;return true;
+  });
+ }
+ restartViewing(){if(this.state.busy)return;this.viewSession=null;this.progressCommand=null;this.lastProgressAt=0;this.clearError();}
+ async reportCoverage(progress:{positionMs:number;coveredMs:number},force=false):Promise<boolean>{
+  if(this.state.busy==='progress'&&this.flight){if(!force)return true;await this.flight;}
+  const view=this.viewSession,play=this.state.play;
+  if(!this.usable()||this.state.busy||!view||play?.status!=='playing'||view.turnId!==play.turn?.id)return false;
+  if(view.status==='complete')return true;
+  if(!force&&Date.now()-this.lastProgressAt<1000)return true;
+  this.lastProgressAt=Date.now();
+  return this.command('progress',async current=>{
+   // A lost response can hide a committed sequence. Reconcile that exact free
+   // command before issuing another report, including the final ended report.
+   if(this.progressCommand){
+    const recovered=await this.binding!.client.reportPlayback(this.progressCommand);
+    if(!current())return false;this.viewSession=recovered;this.progressCommand=null;
+   }
+   const latest=this.viewSession!;
+   if(latest.status==='complete'||(!force&&Math.round(progress.coveredMs)<=latest.coveredMs))return true;
+   this.progressCommand={protocolVersion:1,datasetId:latest.datasetId,experienceId:latest.experienceId,commandId:v7(),playbackSessionId:latest.id,
+    sequence:latest.sequence+1,positionMs:Math.round(progress.positionMs),coveredMs:Math.round(progress.coveredMs)};
+   const result=await this.binding!.client.reportPlayback(this.progressCommand);
+   if(!current())return false;this.viewSession=result;this.progressCommand=null;return true;
+  });
+ }
+ async ended(turnId: string, mediaId: string, progress?:{positionMs:number;coveredMs:number}): Promise<boolean> {
+  if(this.state.busy==='progress'&&this.flight)await this.flight;
   if (!this.usable() || this.state.busy) return false;
   const play = this.state.play;
   if (!play || play.status !== 'playing' || play.turn?.id !== turnId || play.turn.media?.id !== mediaId) return false;
+  if(!this.playbackCommand){
+   if(!progress||!await this.reportCoverage(progress,true)||this.viewSession?.status!=='complete')return false;
+  }
   const input = this.playbackCommand ?? {protocolVersion: 1 as const, datasetId: play.datasetId, experienceId: play.experienceId,
    expectedExperienceRevision: play.revision, turnId, mediaId, commandId: turnId};
   this.playbackCommand = input;

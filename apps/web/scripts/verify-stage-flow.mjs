@@ -6,7 +6,7 @@ import {execFileSync} from 'node:child_process';
 import {createRequire} from 'node:module';
 const require=createRequire(new URL('../../../package.json',import.meta.url));
 const {chromium,expect}=require('@playwright/test'),{v7}=createRequire(new URL('../package.json',import.meta.url))('uuid');
-const origin='http://127.0.0.1:3100',experienceId=v7(),profileId=v7(),storyId=v7();let datasetId,turnId,mediaId,interactionId,quotes=0,accepts=0,acks=0,draftRevision=1,draft='',current='preparing',revision=1,quote;
+const origin='http://127.0.0.1:3100',experienceId=v7(),profileId=v7(),storyId=v7();let viewing;let datasetId,turnId,mediaId,interactionId,quotes=0,accepts=0,acks=0,draftRevision=1,draft='',current='preparing',revision=1,quote;
 const fixtureDirectory=await mkdtemp(join(tmpdir(),'everwoven-stage-browser-')),moviePath=join(fixtureDirectory,'fixture.mp4');
 execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-f','lavfi','-i','testsrc2=size=960x540:rate=24','-t','5','-an','-c:v','libx264','-pix_fmt','yuv420p','-movflags','+faststart',moviePath]);
 const movie=await readFile(moviePath);
@@ -28,6 +28,8 @@ try{
   if(path.startsWith('/api/trpc/generation.')){
    const action=path.split('.').at(-1),input=request.method()==='GET'?JSON.parse(url.searchParams.get('input')):request.postDataJSON();
    if(action==='get')return ok(projection());
+   if(action==='beginPlayback'){viewing={protocolVersion:1,datasetId,experienceId,id:v7(),turnId,mediaId,experienceRevision:revision,durationMs:5000,coveredMs:0,sequence:0,status:'active',expiresAt:new Date(Date.now()+1800000).toISOString()};return ok(viewing);}
+   if(action==='reportPlayback'){viewing={...viewing,sequence:input.sequence,coveredMs:Math.min(5000,input.coveredMs),status:input.coveredMs>=4750?'complete':'active'};return ok(viewing);}
    if(action==='getDraft')return ok({...input,text:draft,revision:draftRevision});
    if(action==='saveDraft'){draft=input.text;draftRevision=input.expectedDraftRevision+1;return ok({protocolVersion:1,datasetId,experienceId,interactionEventId:interactionId,text:draft,revision:draftRevision});}
    if(action==='quote'){quotes++;quote={protocolVersion:1,datasetId,experienceId,id:v7(),experienceRevision:revision,profileId,maxCostMicros:'10000',currency:'USD',expiresAt:new Date(Date.now()+300000).toISOString(),createdAt:new Date().toISOString(),summary:{title:'浏览器流程验收',prompt:input.text||'在用户设定的世界相遇',modelId:'fixture-video',region:'cn',duration:5,resolution:'768P',ratio:'16:9',audio:'silent',inputAssetIds:[]}};return ok({data:quote,replayed:false});}

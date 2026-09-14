@@ -52,9 +52,13 @@ sequenceDiagram
   W->>D: 保存私有媒体与核验结果
   C->>A: 轮询 get
   A-->>C: playing + 私有媒体ID
+  C->>A: beginPlayback（核验原私有媒体）
+  A->>D: 签发限时播放会话
   C->>C: 播放完整片段
+  C->>A: reportPlayback（顺序、连续覆盖）
+  A->>D: 记录进度，以会话总时长约束
   C->>A: completePlayback（commandId = turnId）
-  A->>D: 保存 viewed、decision、空回应草稿
+  A->>D: 原子保存 snapshot、savepoint、viewed、decision、空回应草稿
   A-->>C: awaiting / 情境建议
   Note over U,P: 等用户回应，不自动生成下一幕
 ```
@@ -69,6 +73,8 @@ sequenceDiagram
 | quote | POST | commandId、expectedExperienceRevision、kind；response还需interactionEventId、text | `{data:QuoteDTO,replayed}` |
 | getQuote | GET | quoteId | `{quote:QuoteDTO,acceptedTurnId:string或null}` |
 | accept | POST | commandId、expectedExperienceRevision、quoteId、consent:true | `{data:TurnDTO,replayed}` |
+| beginPlayback | POST | commandId、expectedExperienceRevision、turnId、mediaId | PlaybackSessionDTO |
+| reportPlayback | POST | commandId、playbackSessionId、sequence、positionMs、coveredMs | PlaybackSessionDTO |
 | completePlayback | POST | commandId、expectedExperienceRevision、turnId、mediaId | `{data:PlayDTO,replayed}` |
 | getDraft | GET | interactionEventId | ResponseDraftDTO |
 | saveDraft | POST | commandId、interactionEventId、expectedDraftRevision、text | ResponseDraftDTO |
@@ -83,7 +89,7 @@ PlayDTO/QuoteDTO/TurnDTO的完整严格结构以runtime/contracts/generation及g
 - getQuote证明已经接受时，直接读取当前进展。结果未知仍保留原命令。原命令明确返回报价过期，且服务端复查该报价未接受且已过期，才解除确认锁；普通4xx不替代这个证明。
 - get的响应以请求序号和连接epoch隔离。Worker推进阶段未必改变experienceRevision，因此不能只按revision判断新旧。
 - 草稿800ms空闲保存，报价和离开前再次保证保存。保存结果未知只核对原命令；另一窗口引发revision冲突时，读取新版本并让用户明确选择使用已保存回应或保存当前输入，不静默覆盖。
-- 播放通知丢失可重放相同turnId命令；HTTP回执成功后仍GET当前状态，不把历史回执当最新现场。浏览器检查played覆盖范围，服务端目前仍信任播放完成通知，尚非防伪观看凭据。
+- 播放通知丢失可重放相同turnId命令；HTTP回执成功后仍GET当前状态，不把历史回执当最新现场。浏览器检查played连续覆盖，服务端要求匹配当前owner/dataset/storeEpoch/经历修订/turn/媒体hash的完整限时会话。仅发送ended不会推进剧情。该机制是服务端计时约束下的客户端报告，不证明真人注意力。
 - 媒体播放错误只重新读取/重新加载原文件。失败与unknown不自动重新提交视频。
 - 首次accept检查宿主运行、profile和资产后，才创建预算预留/任务。原回执重放不要求当下模型配置存在。
 
@@ -105,8 +111,20 @@ PlayDTO/QuoteDTO/TurnDTO的完整严格结构以runtime/contracts/generation及g
 
 ## 数据与验收
 
-本轮复用ResponseDraft、CommandReceipt、GenerationQuote、GenerationTurn、RuntimeOutbox；没有新迁移、FK或业务唯一约束，未重置用户数据。下一幕通过parentTurnId连接上一幕。可选择旧节点的存档/fork界面及服务不在本次接线中宣称完成。
+新增第五迁移202609140003_qualified_savepoints：PlaybackSession、不可变StateSnapshot和Savepoint。累计26主键、17真实业务唯一、零FK。Savepoint(sourceTurnId)唯一：一个已播放回合只有一个正式存档节点；多次播放尝试和多个子节点均允许。下一幕通过parentTurnId连接上一幕，已播放存档同时记录parentSavepointId。可选择旧节点的存档/fork界面及服务不在本次接线中宣称完成。
 
 本地验证：`pnpm test`、`pnpm typecheck`；生产构建在独立依赖目录执行，避免破坏原3100开发服务。`node apps/web/scripts/verify-stage-flow.mjs`要求原3100已运行、Chrome/ffmpeg可用；仅在独立浏览器上下文拦截生成接口和旅程列表，以测试素材检查原页面播放、回应、刷新与第二幕，不写用户业务表、不调用供应商。真实SQLite→原HTTP→客户端→controller测试另见generation-flow.integration.test.ts。
 
-剩余真实闭环：核实供应商公开协议并安装配置、实际账单结算、完整播放凭据、存档/fork，以及明确预算授权后的真实两幕验收。当前没有该预算授权；零付费测试。
+剩余真实闭环：核实供应商公开协议并安装配置、实际账单结算、历史浏览/fork，以及明确预算授权后的真实两幕验收。当前没有该预算授权；零付费测试。
+
+## 播放会话与原子存档
+
+PlaybackSessionDTO除公共字段外含id、turnId、mediaId、experienceRevision、durationMs、coveredMs、sequence、status（active/complete）、expiresAt。首次begin核验本机原文件hash与metadata后签发30分钟会话；同commandId重放原结果。每次report使用下一sequence及独立commandId，进度单位毫秒，覆盖单调且不超过会话已过时间+350ms；片尾允许250ms解码误差。使用总时间避免网络抖动把正常播放误判成快进。
+
+前端约每秒报告；ended等待在途报告，再提交最终进度。报告回执丢失保留原commandId/sequence，先重放确认再发送下一条。明确重新加载媒体或退出后再进入会建立新的免费播放会话；不重交生成。旧completePlayback命令按原回执重放，刷新仍以get为准。
+
+播放完成在同一SQLite写事务中消费会话、写入snapshot/savepoint、更新回合viewed和经历awaiting、创建decision与空draft、写回执。任何一步失败全部回滚。快照绑定固定剧本/profile及hash、媒体与核验结果、父snapshot和已确认场景前缀；后续修改剧本不覆盖这些事实。当前没有历史列表/fork API，不能将这三张表当作分支功能已经完成。
+
+错误：PLAYBACK_MEDIA_UNAVAILABLE（文件不可读）、PLAYBACK_SESSION_UNAVAILABLE（会话失效）、PLAYBACK_PROGRESS_CONFLICT（序号冲突）、PLAYBACK_COVERAGE_INCOMPLETE（覆盖不足）、SAVEPOINT_SOURCE_UNAVAILABLE（来源完整性失败）。界面保留原视频与进展，重新播放不创建付费任务。
+
+浏览器验收：`node scripts/smoke/local-qualified-playback.mjs` 在一次性本机Host上使用同一生产应用、真实SQLite和本地ffmpeg测试片段，验证自然播放、原子存档、回应落库及进程重启。它不配置供应商，也不是模型生成验收。

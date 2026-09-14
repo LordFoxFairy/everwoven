@@ -2,14 +2,15 @@ import {beforeAll,afterAll,expect,it,vi} from 'vitest';
 import {v7} from 'uuid';
 import {PlayController} from './play-controller';
 import {PlaybackClientError,type GenerationClient} from './playback-client';
-import type {PlayDTO,QuoteDTO,ResponseDraftDTO} from 'runtime/contracts/generation';
+import type {PlayDTO,QuoteDTO,ResponseDraftDTO,PlaybackSessionDTO} from 'runtime/contracts/generation';
 const datasetId=v7(),experienceId=v7(),turnId=v7(),mediaId=v7(),interactionEventId=v7();
 const query={protocolVersion:1 as const,datasetId,experienceId};
 function fixture(){
  let play:PlayDTO={...query,title:'我的故事',revision:1,status:'preparing',turn:null,interaction:null};
  let draft:ResponseDraftDTO={...query,interactionEventId,text:'',revision:1};
  const quote:QuoteDTO={...query,id:v7(),experienceRevision:1,profileId:v7(),maxCostMicros:'100',currency:'USD',expiresAt:new Date(Date.now()+300000).toISOString(),createdAt:new Date().toISOString(),summary:{title:play.title,prompt:'用户的开场',modelId:'fixture',region:'cn',duration:5,resolution:'768P',ratio:'16:9',audio:'silent',inputAssetIds:[]}};
- const client={get:vi.fn(async()=>structuredClone(play)),getQuote:vi.fn<GenerationClient['getQuote']>(async()=>({quote,acceptedTurnId:null})),getDraft:vi.fn(async()=>structuredClone(draft)),
+ const session:PlaybackSessionDTO={...query,id:v7(),turnId,mediaId,experienceRevision:2,durationMs:5000,coveredMs:0,sequence:0,status:'active',expiresAt:new Date(Date.now()+1800000).toISOString()};
+ const client={beginPlayback:vi.fn(async()=>session),reportPlayback:vi.fn<GenerationClient['reportPlayback']>(async input=>({...session,coveredMs:input.coveredMs,sequence:input.sequence,status:input.coveredMs>=4750?'complete':'active'})),get:vi.fn(async()=>structuredClone(play)),getQuote:vi.fn<GenerationClient['getQuote']>(async()=>({quote,acceptedTurnId:null})),getDraft:vi.fn(async()=>structuredClone(draft)),
   saveDraft:vi.fn<GenerationClient['saveDraft']>(async input=>{draft={...query,interactionEventId,text:input.text,revision:input.expectedDraftRevision+1};return draft;}),
   quote:vi.fn<GenerationClient['quote']>(async input=>({data:{...quote,id:v7(),experienceRevision:input.expectedExperienceRevision,summary:{...quote.summary,prompt:input.kind==='response'?input.text:'用户的开场'}},replayed:false})),
   accept:vi.fn<GenerationClient['accept']>(async input=>{play={...play,status:'generating',revision:input.expectedExperienceRevision+1,interaction:null,turn:{id:turnId,status:'queued',media:null,errorCode:null}};return {data:{...query,id:turnId,quoteId:input.quoteId,status:'queued',createdAt:quote.createdAt},replayed:false};}),
@@ -18,12 +19,37 @@ function fixture(){
  return {controller,client,route,quote,setPlay:(p:PlayDTO)=>{play=p;},getPlay:()=>play,bind:()=>controller.bind({client,connected:true,datasetId,invalidate}),playing:()=>{play={...play,status:'playing',turn:{id:turnId,status:'ready',media:{id:mediaId,duration:5},errorCode:null}};}};
 }
 function deferred<T>(){let resolve!:(v:T)=>void,reject!:(e:unknown)=>void;const promise=new Promise<T>((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};}
+it('leaving mid-video and returning starts a fresh unpaid viewing session for the new video element',async()=>{
+ const f=fixture();f.playing();await f.controller.open(experienceId);await f.controller.beginViewing();
+ await f.controller.reportCoverage({positionMs:2000,coveredMs:2000},true);
+ expect(await f.controller.close()).toBe(true);
+ await f.controller.open(experienceId);expect(await f.controller.beginViewing()).toBe(true);
+ expect(f.client.beginPlayback).toHaveBeenCalledTimes(2);
+ expect(f.client.beginPlayback.mock.calls[0]).not.toEqual(f.client.beginPlayback.mock.calls[1]);
+ expect(await f.controller.reportCoverage({positionMs:1000,coveredMs:1000},true)).toBe(true);
+ expect(f.client.reportPlayback.mock.calls.at(-1)![0].sequence).toBe(1);
+ expect(f.client.accept).not.toHaveBeenCalled();expect(f.client.completePlayback).not.toHaveBeenCalled();
+});
+it.each([false,true])('ended waits for delayed progress and reconciles a lost receipt (%s) before the final sequence',async lost=>{
+ const f=fixture();f.playing();await f.controller.open(experienceId);await f.controller.beginViewing();
+ const pending=deferred<PlaybackSessionDTO>();f.client.reportPlayback.mockReturnValueOnce(pending.promise);
+ const reporting=f.controller.reportCoverage({positionMs:2000,coveredMs:2000},true);
+ const ending=f.controller.ended(turnId,mediaId,{positionMs:5000,coveredMs:5000});
+ expect(f.client.reportPlayback).toHaveBeenCalledOnce();expect(f.client.completePlayback).not.toHaveBeenCalled();
+ if(lost)pending.reject(new PlaybackClientError('PLAYBACK_NETWORK_ERROR',null,'unknown'));
+ else pending.resolve({...await f.client.beginPlayback.mock.results[0]!.value,coveredMs:2000,sequence:1});
+ await reporting;expect(await ending).toBe(true);
+ const calls=f.client.reportPlayback.mock.calls.map(([input])=>input);
+ if(lost)expect(calls[1]).toEqual(calls[0]);
+ expect(calls.at(-1)).toMatchObject({sequence:2,coveredMs:5000});
+ expect(f.client.completePlayback).toHaveBeenCalledOnce();expect(f.client.accept).not.toHaveBeenCalled();
+});
 it('opens without generating, quotes, accepts once, plays, then saves response before quoting next scene',async()=>{
  const f=fixture();await f.controller.open(experienceId);expect(f.client.quote).not.toHaveBeenCalled();expect(f.client.accept).not.toHaveBeenCalled();
  await f.controller.quote();expect(f.controller.getSnapshot().quote).not.toBeNull();await f.controller.accept();
  expect(f.controller.getSnapshot().play?.status).toBe('generating');expect(f.client.accept.mock.calls[0]![0].commandId).toBe(f.client.accept.mock.calls[0]![0].quoteId);
  f.playing();await f.controller.refresh();expect(f.controller.getSnapshot().play?.interaction).toBeNull();
- await f.controller.ended(turnId,mediaId);expect(f.controller.getSnapshot().play?.interaction?.choices).toHaveLength(2);
+ await f.controller.beginViewing();await f.controller.ended(turnId,mediaId,{positionMs:5000,coveredMs:5000});expect(f.controller.getSnapshot().play?.interaction?.choices).toHaveLength(2);
  await f.controller.quote('你好');expect(f.client.saveDraft).toHaveBeenCalledOnce();expect(f.client.quote.mock.calls[1]![0]).toMatchObject({kind:'response',text:'你好',interactionEventId});
  expect(f.client.accept).toHaveBeenCalledOnce();
 });
@@ -48,7 +74,7 @@ it('same-revision late reads are ignored and closing during GET does not reopen 
  const next=deferred<PlayDTO>();f.client.get.mockReturnValueOnce(next.promise);const more=f.controller.refresh();await f.controller.close();next.resolve(f.getPlay());await more;expect(f.controller.getSnapshot().visible).toBe(false);
 });
 it('restores persisted response and saves before leaving; unknown draft retry uses original command',async()=>{
- const f=fixture();await f.controller.open(experienceId);f.playing();await f.controller.refresh();await f.controller.ended(turnId,mediaId);
+ const f=fixture();await f.controller.open(experienceId);f.playing();await f.controller.refresh();await f.controller.beginViewing();await f.controller.ended(turnId,mediaId,{positionMs:5000,coveredMs:5000});
  f.controller.draft('还没说完');f.client.saveDraft.mockRejectedValueOnce(new PlaybackClientError('PLAYBACK_NETWORK_ERROR',null,'unknown'));
  expect(await f.controller.close()).toBe(false);expect(f.controller.getSnapshot().draft).toBe('还没说完');expect(f.controller.getSnapshot().draftUnknown).toBe(true);
  expect(await f.controller.close()).toBe(true);expect(f.client.saveDraft.mock.calls[1]![0]).toEqual(f.client.saveDraft.mock.calls[0]![0]);
@@ -59,7 +85,7 @@ it('configuration rejection is shown even if subsequent GET succeeds',async()=>{
  await f.controller.accept();expect(f.controller.getSnapshot()).toMatchObject({acceptUnknown:false});expect(f.controller.getSnapshot().error).toContain('配置尚未就绪');
 });
 it('draft conflict reloads revision, keeps input, and requires a decision before overwrite',async()=>{
- const f=fixture();await f.controller.open(experienceId);f.playing();await f.controller.refresh();await f.controller.ended(turnId,mediaId);f.controller.draft('我的新回应');
+ const f=fixture();await f.controller.open(experienceId);f.playing();await f.controller.refresh();await f.controller.beginViewing();await f.controller.ended(turnId,mediaId,{positionMs:5000,coveredMs:5000});f.controller.draft('我的新回应');
  f.client.saveDraft.mockRejectedValueOnce(new PlaybackClientError('REVISION_CONFLICT',409,'rejected'));
  f.client.getDraft.mockResolvedValue({...query,interactionEventId,revision:3,text:'另一个窗口的回应'});
  expect(await f.controller.saveDraft()).toBe(false);expect(f.controller.getSnapshot().draft).toBe('我的新回应');expect(f.controller.getSnapshot().draftConflict?.revision).toBe(3);

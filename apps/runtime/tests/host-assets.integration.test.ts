@@ -68,7 +68,7 @@ it('real bytes reach WebP ready, reconnect replays and a separate Node process r
   child.stdin.end(JSON.stringify({directory: f.directory, token: session.token, datasetId: f.manifest.datasetId, assetId: upload.assetId}));
   expect(await ended).toBe(0);
   expect(JSON.parse(output)).toEqual({ok: true, sha256: result.data.sha256, byteSize: bytes.length, mimeType: 'image/webp'});
-});
+},15000);
 it.each(['missing', 'revoked'])('rejects %s session before DB open or user callback', async mode => {
   const run = subject(); if (mode === 'revoked') await host.revokeSession(f.directory, 'dev', f.token);
   const open = vi.spyOn(databases, 'openRuntimeDatabase'), work = vi.fn();

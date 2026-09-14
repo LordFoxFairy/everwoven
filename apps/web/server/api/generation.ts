@@ -1,4 +1,4 @@
-import {parseGetResponseDraft,parseSaveResponseDraft,parseResponseDraft} from 'runtime/contracts/generation';
+import {parseGetResponseDraft,parseSaveResponseDraft,parseResponseDraft,parsePlaybackProgress,parsePlaybackSession} from 'runtime/contracts/generation';
 import {z} from 'zod';
 import {parseGetPlay, parseCompletePlayback, parseGenerationQuote, parseAcceptGeneration, parseGetQuote} from 'runtime/contracts/generation';
 import {parsePlayDTO, parsePlaybackResult, parseQuoteResult, parseAcceptResult, parseQuoteState} from 'runtime/contracts/generation-output';
@@ -33,6 +33,16 @@ const generationProcedure = publicMetadataProcedure.use(async ({ctx, next, type}
  } catch (error) {throw localGenerationError(error);}
 });
 export const generationRouter = createTRPCRouter({
+ beginPlayback:playbackProcedure.input(parser(parseCompletePlayback)).mutation(async({ctx,input})=>{
+  try{if(input.datasetId!==ctx.owner.datasetId)throw Error('DATASET_CHANGED');const data=parsePlaybackSession(await ctx.playback.beginPlayback(input));
+   if(data.datasetId!==input.datasetId||data.experienceId!==input.experienceId||data.turnId!==input.turnId||data.mediaId!==input.mediaId||data.experienceRevision!==input.expectedExperienceRevision)throw Error('INVALID_GENERATION_DTO');return data;
+  }catch(error){throw localGenerationError(error);}
+ }),
+ reportPlayback:playbackProcedure.input(parser(parsePlaybackProgress)).mutation(async({ctx,input})=>{
+  try{if(input.datasetId!==ctx.owner.datasetId)throw Error('DATASET_CHANGED');const data=parsePlaybackSession(await ctx.playback.reportPlayback(input));
+   if(data.datasetId!==input.datasetId||data.experienceId!==input.experienceId||data.id!==input.playbackSessionId||data.sequence!==input.sequence||data.coveredMs>input.coveredMs)throw Error('INVALID_GENERATION_DTO');return data;
+  }catch(error){throw localGenerationError(error);}
+ }),
  getDraft:generationProcedure.input(parser(parseGetResponseDraft)).query(async({ctx,input})=>{
   try {if(input.datasetId!==ctx.owner.datasetId)throw Error('DATASET_CHANGED');const data=parseResponseDraft(await ctx.generation.getDraft(input));
    if(data.datasetId!==input.datasetId||data.experienceId!==input.experienceId||data.interactionEventId!==input.interactionEventId)throw Error('INVALID_GENERATION_DTO');return data;

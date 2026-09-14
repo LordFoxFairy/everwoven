@@ -1,3 +1,5 @@
+import {createPlaybackSessions} from '../../../src/application/playback-sessions.js';
+import type {BeginPlaybackInput} from '../../../src/contracts/generation.js';
 import {vi} from 'vitest';
 import {v7} from 'uuid';
 import {fixture} from '../story-aggregate/setup.js';
@@ -35,5 +37,12 @@ export async function setup(budget = '1000000', withImage = false, customizeVide
  const generation = createGenerationService(f.db, f.owner, authority, policy, services);
  const quoteInput = {...f.protocol, commandId: v7(), experienceId: opening.id, expectedExperienceRevision: 1, kind: 'opening' as const};
  const acceptInput = (quoteId: string) => ({...f.protocol, commandId: v7(), experienceId: opening.id, expectedExperienceRevision: 1, quoteId, consent: true as const});
- return {...f, image, opening, authority, policy, services, evidence, generation, quoteInput, acceptInput, tick: (ms: number) => {now = new Date(now.getTime() + ms);}};
+ const playback=createPlaybackSessions(f.db,f.owner,authority,services,async()=>{});
+ const view=async(input:BeginPlaybackInput)=>{
+  const started=await playback.beginPlayback({...input,commandId:v7()});let sequence=0;
+  for(let covered=0;covered<started.durationMs;){const delta=Math.min(1000,started.durationMs-covered);covered+=delta;now=new Date(now.getTime()+delta);
+   await playback.reportPlayback({...f.protocol,experienceId:input.experienceId,commandId:v7(),playbackSessionId:started.id,sequence:++sequence,positionMs:covered,coveredMs:covered});
+  }
+ };
+ return {...f, playback, view, image, opening, authority, policy, services, evidence, generation, quoteInput, acceptInput, tick: (ms: number) => {now = new Date(now.getTime() + ms);}};
 }

@@ -23,7 +23,7 @@ export function ExperienceLibrary({controller, state, datasetId, connectionEpoch
       <dl><div><dt>固定地区</dt><dd>{item.region === 'cn' ? '中国区' : item.region === 'international' ? '国际区' : item.region}</dd></div>
         <div><dt>预算上限</dt><dd>{budgetToText(item.budget)} {item.budget.currency}</dd></div></dl>
       <footer><time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString('zh-CN')}</time><Button variant="outline" disabled={!state.connected || state.busy || state.reading}
-        aria-label={`进入故事 ${item.title}`} onClick={event => onOpen(item.id, event.currentTarget)}>进入故事<ArrowUpRight size={16}/></Button></footer>
+        data-experience-id={item.id} aria-label={`进入故事 ${item.title}`} onClick={event => onOpen(item.id, event.currentTarget)}>进入故事<ArrowUpRight size={16}/></Button></footer>
     </article>)}</div>
     {state.connected && state.listReady && !state.listLoading && !state.listError && state.items.length === 0 && <div className="empty"><BookOpen/><h3>你的第一段旅程，还没开始</h3><p>先写下世界与角色，再为这次开局确认配置。</p><Button onClick={onCreate}>创建剧本</Button></div>}
     {state.nextCursor && <Button variant="outline" disabled={!state.connected || state.listLoading} onClick={() => void controller.loadExperiences(true)}>加载更多旅程</Button>}

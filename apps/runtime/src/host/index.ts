@@ -136,6 +136,7 @@ export function maintainLocalAssets(directory: string, environment: LocalEnviron
 
 const playbackErrors = new Set(['CLIENT_RELOAD_REQUIRED', 'DATASET_CHANGED', 'OWNER_UNAVAILABLE', 'REVISION_CONFLICT',
   'IDEMPOTENCY_CONFLICT', 'REVISION_EXHAUSTED', 'INVALID_GENERATION_COMMAND', 'INVALID_GENERATION_QUERY',
+  'PLAYBACK_MEDIA_UNAVAILABLE','PLAYBACK_SESSION_UNAVAILABLE','PLAYBACK_PROGRESS_CONFLICT','PLAYBACK_COVERAGE_INCOMPLETE','SAVEPOINT_SOURCE_UNAVAILABLE',
   'EXPERIENCE_NOT_FOUND', 'GENERATION_NOT_PLAYABLE', 'GENERATION_CONTENT_UNCONFIRMED', 'STORE_AUTHORITY_UNAVAILABLE']);
 const generationErrors = new Set([...playbackErrors, 'GENERATION_QUOTE_NOT_FOUND', 'GENERATION_QUOTE_STALE', 'GENERATION_QUOTE_EXPIRED', 'GENERATION_QUOTE_CONSUMED',
  'GENERATION_NOT_AWAITING', 'GENERATION_BUDGET_EXCEEDED', 'GENERATION_STAGE_BUDGET_EXCEEDED', 'GENERATION_POLICY_UNAVAILABLE', 'GENERATION_PRICE_UNAVAILABLE',
@@ -151,10 +152,10 @@ export function withLocalGeneration<T>(directory: string, environment: LocalEnvi
 export function withLocalGenerationPlayback<T>(directory: string, environment: LocalEnvironment, token: string,
   work: (service: ReturnType<typeof createGenerationPlayback>, owner: InternalOwnerContext) => Promise<T>): Promise<T> {
   return withLocalDatabase(directory, environment, token, playbackErrors, 'LOCAL_GENERATION_FAILED',
-    async (db, owner, {revalidate}) => {
+    async (db, owner, {revalidate,host}) => {
       const captured = await acquireLocalStoreAuthority(directory, environment);
       const authority = {...captured, revalidate: async () => {await revalidate(); await captured.revalidate();}};
-      return work(createGenerationPlayback(db, owner, authority), owner);
+      return work(createGenerationPlayback(db, owner, authority, undefined, async metadata=>{const reader=await (await createPrivateVideoReader(host,owner,authority.revalidate)).open(metadata);await reader.close();}), owner);
     }, true);
 }
 

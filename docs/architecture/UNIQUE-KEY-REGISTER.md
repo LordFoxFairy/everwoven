@@ -57,3 +57,9 @@ BudgetReservation.id 和 RuntimeOutbox.id 分别复用本次 turnId，表示本�
 `TextUsageObservation(turnId,stage)` / `uq_text_usage_turn_stage`：当前执行图在一个回合的planner或validator阶段仅允许一次付费调用（封存maxCalls=1），所以各阶段最多一份首次响应观察。turnId为全局UUID、stage非空，所有者/数据集/存储代次由应用校验。相同观察重放；不同响应或用量报冲突，禁止覆盖。不同回合、不同阶段或不同供应商账户可以有相同responseId和用量，所以responseId、bindingHash、contentHash均不唯一。记录不可修改/软删除，不复用占号；后续供应商费用更正采用独立调整分录，不把此首次观察表扩成可覆盖账本。跨库导入必须重建所有权/代次，不直接复制引用。
 
 累计23个主键、16个真实业务唯一，零FK。新增普通索引`(ownerId,createdAt,id)`用于所有者范围的核账读取；不叠加冗余`(ownerId,id)`唯一。
+
+## 合格播放存档增量（2026-09-14）
+
+`Savepoint(sourceTurnId)` / `uq_savepoint_played_turn`：一个已接受并完整播放的回合至多生成一个正式played_segment节点。sourceTurnId非空、全局UUID；节点不可变、不软删除、不重复占号。重复complete命令重放回执，事务冲突回滚，禁止覆盖旧快照。不同回合可有同内容或同媒体hash；同回合允许多次PlaybackSession（重播、断线），因此turnId在播放会话表不唯一。parentSavepointId允许多个子节点，StateSnapshot.contentHash也不唯一。跨库迁移须重建所有者/数据集关系，不能仅复制引用。
+
+累计26个主键、17个真实业务唯一、零FK。当前Savepoint仅实现played_segment；未来fork_base须明确新的来源/可空语义，不能伪造新分支已经播放了原回合。

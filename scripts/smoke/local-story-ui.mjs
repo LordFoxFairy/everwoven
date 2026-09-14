@@ -209,7 +209,7 @@ await withLocalBrowser(async ({page, origin, datasetId, restart}) => {
   await prepare.click();
   const dialog = page.getByRole('dialog', {name: '正式故事准备', exact: true});
   await dialog.waitFor();
-  assert.match(await dialog.innerText(), /生成尚未接通/);
+  assert.match(await dialog.innerText(), /查看费用并确认生成/);
   assert.equal(await dialog.evaluate(element => element.contains(document.activeElement)), true);
   for (const key of ['Tab', 'Shift+Tab']) {
     await page.keyboard.press(key);

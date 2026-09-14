@@ -14,7 +14,7 @@ export function usePlayController() {
   const timer = setTimeout(() => void controller.refresh(), 2000);return () => clearTimeout(timer);
  }, [controller, state, connected]);
  useEffect(() => {
-  if (!state.busy && !controller.draftDirty()) return;
+  if ((!state.busy || ['viewing','progress'].includes(state.busy)) && !controller.draftDirty()) return;
   const guard = (event: BeforeUnloadEvent) => {event.preventDefault();event.returnValue = '';};
   window.addEventListener('beforeunload', guard);return () => window.removeEventListener('beforeunload', guard);
  }, [state.busy, state.draft]);

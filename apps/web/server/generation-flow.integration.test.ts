@@ -14,7 +14,7 @@ it('original HTTP/client/controller completes two SQLite turns with supplier fix
  const f=await setup();
  const origin='http://127.0.0.1:3100',env={APP_ORIGIN:origin,APP_ENV:'dev',EVERWOVEN_LOCAL_LAUNCH:'loopback-v1',RUNTIME_DATA_DIR:'/tmp/test-boundary-only'};
  host.withLocalGeneration.mockImplementation((_d,_e,_t,work)=>work(f.generation,f.owner));
- host.withLocalGenerationPlayback.mockImplementation((_d,_e,_t,work)=>work(f.generation,f.owner));
+ host.withLocalGenerationPlayback.mockImplementation((_d,_e,_t,work)=>work({...f.generation,...f.playback},f.owner));
  const fetch=vi.fn<typeof globalThis.fetch>(async(url,init)=>{
   const parsed=new URL(String(url),origin);if(parsed.origin!==origin)throw Error('EXTERNAL_NETWORK_FORBIDDEN');
   const headers=new Headers(init?.headers);headers.set('origin',origin);headers.set('cookie',`everwoven_local=${'a'.repeat(43)}`);
@@ -22,7 +22,7 @@ it('original HTTP/client/controller completes two SQLite turns with supplier fix
  });vi.stubGlobal('fetch',fetch);
  const transport=vi.fn<typeof globalThis.fetch>(async(_url,init)=>Response.json(init?.method==='POST'?{task_id:'fixture-task'}:{task:{id:'fixture-task',model:'MiniMax-H3-Max',status:'succeeded',task_type:'generation',modality:'video',ratio:'16:9',resolution:'768P',duration:5,content:{url:'https://media.example/fixture.mp4'}}}));
  const executor:GenerationExecutor={assertProfile:()=>{},plan:async context=>({prompt:context.action||'两人看向天空'}),jobs:binding=>createMiniMaxVideoJobs(binding,{apiKey:'TEST_ONLY',fetchImpl:transport}),
-  materialize:async()=>({id:v7(),sha256:'a'.repeat(64),duration:5}),validate:async()=>({summary:'两人在天台说话',choices:[{id:'ask',title:'问问对方',text:'你在看什么？'},{id:'watch',title:'一起看看',text:'我看向天空。'}]})};
+  materialize:async()=>({id:v7(),sha256:'a'.repeat(64),duration:5,durationMs:5000,byteSize:'1000',width:1366,height:768,codec:'h264',mimeType:'video/mp4'}),validate:async()=>({summary:'两人在天台说话',choices:[{id:'ask',title:'问问对方',text:'你在看什么？'},{id:'watch',title:'一起看看',text:'我看向天空。'}]})};
  const worker=createGenerationWorker(f.db,f.owner,f.authority,executor,f.services),client=createGenerationClient(),controller=new PlayController(vi.fn());
  controller.bind({client,connected:true,datasetId:f.owner.datasetId,invalidate:vi.fn()});
  try{
@@ -33,7 +33,7 @@ it('original HTTP/client/controller completes two SQLite turns with supplier fix
    expect(await controller.accept()).toBe(true);
    for(let stage=0;stage<5;stage++)expect(await worker.tick()).toBe(true);
    await controller.refresh();expect(controller.getSnapshot().play?.status).toBe('playing');expect(controller.getSnapshot().play?.interaction).toBeNull();
-   const {turn}=controller.getSnapshot().play!;expect(await controller.ended(turn!.id,turn!.media!.id)).toBe(true);
+   const {turn}=controller.getSnapshot().play!;expect(await controller.beginViewing()).toBe(true);f.tick(5000);expect(await controller.ended(turn!.id,turn!.media!.id,{positionMs:5000,coveredMs:5000})).toBe(true);
    expect(controller.getSnapshot().play?.interaction?.choices).toHaveLength(2);
    expect(await worker.tick()).toBe(false); // User decides; no autonomous third scene.
    if(n===0){controller.draft('尚未发送');expect(await controller.saveDraft()).toBe(true);const restored=new PlayController(vi.fn());restored.bind({client,connected:true,datasetId:f.owner.datasetId,invalidate:vi.fn()});await restored.open(f.opening.id);expect(restored.getSnapshot().draft).toBe('尚未发送');}

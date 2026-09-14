@@ -1,4 +1,4 @@
-import {afterAll,afterEach,beforeAll,beforeEach,expect,it} from 'vitest';
+import {afterAll,afterEach,beforeAll,beforeEach,expect,it,vi} from 'vitest';
 import {spawn,execFileSync} from 'node:child_process';
 import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
@@ -7,6 +7,9 @@ import {join} from 'node:path';
 import {v7} from 'uuid';
 import {issueConnectionCode,withLocalAssets} from '../src/host/index.js';
 import {prepare,dispose,fixture,type Fixture} from './fixtures/host-assets/setup.js';
+// Each case launches up to six real Node/TS processes. Budget startup separately
+// from the CLI's own bounded stdin/child deadlines, including on small CI runners.
+vi.setConfig({testTimeout:30000});
 let f:Fixture;beforeAll(prepare,30000);afterAll(dispose);beforeEach(async()=>{f=await fixture();});afterEach(async()=>{await f.close();});
 const cli=fileURLToPath(new URL('../src/host/cli.ts',import.meta.url)),tsx=createRequire(import.meta.url).resolve('tsx');
 function child(args:string[],input:string){

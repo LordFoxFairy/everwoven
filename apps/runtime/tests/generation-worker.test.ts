@@ -54,7 +54,7 @@ async function workerFixture(customizeVideo?: (binding: BindingSpec) => BindingS
   assertProfile: vi.fn(() => {}),
   plan: vi.fn(async () => ({prompt: '雨后的天台，两人望向天空。'})),
   jobs: binding => createMiniMaxVideoJobs(binding, {apiKey: 'TEST_ONLY', fetchImpl: transport}),
-  materialize: vi.fn(async () => ({id: v7(), sha256: 'a'.repeat(64), duration: 5})),
+  materialize: vi.fn(async () => ({id: v7(), sha256: 'a'.repeat(64), duration: 5, durationMs:5000, byteSize:'1000',width:1366,height:768,codec:'h264',mimeType:'video/mp4'})),
   validate: vi.fn(async () => ({summary: '两人在天台望向天空。', choices: [{id: 'ask', title: '问问对方', text: '你在看什么？'}, {id: 'watch', title: '一起看看', text: '我顺着他的视线看向天空。'}]})),
  };
  const worker = createGenerationWorker(f.db, f.owner, f.authority, executor, f.services);
@@ -143,6 +143,7 @@ it('completes two persisted turns: choices only after playback, free response dr
   const ready = await get(); expect(ready.status).toBe('playing'); expect(ready.interaction).toBeNull();
   await expect(f.generation.quote({...f.quoteInput, kind: 'response', commandId: v7(), expectedExperienceRevision: ready.revision, interactionEventId: v7(), text: '我想回屋拿一把伞。'})).rejects.toThrow('GENERATION_NOT_AWAITING');
   const completed = {...f.protocol, commandId: v7(), experienceId: f.opening.id, expectedExperienceRevision: ready.revision, turnId: ready.turn!.id, mediaId: ready.turn!.media!.id};
+  await f.view(completed);
   const played = await f.generation.completePlayback(completed);
   expect(played.data.status).toBe('awaiting'); expect(played.data.interaction!.choices).toHaveLength(2);
   expect(await f.generation.completePlayback(completed)).toEqual({...played, replayed: true});
@@ -167,6 +168,8 @@ it('reads and acknowledges saved playback after reopening SQLite without any pro
  const f = await workerFixture(); let reopened: Awaited<ReturnType<typeof openRuntimeDatabase>> | undefined;
  try {
   for (let i = 0; i < 5; i++) await f.worker.tick();
+  const beforeClose=await f.generation.get({...f.protocol,experienceId:f.opening.id});
+  await f.view({...f.protocol,experienceId:f.opening.id,commandId:v7(),expectedExperienceRevision:beforeClose.revision,turnId:beforeClose.turn!.id,mediaId:beforeClose.turn!.media!.id});
   const calls = f.transport.mock.calls.length;
   const files = await f.db.$queryRawUnsafe<Array<{file: string}>>('PRAGMA database_list'); await f.db.$disconnect();
   reopened = await openRuntimeDatabase(files[0]!.file);
@@ -201,8 +204,9 @@ it('keeps the logical current turn and parent across clock rollback through thre
   async function finishAndRespond() {
    for (let i = 0; i < 5; i++) await f.worker.tick();
    const ready = await get();
-   const played = await f.generation.completePlayback({...f.protocol, commandId: v7(), experienceId: f.opening.id,
-    expectedExperienceRevision: ready.revision, turnId: ready.turn!.id, mediaId: ready.turn!.media!.id});
+   const input={...f.protocol,commandId:v7(),experienceId:f.opening.id,expectedExperienceRevision:ready.revision,turnId:ready.turn!.id,mediaId:ready.turn!.media!.id};
+   await f.view(input);const played=await f.generation.completePlayback(input);
+   f.tick(-5000);
    const quote = await f.generation.quote({...f.protocol, kind: 'response', commandId: v7(), experienceId: f.opening.id,
     expectedExperienceRevision: played.data.revision, interactionEventId: played.data.interaction!.id, text: '一起回屋。'});
    return f.generation.accept({...f.acceptInput(quote.data.id), expectedExperienceRevision: played.data.revision});

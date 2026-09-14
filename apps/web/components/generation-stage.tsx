@@ -20,7 +20,7 @@ export function GenerationStage({controller, state, onExit}: {controller: PlayCo
   if (state.playbackUnknown && play?.turn?.media) {void controller.ended(play.turn.id, play.turn.media.id);return;}
   const route = readPlayRoute(window.location.hash);
   if (!state.quote && route?.quoteId) {void controller.open(route.experienceId, route);return;}
-  if (state.error && play?.status !== 'preparing') {controller.clearError();if(play?.turn?.media)setMediaRevision(n=>n+1);}
+  if (state.error && play?.status !== 'preparing') {controller.restartViewing();if(play?.turn?.media)setMediaRevision(n=>n+1);}
   if (play?.status === 'preparing') void controller.quote();else void controller.refresh();
  };
  const quote = state.quote;
@@ -29,7 +29,8 @@ export function GenerationStage({controller, state, onExit}: {controller: PlayCo
    experienceId: state.experienceId, turnId: saved.turnId, mediaId: saved.mediaId})} : {kind: 'empty', url: ''}}
   choices={play?.interaction?.choices ?? []} initialResponseDraft={state.draft} managedResponse responseDirty={controller.draftDirty()} responsePending={Boolean(state.busy) || state.reading || state.draftUnknown || Boolean(state.draftConflict)}
   onDraftChange={text => controller.draft(text)} onRespond={text => controller.quote(text)}
-  onEnded={() => {if (saved) void controller.ended(saved.turnId, saved.mediaId);}} onMediaError={() => controller.mediaFailed()}
+  onPlaybackStart={()=>controller.beginViewing()} onPlaybackProgress={progress=>controller.reportCoverage(progress)}
+  onEnded={progress => {if (saved) void controller.ended(saved.turnId, saved.mediaId,progress);}} onMediaError={() => controller.mediaFailed()}
   onExit={() => {void controller.close().then(closed => {if(closed)onExit();});}} onRetry={retry}
   storageError={state.error || (state.playbackUnknown ? '播放结果待确认，画面保留在这里。' : undefined)} onRetrySave={retry}
   statusDetail={state.acceptUnknown ? '上次生成确认的结果还没核对完成。可以核对原请求，或稍后回来继续。' : state.datasetChanged ? '请连接原数据集后继续这段旅程。'

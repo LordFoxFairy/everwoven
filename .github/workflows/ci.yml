@@ -29,7 +29,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Install local media verification tools
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
-      - run: pnpm test
+      # SQLite + real child-process checks share the runner's CPU and disk.
+      - run: pnpm test --maxWorkers=2
       - run: pnpm typecheck
       - run: pnpm build
       - run: docker compose config --quiet
@@ -89,6 +90,9 @@ jobs:
 
       - name: Verify private video decode, range and process restart with a local fixture
         run: node scripts/smoke/local-generation-media.mjs
+
+      - name: Verify natural playback, scene savepoint and response recovery without model calls
+        run: node scripts/smoke/local-qualified-playback.mjs
 
       - name: Save the tested image
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')

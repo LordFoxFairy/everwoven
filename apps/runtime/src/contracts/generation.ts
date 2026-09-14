@@ -80,3 +80,26 @@ export function parseResponseDraft(value: unknown): ResponseDraftDTO {
   return {...parseProtocol(value),experienceId:parseId(value.experienceId),interactionEventId:parseId(value.interactionEventId),revision:parseRevision(value.revision),text:value.text};
  }catch {throw Error('INVALID_GENERATION_DTO');}
 }
+
+export type BeginPlaybackInput = CompletePlaybackInput;
+export type PlaybackSessionDTO = GetPlayInput & {id:string;turnId:string;mediaId:string;experienceRevision:number;durationMs:number;coveredMs:number;sequence:number;status:'active'|'complete';expiresAt:string};
+export type PlaybackProgressInput = GetPlayInput & {commandId:string;playbackSessionId:string;sequence:number;positionMs:number;coveredMs:number};
+export function parsePlaybackProgress(value:unknown):PlaybackProgressInput {
+ const protocol=generationProtocol(value);
+ try {
+  fields(value,['protocolVersion','datasetId','experienceId','commandId','playbackSessionId','sequence','positionMs','coveredMs']);
+  for(const key of ['positionMs','coveredMs'])if(typeof value[key]!=='number'||!Number.isSafeInteger(value[key])||(value[key] as number)<0||(value[key] as number)>120250)throw Error();
+  return {...protocol,experienceId:parseId(value.experienceId),commandId:parseId(value.commandId),playbackSessionId:parseId(value.playbackSessionId),sequence:parseRevision(value.sequence),positionMs:value.positionMs as number,coveredMs:value.coveredMs as number};
+ }catch{throw Error('INVALID_GENERATION_COMMAND');}
+}
+export function parsePlaybackSession(value:unknown):PlaybackSessionDTO {
+ try {
+  fields(value,['protocolVersion','datasetId','experienceId','id','turnId','mediaId','experienceRevision','durationMs','coveredMs','sequence','status','expiresAt']);
+  if(!['active','complete'].includes(value.status as string)||typeof value.durationMs!=='number'||!Number.isSafeInteger(value.durationMs)||value.durationMs<1||value.durationMs>120250||
+    typeof value.coveredMs!=='number'||!Number.isSafeInteger(value.coveredMs)||value.coveredMs<0||value.coveredMs>value.durationMs||
+    typeof value.sequence!=='number'||!Number.isSafeInteger(value.sequence)||value.sequence<0||value.sequence>2147483647||
+    typeof value.expiresAt!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(value.expiresAt)||!Number.isFinite(Date.parse(value.expiresAt)))throw Error();
+  if(value.status==='complete'&&value.coveredMs<value.durationMs-250)throw Error();
+  return {...parseProtocol(value),experienceId:parseId(value.experienceId),id:parseId(value.id),turnId:parseId(value.turnId),mediaId:parseId(value.mediaId),experienceRevision:parseRevision(value.experienceRevision),durationMs:value.durationMs,coveredMs:value.coveredMs,sequence:value.sequence,status:value.status as 'active'|'complete',expiresAt:value.expiresAt};
+ }catch{throw Error('INVALID_GENERATION_DTO');}
+}

@@ -1,4 +1,4 @@
-import {parseGetResponseDraft,parseSaveResponseDraft,parseResponseDraft,type GetResponseDraftInput,type SaveResponseDraftInput,type ResponseDraftDTO} from 'runtime/contracts/generation';
+import {parseGetResponseDraft,parseSaveResponseDraft,parseResponseDraft,type GetResponseDraftInput,type SaveResponseDraftInput,type ResponseDraftDTO,parsePlaybackProgress,parsePlaybackSession,type BeginPlaybackInput,type PlaybackProgressInput,type PlaybackSessionDTO} from 'runtime/contracts/generation';
 import {createTRPCClient, httpLink, TRPCClientError} from '@trpc/client';
 import {parseGetPlay, parseCompletePlayback, parseGenerationQuote, parseAcceptGeneration, parseGetQuote, type GetPlayInput, type CompletePlaybackInput, type PlayDTO,
  type GenerationQuoteInput, type AcceptGenerationInput, type GetQuoteInput, type QuoteState} from 'runtime/contracts/generation';
@@ -11,6 +11,7 @@ export class PlaybackClientError extends Error {
     readonly status: number | null, readonly outcome: 'rejected' | 'unknown') {super(code);}
 }
 export type PlaybackClient = {
+ beginPlayback(input:BeginPlaybackInput):Promise<PlaybackSessionDTO>; reportPlayback(input:PlaybackProgressInput):Promise<PlaybackSessionDTO>;
   get(input: GetPlayInput): Promise<PlayDTO>;
   completePlayback(input: CompletePlaybackInput): Promise<PlaybackResult>;
 };
@@ -78,6 +79,12 @@ export function createGenerationClient(): GenerationClient {
    const data=parseResponseDraft(raw);if(data.datasetId!==q.datasetId||data.experienceId!==q.experienceId||data.interactionEventId!==q.interactionEventId)throw invalid();return data;
   }
   return {
+    beginPlayback:input=>call(parseCompletePlayback,input,q=>rpc.generation.beginPlayback.mutate(q),(raw,q)=>{
+     const data=parsePlaybackSession(raw);if(data.datasetId!==q.datasetId||data.experienceId!==q.experienceId||data.turnId!==q.turnId||data.mediaId!==q.mediaId||data.experienceRevision!==q.expectedExperienceRevision)throw invalid();return data;
+    }),
+    reportPlayback:input=>call(parsePlaybackProgress,input,q=>rpc.generation.reportPlayback.mutate(q),(raw,q)=>{
+     const data=parsePlaybackSession(raw);if(data.datasetId!==q.datasetId||data.experienceId!==q.experienceId||data.id!==q.playbackSessionId||data.sequence!==q.sequence||data.coveredMs>q.coveredMs)throw invalid();return data;
+    }),
     getDraft: input=>call(parseGetResponseDraft,input,q=>rpc.generation.getDraft.query(q),draftOutput),
     saveDraft: input=>call(parseSaveResponseDraft,input,q=>rpc.generation.saveDraft.mutate(q),(raw,q)=>{
      const data=draftOutput(raw,q);if(data.text!==q.text||data.revision!==q.expectedDraftRevision+1)throw invalid();return data;

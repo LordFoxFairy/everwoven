@@ -8,10 +8,11 @@ export type SegmentedStageProps = {
   title: string; context: string; phase: 'preparing' | 'loading' | 'generating' | 'watching' | 'awaiting' | 'confirming' | 'unknown' | 'failed';
   media: {kind: 'reference' | 'video' | 'empty'; url: string}; simulated: boolean;
   choices: {id: string; title: string; text: string}[];
-  onEnded: () => void; onRespond: (text: string) => boolean | Promise<boolean>; onExit: () => void;
+  onEnded: (progress?:{positionMs:number;coveredMs:number}) => void; onRespond: (text: string) => boolean | Promise<boolean>; onExit: () => void;
   onRetry: () => void; onFail?: () => void;
   initialResponseDraft?: string; onDraftChange?: (text: string) => void;
   storageError?: string; onRetrySave?: () => void;
+  onPlaybackStart?:()=>Promise<boolean>;onPlaybackProgress?:(progress:{positionMs:number;coveredMs:number})=>Promise<boolean>;
   managedResponse?: boolean; responsePending?: boolean; responseDirty?: boolean; onMediaError?: () => void;
   statusDetail?: string; retryLabel?: string; mediaRevision?: number; recoveryLabel?: string; overlay?: (container: HTMLElement | null) => ReactNode;
 };
@@ -23,6 +24,8 @@ export function SegmentedStage(props: SegmentedStageProps) {
   const [text, setText] = useState(props.initialResponseDraft || ''), [error, setError] = useState(''), [fit, setFit] = useState<'cover' | 'contain'>('cover');
   const [confirmation, setConfirmation] = useState<{type: 'leave'} | {type: 'replace' | 'respond'; text: string} | null>(null);
   const [responding, setResponding] = useState(false);const responseFlight = useRef(false);
+  const playbackGate=useRef<HTMLVideoElement|null>(null),startingVideo=useRef<HTMLVideoElement|null>(null);
+  function coverage(video:HTMLVideoElement){let covered=0;for(let i=0;i<video.played.length;i++){if(video.played.start(i)>covered+.25)break;covered=Math.max(covered,video.played.end(i));}return{positionMs:Math.round(video.currentTime*1000),coveredMs:Math.round(covered*1000)};}
   const portal = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLElement>(null), field = useRef<HTMLTextAreaElement>(null), reopen = useRef<HTMLButtonElement>(null);
   useEffect(() => {if (phase === 'awaiting') {setCollapsed(false);setExpress(Boolean(props.initialResponseDraft));} else if (phase === 'generating') {if(!props.managedResponse)setText('');setError('');}}, [phase]);
@@ -55,13 +58,21 @@ export function SegmentedStage(props: SegmentedStageProps) {
       requestAnimationFrame(() => reopen.current?.focus());
     }
   }}>
-    {media.kind === 'video' ? <video key={`${media.url}:${props.mediaRevision ?? 0}`} className={styles.media} style={{objectFit: fit}} src={media.url} playsInline controls autoPlay={phase === 'watching'} onError={props.onMediaError} onEnded={event => {
+    {media.kind === 'video' ? <video key={`${media.url}:${props.mediaRevision ?? 0}`} className={styles.media} style={{objectFit: fit}} src={media.url} playsInline controls autoPlay={phase === 'watching'} onError={props.onMediaError} onPlay={event=>{
+      if(!props.onPlaybackStart||phase!=='watching')return;
+      const video=event.currentTarget;if(playbackGate.current===video)return;video.pause();
+      if(startingVideo.current===video)return;startingVideo.current=video;video.currentTime=0;
+      void props.onPlaybackStart().then(ready=>{if(!video.isConnected)return;if(ready){playbackGate.current=video;void video.play().catch(()=>setError('点击播放，继续观看这一幕。'));}}).finally(()=>{if(startingVideo.current===video)startingVideo.current=null;});
+    }} onTimeUpdate={event=>{
+      const video=event.currentTarget;if(phase!=='watching'||video.paused||playbackGate.current!==video||!props.onPlaybackProgress)return;
+      void props.onPlaybackProgress(coverage(video)).then(ok=>{if(!ok&&video.isConnected)video.pause();});
+    }} onEnded={event => {
       if (phase !== 'watching') return;
       const video = event.currentTarget;
       // A seek to the end is not viewing the scene. Browser ranges are a UX check, not server-side attestation.
       let covered = 0;
       for (let i = 0; i < video.played.length; i++) {if (video.played.start(i) > covered + .25) break;covered = Math.max(covered, video.played.end(i));}
-      if (Number.isFinite(video.duration) && covered >= video.duration - .25) onEnded();
+      if (Number.isFinite(video.duration) && covered >= video.duration - .25) onEnded(coverage(video));
       else setError('还有一段画面尚未播放，请看完这一幕后继续。');
     }}/>
       : media.url ? <img className={styles.media} style={{objectFit: fit}} src={media.url} alt="当前故事的静态参考画面"/>
@@ -76,7 +87,7 @@ export function SegmentedStage(props: SegmentedStageProps) {
       <p>{props.statusDetail || context}</p>{['preparing', 'unknown'].includes(phase) && <button onClick={onRetry} disabled={props.responsePending}>{props.retryLabel || '读取当前进展'}<ArrowRight size={16}/></button>}
     </section>}
     {phase === 'generating' && <section className={styles.status} role="status"><strong>{simulated ? '模拟下一幕准备中…' : '下一幕正在生成'}</strong><p>{simulated ? '这里只演练等待与交互，不代表模型速度。' : '生成完成后即可观看。'}</p>{simulated && <button onClick={onFail}>模拟失败</button>}</section>}
-    {phase === 'watching' && simulated && <section className={styles.status}><p>{context}</p><button onClick={onEnded}>模拟片段结束 <ArrowRight size={16}/></button><small>目前没有生成视频；此按钮仅用于演练播放完成事件。</small></section>}
+    {phase === 'watching' && simulated && <section className={styles.status}><p>{context}</p><button onClick={()=>onEnded()}>模拟片段结束 <ArrowRight size={16}/></button><small>目前没有生成视频；此按钮仅用于演练播放完成事件。</small></section>}
     {phase === 'failed' && <section className={styles.status} role="alert"><strong>{simulated ? '模拟生成失败' : '这一幕暂时未完成'}</strong><p>{props.statusDetail || '当前设定仍然保留。'}</p><button onClick={onRetry}>{props.retryLabel || (simulated ? '重试这一幕' : '读取当前进展')}</button></section>}
     {phase === 'awaiting' && (collapsed ? <button className={styles.reopen} ref={reopen} onClick={() => setCollapsed(false)}>继续回应 <ArrowRight size={16}/></button>
       : <section className={styles.deck} aria-label="这一刻的回应">

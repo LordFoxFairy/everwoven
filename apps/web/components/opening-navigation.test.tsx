@@ -43,7 +43,7 @@ it('a fresh workspace discovers and reenters persisted preparation without a dra
   const save = vi.fn(); vi.mocked(createStoryDraftClient).mockReturnValue({create: save, update: save, get: vi.fn(), delete: vi.fn(), restore: vi.fn(),
     list: vi.fn(async () => ({protocolVersion: 1 as const, datasetId, items: [], totalMatching: 0, nextCursor: null}))});
   const get=vi.fn(async()=>({protocolVersion:1 as const,datasetId,experienceId:dto.id,title:dto.story.title,revision:1,status:'preparing',turn:null,interaction:null}));
-  vi.mocked(createGenerationClient).mockReturnValue({get,quote:vi.fn(),accept:vi.fn(),getQuote:vi.fn(),completePlayback:vi.fn(),getDraft:vi.fn(),saveDraft:vi.fn()});
+  vi.mocked(createGenerationClient).mockReturnValue({get,beginPlayback:vi.fn(),reportPlayback:vi.fn(),quote:vi.fn(),accept:vi.fn(),getQuote:vi.fn(),completePlayback:vi.fn(),getDraft:vi.fn(),saveDraft:vi.fn()});
   render(<Platform environment="dev" databaseEnabled/>); await screen.findByText('已连接本机'); fireEvent.click(screen.getByRole('button', {name: '我的游玩'}));
   const entry = await screen.findByRole('button', {name: `进入故事 ${dto.story.title}`}); fireEvent.click(entry);
   await screen.findByText('故事已准备好');expect(get).toHaveBeenCalledOnce();
