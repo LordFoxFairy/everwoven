@@ -6,6 +6,7 @@ import {v7} from 'uuid';
 import {createLocalProviderStartup} from '../src/host/provider-startup.js';
 import * as host from '../src/host/index.js';
 import {raceOpenedFile} from './local-host-races.js';
+import {parseBindingDirectory, parseExperienceOpeningResult} from '../src/contracts/experience-opening-output.js';
 let parent: string, directory: string, path: string, owner: {ownerId: string; datasetId: string};
 const configuration = () => ({schemaVersion: 1,
   connections: [{id: 'personal', providerId: 'minimax', region: 'international', accountScopeId: 'account-one', credentialRef: 'env:MINIMAX_API_KEY'}],
@@ -76,7 +77,10 @@ describe('one-time private host provider snapshot', () => {
     expect(raced.handles.every(handle => handle.fd === -1)).toBe(true);
   });
   it('exposes authenticated openings through the original host boundary', async () => {
-    await write();
+    const config = configuration();
+    config.connections.push({id: 'pollo-test', providerId: 'pollo', region: 'test', accountScopeId: 'pollo-account', credentialRef: 'env:POLLO_API_KEY'});
+    config.bindings.push({...config.bindings[0]!, bindingKey: 'video-pollo', connectionId: 'pollo-test'});
+    await write(config);
     const token = (await host.exchangeConnectionCode(directory, 'dev', await host.issueConnectionCode(directory, 'dev'))).token;
     await expect(host.withLocalExperienceOpenings(directory, 'dev', 'invalid', async s => s.bindings())).rejects.toThrow();
     await host.initializeLocalVideoProviders(directory, 'dev');
@@ -87,8 +91,11 @@ describe('one-time private host provider snapshot', () => {
       bindingKey: 'video', expectedBindingVersion: 1, budget: {limitMicros: '0', currency: 'USD' as const}};
     const result = await host.withLocalExperienceOpenings(directory, 'dev', token, async (s, o) => {
       expect(s.bindings()).toMatchObject({status: 'ready', datasetId: owner.datasetId});
+      expect(parseBindingDirectory(s.bindings()).items.find(item => item.providerId === 'pollo')).toMatchObject({modelId: 'minimax-hailuo-03-max', region: 'test', canDispatch: false});
       return s.create(o, command);
     });
+    const pollo = await host.withLocalExperienceOpenings(directory, 'dev', token, (s, o) => s.create(o, {...command, commandId: v7(), bindingKey: 'video-pollo'}));
+    expect(parseExperienceOpeningResult(pollo).data.binding).toMatchObject({providerId: 'pollo', modelId: 'minimax-hailuo-03-max', region: 'test'});
     await unlink(path);
     expect(await host.withLocalExperienceOpenings(directory, 'dev', token, (s, o) => s.create(o, command))).toEqual({...result, replayed: true});
     expect(await host.withLocalExperienceOpenings(directory, 'dev', token, (s, o) => s.getPreparing(o, {

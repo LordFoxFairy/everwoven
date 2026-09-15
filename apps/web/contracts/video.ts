@@ -1,11 +1,12 @@
 import {z} from 'zod';
+import {videoSuppliers, videoModels, type SupplierId, type ModelId} from 'runtime/contracts/video-deployments';
 
 // Wire data only. Never expose a credential, file path or Prisma record here.
 export const videoConfigurationSchema = z.object({
   available: z.boolean(),
   selection: z.object({
-    providerId: z.enum(['minimax', 'fal']),
-    modelId: z.enum(['minimax-h3', 'minimax-h3-max', 'h3-max-director']),
+    providerId: z.enum(Object.keys(videoSuppliers) as SupplierId[]),
+    modelId: z.enum(Object.keys(videoModels) as ModelId[]),
   }).strict().nullable(),
   reason: z.enum(['ready', 'unselected', 'unsupported', 'not-live', 'disabled', 'missing-key']),
 }).strict();

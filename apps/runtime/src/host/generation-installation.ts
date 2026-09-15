@@ -20,6 +20,8 @@ import {generationBindingHash} from '../application/generation.js';
 import {createPersistedGenerationExecutor} from '../composition/generation-executor.js';
 import {createOpenRouterText} from '../providers/openrouter-text.js';
 import {createMiniMaxVideoJobs} from '../providers/minimax-jobs.js';
+import {createPolloVideoJobs} from '../providers/pollo-jobs.js';
+import {validatePolloBinding} from '../providers/pollo-capabilities.js';
 import {createPrivateVideoStore} from '../infrastructure/media/private-video-store.js';
 import {createVideoDownloadSource} from '../infrastructure/media/video-download.js';
 import {createVideoProbe} from '../infrastructure/media/video-probe.js';
@@ -50,13 +52,13 @@ export async function loadGenerationInstallation(db: PrismaClient, host: Validat
   fields(raw.prices, ['planner', 'video', 'validator']);fields(raw.textInputBounds, ['planner', 'validator']);fields(raw.dimensions, ['width', 'height']);
   if (![raw.dimensions.width, raw.dimensions.height].every(x => typeof x === 'number' && Number.isSafeInteger(x) && x >= 64 && x <= 8192) ||
    !Array.isArray(raw.cdnHosts) || !raw.cdnHosts.length || raw.cdnHosts.length > 16 || raw.cdnHosts.some(x => typeof x !== 'string')) throw Error('GENERATION_CONFIGURATION_UNAVAILABLE');
-  // Only the official MiniMax adapter is installed here. A Pollo credential/configuration is a separate supplier.
-  if (profile.video.binding.providerId !== 'minimax' || profile.video.binding.parameters.operationKind !== 'text-to-video') throw Error('GENERATION_VIDEO_PROVIDER_UNAVAILABLE');
-  validateMiniMaxBinding(profile.video.binding);
+  const pollo = profile.video.binding.providerId === 'pollo';
+  if ((!pollo && profile.video.binding.providerId !== 'minimax') || profile.video.binding.parameters.operationKind !== 'text-to-video') throw Error('GENERATION_VIDEO_PROVIDER_UNAVAILABLE');
+  if (pollo) validatePolloBinding(profile.video.binding); else validateMiniMaxBinding(profile.video.binding);
   const artifacts=sceneArtifacts();
   if(!isDeepStrictEqual(profile.graph,artifacts.graph)||!isDeepStrictEqual(profile.planner.prompt,artifacts.planner.prompt)||!isDeepStrictEqual(profile.planner.outputSchema,artifacts.planner.outputSchema)||!isDeepStrictEqual(profile.validator.prompt,artifacts.validator.prompt)||!isDeepStrictEqual(profile.validator.outputSchema,artifacts.validator.outputSchema))throw Error('GENERATION_CONFIGURATION_UNAVAILABLE');
   assertGenerationDimensions(raw.dimensions.width as number,raw.dimensions.height as number,profile.video.binding.parameters.generation.ratio as string);
-  const credential = (ref: string, provider: 'OPENROUTER' | 'MINIMAX') => {
+  const credential = (ref: string, provider: 'OPENROUTER' | 'MINIMAX' | 'POLLO') => {
    if (!new RegExp(`^env:${provider}_[A-Z0-9_]+$`).test(ref)) throw Error('GENERATION_CREDENTIALS_UNAVAILABLE');
    const value = env[ref.slice(4)];if (!value?.trim()) throw Error('GENERATION_CREDENTIALS_UNAVAILABLE');return value;
   };
@@ -68,12 +70,16 @@ export async function loadGenerationInstallation(db: PrismaClient, host: Validat
     typeof evidence.source !== 'string' || !/^https:\/\/[^\s]+$/.test(evidence.source)) throw Error('GENERATION_INPUT_BOUND_UNAVAILABLE');
    return createOpenRouterText(binding, {apiKey: credential(binding.credentialRef, 'OPENROUTER'), countInputTokens: () => evidence.tokens as number});
   };
-  const planner = text('planner'), validator = text('validator'), videoKey = credential(profile.video.binding.credentialRef, 'MINIMAX');
+  const planner = text('planner'), validator = text('validator'), videoKey = credential(profile.video.binding.credentialRef, pollo ? 'POLLO' : 'MINIMAX');
+  // Test gateway is a separate credential; never borrow another supplier's Authorization header.
+  const basicAuth = pollo && profile.video.binding.parameters.region === 'test'
+   ? credential('env:POLLO_SERVICE_BASIC_AUTH_KEY', 'POLLO') : undefined;
+  const userAgent = pollo ? env.POLLO_SERVICE_UA : undefined;
   const evidence = {profile, prices: raw.prices as unknown as ReturnType<GenerationPolicy['resolve']>['prices'], audio: raw.audio as 'native' | 'silent',
    validatorImageLimit: raw.validatorImageLimit as number, artifactsReady: true as const};
   const dimensions = {width: raw.dimensions.width as number, height: raw.dimensions.height as number};
   const source = createVideoDownloadSource(raw.cdnHosts as string[]);
-  return {evidence, videoHash: generationBindingHash(profile.video.binding), planner, validator, videoKey, dimensions, source};
+  return {evidence, videoHash: generationBindingHash(profile.video.binding), planner, validator, videoKey, basicAuth, userAgent, dimensions, source};
  });
  if (new Set(records.map(r => r.videoHash)).size !== records.length) throw Error('GENERATION_CONFIGURATION_UNAVAILABLE');
  // Check local executables, without any model or media request.
@@ -87,14 +93,22 @@ export async function loadGenerationInstallation(db: PrismaClient, host: Validat
   return createPrivateVideoStore(host, owner, {source: record.source, probe: createVideoProbe(() => record.dimensions), revalidate: authority.revalidate});
  };
  const executor = createPersistedGenerationExecutor(db, owner, authority, {
-  assertVideoProfile: profile => {recordFor(profile);},
+  assertVideoProfile: profile => {
+   const record = recordFor(profile), binding = {...profile.snapshot.video.binding, id: profile.videoBindingVersionId, createdAt: profile.createdAt};
+   // Constructing an adapter is pure. Reject malformed gateway credentials before the first paid text call.
+   if (binding.providerId === 'pollo') createPolloVideoJobs(binding, {apiKey: record.videoKey, basicAuth: record.basicAuth, userAgent: record.userAgent});
+   else createMiniMaxVideoJobs(binding, {apiKey: record.videoKey});
+  },
   text: binding => {
    const hash = generationBindingHash(binding), model = records.flatMap(r => [r.planner, r.validator]).find(m => m.bindingHash === hash);
    if (!model) throw Error('GENERATION_PROFILE_UNAVAILABLE');return model;
   },
   jobs: binding => {
    const {id: _id, createdAt: _createdAt, ...spec} = binding, record = records.find(r => r.videoHash === generationBindingHash(spec));
-   if (!record) throw Error('GENERATION_PROFILE_UNAVAILABLE');return createMiniMaxVideoJobs(binding, {apiKey: record.videoKey});
+   if (!record) throw Error('GENERATION_PROFILE_UNAVAILABLE');
+   return binding.providerId === 'pollo'
+    ? createPolloVideoJobs(binding, {apiKey: record.videoKey, basicAuth: record.basicAuth, userAgent: record.userAgent})
+    : createMiniMaxVideoJobs(binding, {apiKey: record.videoKey});
   },
   materialize: async (context, video) => (await storeFor(context.profile)).materialize(context.turnId, video, context.signal),
   sample: async (context, media, signal) => {

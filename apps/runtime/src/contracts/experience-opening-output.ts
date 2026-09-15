@@ -8,6 +8,7 @@ import type {ExperienceOpeningDTO, ExperienceOpeningResult} from './experience-o
 import type {BindingDirectory, VideoBindingChoice} from './video-binding-registry.js';
 import {getDeployment} from './video-deployments.js';
 import {miniMaxRegion, validateMiniMaxGeneration} from '../providers/minimax-constraints.js';
+import {polloRegion, validatePolloGeneration} from '../providers/pollo-constraints.js';
 
 const invalid = () => Error('INVALID_EXPERIENCE_DTO');
 function publicBinding(v: unknown): PublicBinding {
@@ -50,7 +51,8 @@ function choice(v: unknown): VideoBindingChoice {
   const providerId = bindingLabel(v.providerId), catalogId = bindingLabel(v.catalogId), modelId = modelIdentifier(v.modelId);
   const deployment = getDeployment(providerId, catalogId);
   if (deployment.mode !== 'job' || deployment.endpoint !== modelId) throw invalid();
-  const generation = validateMiniMaxGeneration(modelId, v.operationKind as string, v.generation), region = miniMaxRegion(v.region);
+  const generation = providerId === 'pollo' ? validatePolloGeneration(modelId, v.operationKind as string, v.generation) : validateMiniMaxGeneration(modelId, v.operationKind as string, v.generation);
+  const region = providerId === 'pollo' ? polloRegion(v.region) : miniMaxRegion(v.region);
   return {bindingKey: bindingLabel(v.bindingKey), versionNo: parseRevision(v.versionNo), providerId, modelId, catalogId,
     connectionId: bindingLabel(v.connectionId), region, mode: 'job',
     operationKind: v.operationKind as VideoBindingChoice['operationKind'],

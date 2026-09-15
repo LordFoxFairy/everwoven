@@ -103,9 +103,9 @@ PlayDTO/QuoteDTO/TurnDTO的完整严格结构以runtime/contracts/generation及g
 - prices：三阶段StagePrice，币种、有效期、bindingHash、计量项完整；不在代码中猜测实时价格。
 - textInputBounds：planner/validator各自的method=context-window、modelId、tokens、source。tokens必须等于配置的maxInputTokens，作为运营者依据公开模型规格提供的保守上界；代码仅校验声明一致性，不代表已经在线验证metadata或精确计数。
 - audio、validatorImageLimit、dimensions、cdnHosts：固定媒体规格与下载白名单。提前检查像素总量、比例、官方视频规格和本机ffmpeg/ffprobe。
-- 凭据通过绑定credentialRef读取env:OPENROUTER_*或env:MINIMAX_*，只在服务端。不得把POLLO_API_KEY交给MiniMax官方域名。
+- 凭据通过绑定credentialRef读取env:OPENROUTER_*、env:MINIMAX_*或env:POLLO_*，只在服务端。不得把POLLO_API_KEY交给MiniMax官方域名。
 
-本安装器当前实现OpenRouter结构化文本与MiniMax官方text-to-video。Pollo和image-to-video尚未安装；需要实际供应商完整公开base/protocol/model ID后实现对应适配，不能凭截断截图推测。
+本安装器实现OpenRouter结构化文本、MiniMax官方与Pollo内部平台text-to-video。Pollo测试环境另需POLLO_SERVICE_BASIC_AUTH_KEY网关鉴权；独立账户、端点、native模型绑定，详见POLLO-PROVIDER-V1.md。image-to-video不在本安装范围。
 
 启动器在listener成功后开始处理已接受Outbox；关闭时取消lifetime、停止领取、等待阶段处理与drain、断开DB。仅明确SQLite锁错误有界退避重试tick，业务/供应商未知结果不直接重发。并发stop共享同一清理任务。启动会恢复已有已授权队列，因此操作真实宿主前须确认没有未授权的待执行任务；本轮本机无generation配置、无turn/Outbox。
 

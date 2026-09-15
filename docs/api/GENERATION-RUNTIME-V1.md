@@ -113,7 +113,7 @@ planning/submitting/validating 在调用前已持久化。租约过期后发现�
 | submit(operationId, prepared, signal?) | 一次提交；前面必须已经完成预算接受与持久阶段写入 |
 | read(reference, signal?) | 查询原供应商原账户的任务，不切换账户或自动重新提交 |
 
-适配器必须暴露绑定 ID 和摘要，Worker 在规划/提交/查询/下载恢复之前与封存 binding 比较。任务引用含显式 `providerId`，并由适配器及 Worker 双重核对 operationId、bindingId/hash、connectionId、accountScopeId、region、modelId。不存在按模型名称自动挑选供应商的回退。当前 MiniMax 官方适配器已实现该端口；POLLO 适配器仍待实际协议和模型 ID 确认，不把内部测试供应商注册为产品能力。
+适配器必须暴露绑定 ID 和摘要，Worker 在规划/提交/查询/下载恢复之前与封存 binding 比较。任务引用含显式 `providerId`，并由适配器及 Worker 双重核对 operationId、bindingId/hash、connectionId、accountScopeId、region、modelId。不存在按模型名称自动挑选供应商的回退。MiniMax 官方与 Pollo 内部平台均实现该端口。Pollo 模型为 `minimax-hailuo-03-max`，不是公开 v1 协议；真实账户/费用/视频验收仍待完成，详见 POLLO-PROVIDER-V1.md。
 
 归一化结果由 `parseVideoJobSnapshot` 在收到和重新读取 SQLite 时校验：succeeded 必须有 HTTPS 视频、正数时长与规格；非成功状态不携带视频；未知字段、凭据 URL、非有限/负费用计量被拒绝。结果 taskId 要匹配保存的任务引用，素材下载前再次核对报价规格，落地媒体时长也须匹配。缺少 usage 保持缺少，不变为零费用；实际结算仍待完成。
 
@@ -123,7 +123,7 @@ planning/submitting/validating 在调用前已持久化。租约过期后发现�
 flowchart LR
     W[GenerationWorker / 预算与恢复] --> P[VideoJobAdapter 统一端口]
     P --> M[MiniMax 官方适配器]
-    P -.协议待确认.-> N[POLLO 或后续供应商适配器]
+    P --> N[Pollo 内部平台适配器]
     M --> R[纯请求准备与固定账户引用校验]
     M --> H[官方提交 / 查询]
     H --> O[归一化任务结果]

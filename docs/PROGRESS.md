@@ -17,10 +17,10 @@
 | 主线 | 当前状态 | 剩余验收 |
 |---|---|---|
 | 前端 | 原创作页与单视频舞台接持久API，片尾建议/自由回应、草稿保存、刷新与退出恢复 | 真实供应商输出体验 |
-| 后端 | Host/Provider/Worker/私有视频、报价接受、播放会话、不可变存档与独立分支；29表/19业务唯一/零FK | 真实账单验收，Pollo公开接入资料 |
+| 后端 | Host/Provider/Worker/私有视频、报价接受、播放会话、不可变存档与独立分支；29表/19业务唯一/零FK | Pollo测试网关鉴权、真实视频与账单验收 |
 | 产品闭环 | 本地替身两幕链与原Host自然播放/重启验收通过 | 预算授权后的真实两幕与费用核对 |
 | 技术方案 | PLAY-FLOW-V1包含现行API、架构/时序、恢复；唯一键登记已同步 | 不用早期方案状态当作现状 |
-| 推进 | 本轮收尾原应用历史/分支恢复，不增加二期能力 | 提交现分支并核验同一commit的CI |
+| 推进 | 本轮按general_agent对接Pollo H3 Max，先无付费校验，再最小一幕实测 | 提交现分支并核验同一commit的CI |
 
 ## 已有证据（历史验证，不冒称本轮新跑）
 
@@ -669,3 +669,14 @@ API与技术方案更新：docs/api/PLAY-FLOW-V1.md及TECHNICAL-SOLUTION-V1入�
 本轮仍为零付费模型调用。真实两幕验收需要安装供应商—账户地区—model/价格证据配置以及明确测试总预算；用户Key未要求发到聊天。最终供应商账单对账、外部BYOK账单及事后追加调整没有完成声明。真实模型调用及费用结果未验证前，整体goal保持active。
 
 真实验收门禁：已询问实际视频Key供应商/公开协议与两幕测试总预算，尚未收到答复；这不是付费授权。实现和本地验收已继续完成。
+
+
+## 2026-09-14 · Pollo 原生平台接入与零生成预检
+
+用户提供OpenRouter/Pollo凭据和完整测试base，要求先充分检查、尽量一次成功；后指出general_agent已有实现。已核对其内部platform客户端与相邻ai-collection的H3 Max schema/状态/输出接口。新增Pollo独立能力、规格、任务适配；registry、Host安装器、原前端binding目录及供应商枚举同步。采用minimax-hailuo-03-max、5–15秒、480P/768P、单条未发布文生视频；拒绝公开v1/官方MiniMax协议混用。任务ID支持正安全整数无损转字符串；成功视频支持文档中的无水印字段；waiting/processing/succeed/failed按内部枚举映射。跨账户/环境恢复校验、提交不重试、跳转不跟随。
+
+本机私有provider-secrets.json已保存用户提供的三项配置（0600、仓库外）；没有把凭据放进源码或提交。新只读scripts/provider-preflight.mjs只有GET，按供应商隔离鉴权，输出不含原始响应与密钥。实测OpenRouter Key查询HTTP200；Pollo测试GET携带Key与general_agent UA仍HTTP302到飞书认证，未跟随。用户是否授权复用general_agent本机POLLO_SERVICE_BASIC_AUTH_KEY的异步问题待回复，未读取该项目网关密钥、未提交任何收费生成。
+
+代码审核发现并修正数字ID、无水印结果、原目录MiniMax专属校验、测试Basic凭据串到生产预检等问题。首次生产构建另暴露前端枚举重复维护，现改为从共享供应商/model目录推导。主仓全量143文件2224测试通过；最后两项修改另跑14定向测试全部通过；runtime类型检查与独立树完整生产build/typecheck通过。日志：/tmp/everwoven-pollo-fulltests.log、/tmp/everwoven-pollo-last-focused.log、/tmp/everwoven-pollo-finalbuild.log、/tmp/everwoven-pollo-typecheck-all.log。真实Host测试覆盖Pollo目录→创建开局→公共DTO，无模型调用。
+
+未完成：测试网关鉴权、该账号H3 Max最小规格的询价/货币口径、精确媒体尺寸/CDN策略与正式generation profile、真实一幕生成。原有USD/CNY预算不把内部credit或general_agent倍率冒充美元费用。请求预期的时长不当成计费usage。未修改业务数据库，未宣称产品闭环或实测成功。具体协议与一次性最小验收步骤见docs/api/POLLO-PROVIDER-V1.md。

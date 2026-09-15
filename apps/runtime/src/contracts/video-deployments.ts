@@ -1,6 +1,7 @@
 /** Public metadata only: never put credentials or tenant base URLs here. */
 export const videoSuppliers={
  minimax:{id:'minimax',label:'MiniMax 官方'},
+ pollo:{id:'pollo',label:'Pollo'},
  fal:{id:'fal',label:'fal'},
 } as const;
 export const videoModels={
@@ -12,11 +13,12 @@ export type SupplierId=keyof typeof videoSuppliers;
 export type ModelId=keyof typeof videoModels;
 export type ModelSelection={providerId:SupplierId;modelId:ModelId};
 export type VideoDeployment=ModelSelection & {
- endpoint:string;mode:'live'|'job';adapter:'fal-wma'|'minimax-v2';
+ endpoint:string;mode:'live'|'job';adapter:'fal-wma'|'minimax-v2'|'pollo-platform';
 };
 const deployments:readonly VideoDeployment[]=[
  {providerId:'minimax',modelId:'minimax-h3',endpoint:'MiniMax-H3',mode:'job',adapter:'minimax-v2'},
  {providerId:'minimax',modelId:'minimax-h3-max',endpoint:'MiniMax-H3-Max',mode:'job',adapter:'minimax-v2'},
+ {providerId:'pollo',modelId:'minimax-h3-max',endpoint:'minimax-hailuo-03-max',mode:'job',adapter:'pollo-platform'},
  {providerId:'fal',modelId:'h3-max-director',endpoint:'minimax/h3-max/director',mode:'live',adapter:'fal-wma'},
 ];
 export function getDeployment(providerId:string,modelId:string):VideoDeployment{
